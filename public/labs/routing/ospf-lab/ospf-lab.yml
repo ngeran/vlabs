@@ -1,0 +1,13 @@
+title: OSPF Lab
+description: Learn how OSPF works in multi-area topologies.
+duration: 30 minutes
+difficulty: Intermediate
+overview: >
+  This lab covers the configuration and behavior of OSPF in multi-area environments.
+prerequisites:
+  - Basic routing knowledge
+  - Familiarity with Cisco CLI
+objectives:
+  - Configure OSPF on routers
+  - Understand OSPF areas
+  - Troubleshoot neighbor issues

@@ -14,7 +14,7 @@ const LabCard = ({ lab, onViewDetails, onStartLab }) => {
         <img
           src={`/labs/${lab.category}/${lab.slug}/topology.png`}
           alt={`${lab.title} topology`}
-          className="h-48 sm:h-56 w-full object-cover bg-gray-100"
+          className="w-[400px] h-[200px] object-cover bg-gray-100" // Adjusted to 400x200px
           onError={(e) => {
             e.target.style.display = "none";
             const parent = e.target.parentElement;
@@ -24,8 +24,8 @@ const LabCard = ({ lab, onViewDetails, onStartLab }) => {
               "items-center",
               "justify-center",
               "text-gray-500",
-              "h-48",
-              "sm:h-56",
+              "w-[400px]", // Also adjust the fallback div size
+              "h-[200px]", // Also adjust the fallback div size
             );
             parent.innerHTML =
               '<span class="text-sm font-medium">Topology image not available</span>';

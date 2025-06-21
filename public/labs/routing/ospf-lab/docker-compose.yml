@@ -1,0 +1,349 @@
+services:
+  # Provider Edge Routers
+  pe1:
+    image: crpd:23.4R2-S4.11
+    container_name: pe1
+    hostname: pe1
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.8
+      pe1_p1:
+        ipv4_address: 10.255.100.35
+      pe1_p3:
+        ipv4_address: 10.255.100.91
+      pe1_ce1:
+        ipv4_address: 10.255.100.122
+      loop_net:
+        ipv4_address: 10.100.255.8
+    volumes:
+      - ./configs/pe1.conf:/config
+      - ./varlog/pe1:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+  pe2:
+    image: crpd:23.4R2-S4.11
+    container_name: pe2
+    hostname: pe2
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.9
+      pe2_p2:
+        ipv4_address: 10.255.100.67
+      pe2_p4:
+        ipv4_address: 10.255.100.107
+      pe2_ce2:
+        ipv4_address: 10.255.100.130
+      loop_net:
+        ipv4_address: 10.100.255.9
+    volumes:
+      - ./configs/pe2.conf:/config
+      - ./varlog/pe2:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+  # Provider Core Routers
+  p1:
+    image: crpd:23.4R2-S4.11
+    container_name: p1
+    hostname: p1
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.2
+      pe1_p1:
+        ipv4_address: 10.255.100.34
+      p1_p2:
+        ipv4_address: 10.255.100.2
+      p1_p3:
+        ipv4_address: 10.255.100.10
+      p1_p4:
+        ipv4_address: 10.255.100.18
+      p1_rr1:
+        ipv4_address: 10.255.100.26
+      loop_net:
+        ipv4_address: 10.100.255.2
+    volumes:
+      - ./configs/p1.conf:/config
+      - ./varlog/p1:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+  p2:
+    image: crpd:23.4R2-S4.11
+    container_name: p2
+    hostname: p2
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.3
+      pe2_p2:
+        ipv4_address: 10.255.100.66
+      p1_p2:
+        ipv4_address: 10.255.100.3
+      p2_p3:
+        ipv4_address: 10.255.100.42
+      p2_p4:
+        ipv4_address: 10.255.100.50
+      p2_rr1:
+        ipv4_address: 10.255.100.58
+      loop_net:
+        ipv4_address: 10.100.255.3
+    volumes:
+      - ./configs/p2.conf:/config
+      - ./varlog/p2:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+  p3:
+    image: crpd:23.4R2-S4.11
+    container_name: p3
+    hostname: p3
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.4
+      pe1_p3:
+        ipv4_address: 10.255.100.90
+      p1_p3:
+        ipv4_address: 10.255.100.11
+      p2_p3:
+        ipv4_address: 10.255.100.43
+      p3_p4:
+        ipv4_address: 10.255.100.74
+      p3_rr2:
+        ipv4_address: 10.255.100.82
+      loop_net:
+        ipv4_address: 10.100.255.4
+    volumes:
+      - ./configs/p3.conf:/config
+      - ./varlog/p3:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+  p4:
+    image: crpd:23.4R2-S4.11
+    container_name: p4
+    hostname: p4
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.5
+      pe2_p4:
+        ipv4_address: 10.255.100.106
+      p1_p4:
+        ipv4_address: 10.255.100.19
+      p2_p4:
+        ipv4_address: 10.255.100.51
+      p3_p4:
+        ipv4_address: 10.255.100.75
+      p4_rr2:
+        ipv4_address: 10.255.100.98
+      loop_net:
+        ipv4_address: 10.100.255.5
+    volumes:
+      - ./configs/p4.conf:/config
+      - ./varlog/p4:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+  # Route Reflectors
+  rr1:
+    image: crpd:23.4R2-S4.11
+    container_name: rr1
+    hostname: rr1
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.6
+      p1_rr1:
+        ipv4_address: 10.255.100.27
+      p2_rr1:
+        ipv4_address: 10.255.100.59
+      rr1_rr2:
+        ipv4_address: 10.255.100.114
+      loop_net:
+        ipv4_address: 10.100.255.6
+    volumes:
+      - ./configs/rr1.conf:/config
+      - ./varlog/rr1:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+  rr2:
+    image: crpd:23.4R2-S4.11
+    container_name: rr2
+    hostname: rr2
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.7
+      p3_rr2:
+        ipv4_address: 10.255.100.83
+      p4_rr2:
+        ipv4_address: 10.255.100.99
+      rr1_rr2:
+        ipv4_address: 10.255.100.115
+      loop_net:
+        ipv4_address: 10.100.255.7
+    volumes:
+      - ./configs/rr2.conf:/config
+      - ./varlog/rr2:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+  # Customer Edge Routers
+  ce1:
+    image: crpd:23.4R2-S4.11
+    container_name: ce1
+    hostname: ce1
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.10
+      pe1_ce1:
+        ipv4_address: 10.255.100.123
+      loop_net:
+        ipv4_address: 10.100.255.10
+    volumes:
+      - ./configs/ce1.conf:/config
+      - ./varlog/ce1:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+  ce2:
+    image: crpd:23.4R2-S4.11
+    container_name: ce2
+    hostname: ce2
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.11
+      pe2_ce2:
+        ipv4_address: 10.255.100.131
+      loop_net:
+        ipv4_address: 10.100.255.11
+    volumes:
+      - ./configs/ce2.conf:/config
+      - ./varlog/ce2:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+networks:
+  # PE to P connections (/29 networks from 10.255.100.0/24)
+  pe1_p1:
+    name: pe1_p1
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.32/29
+  pe2_p2:
+    name: pe2_p2
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.64/29
+  pe1_p3:
+    name: pe1_p3
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.88/29
+  pe2_p4:
+    name: pe2_p4
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.104/29
+
+  # P to P full mesh connections (/29 networks)
+  p1_p2:
+    name: p1_p2
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.0/29
+  p1_p3:
+    name: p1_p3
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.8/29
+  p1_p4:
+    name: p1_p4
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.16/29
+  p2_p3:
+    name: p2_p3
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.40/29
+  p2_p4:
+    name: p2_p4
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.48/29
+  p3_p4:
+    name: p3_p4
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.72/29
+
+  # RR connections (/29 networks)
+  p1_rr1:
+    name: p1_rr1
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.24/29
+  p2_rr1:
+    name: p2_rr1
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.56/29
+  p3_rr2:
+    name: p3_rr2
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.80/29
+  p4_rr2:
+    name: p4_rr2
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.96/29
+  rr1_rr2:
+    name: rr1_rr2
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.112/29
+
+  # Customer connections (/29 networks)
+  pe1_ce1:
+    name: pe1_ce1
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.120/29
+  pe2_ce2:
+    name: pe2_ce2
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.100.128/29
+
+  # Shared management network
+  mgmt_net:
+    name: mgmt_net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
+
+  # Loopback network for management
+  loop_net:
+    name: loop_net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.100.255.0/24

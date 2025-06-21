@@ -1,3 +1,5 @@
+// vlabs/src/components/LabModal.jsx
+
 import React, { useState, useEffect } from "react";
 import {
   X,
@@ -15,20 +17,38 @@ import {
   Globe,
 } from "lucide-react";
 import getDifficultyColor from "../utils/getDifficultyColor";
-import labLauncher from "../utils/labLauncher";
+// --- CORRECTED IMPORT from previous step ---
+import {
+  launchLab,
+  stopLab,
+  getLabStatus,
+  onLabStatusChange,
+  offLabStatusChange,
+} from "../utils/labLauncher";
+
 import yaml from "js-yaml";
+import ReactMarkdown from "react-markdown";
 
 const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
-  const [activeTab, setActiveTab] = useState("overview");
-  const [labData, setLabData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const safeLab = lab || {};
+  // Use lab.slug for consistency with how labs are identified in paths and the store
+  const labIdentifier = `/labs/${safeLab.category}/${safeLab.slug}`; // Changed to full path as identifier
 
-  // Lab launch state
-  const [labStatus, setLabStatus] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [labData, setLabData] = useState(null); // Parsed YAML content
+  const [isLoading, setIsLoading] = useState(false); // For YAML loading
+
+  // Lab launch/runtime state
+  const [labStatus, setLabStatus] = useState(
+    labIdentifier ? getLabStatus(labIdentifier)?.status : null,
+  );
   const [isLaunching, setIsLaunching] = useState(false);
   const [launchError, setLaunchError] = useState(null);
-  const [labProgress, setLabProgress] = useState(null);
+  const [labProgress, setLabProgress] = useState(
+    labIdentifier ? getLabStatus(labIdentifier) : null,
+  );
 
+  // Effect to load YAML content and check existing lab status when modal opens or lab changes
   useEffect(() => {
     if (isOpen && lab) {
       loadYamlContent();
@@ -36,12 +56,13 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
     }
   }, [isOpen, lab]);
 
+  // Effect for setting up and tearing down lab status event listeners
   useEffect(() => {
-    if (lab && isOpen) {
-      const labId = `${lab.category}-${lab.slug}`;
-
-      // Set up event listeners for lab status changes
+    if (isOpen && labIdentifier) {
       const handleStatusChange = (data) => {
+        // Ensure the event is for *this* labIdentifier if the listener is global
+        if (data.id !== labIdentifier) return;
+
         setLabStatus(data.status);
         setLabProgress(data);
 
@@ -53,44 +74,58 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
           setLaunchError(null);
         } else if (data.status === "completed") {
           setIsLaunching(false);
+        } else if (data.status === "stopped") {
+          setIsLaunching(false);
+          setLaunchError(null);
         }
       };
 
-      labLauncher.addEventListener(labId, "statusChange", handleStatusChange);
+      // --- Use the named export functions from labLauncher ---
+      onLabStatusChange(labIdentifier, handleStatusChange);
 
       return () => {
-        labLauncher.removeEventListener(
-          labId,
-          "statusChange",
-          handleStatusChange,
-        );
+        offLabStatusChange(labIdentifier, handleStatusChange);
       };
     }
-  }, [lab, isOpen]);
+  }, [isOpen, labIdentifier]);
 
+  // Function to fetch and parse YAML content
   const loadYamlContent = async () => {
     setIsLoading(true);
+    // Construct the full path to the YAML file
+    const yamlPath = `/labs/${lab.category}/${lab.slug}/${lab.slug}.yml`;
+    console.log("Attempting to fetch YAML from:", yamlPath);
+
     try {
-      const response = await fetch(
-        `/labs/${lab.category}/${lab.slug}/${lab.slug}.yml`,
-      );
+      const response = await fetch(yamlPath);
+
       if (response.ok) {
         const text = await response.text();
+        console.log("YAML raw text response:", text);
+
         const data = yaml.load(text);
+        console.log("Parsed YAML data (labData):", data);
         setLabData(data);
       } else {
-        setLabData(null);
+        console.error(
+          `Failed to fetch YAML for ${lab.title}. Status: ${response.status}, ${response.statusText}`,
+        );
+        setLabData(null); // Ensure labData is null on failure
       }
-    } catch {
-      setLabData(null);
+    } catch (error) {
+      console.error("Error loading YAML content:", error);
+      setLabData(null); // Ensure labData is null on error
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Function to check and set the lab's existing status from labLauncher
   const checkExistingLabStatus = () => {
-    const labId = `${lab.category}-${lab.slug}`;
-    const existingStatus = labLauncher.getLabStatus(labId);
+    if (!labIdentifier) return;
+
+    // --- Use the named export function from labLauncher ---
+    const existingStatus = getLabStatus(labIdentifier);
 
     if (existingStatus) {
       setLabStatus(existingStatus.status);
@@ -100,9 +135,20 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
         ports: existingStatus.ports,
         message: getStatusMessage(existingStatus.status),
       });
+      if (existingStatus.status === "launching") {
+        setIsLaunching(true);
+      } else {
+        setIsLaunching(false);
+      }
+    } else {
+      setLabStatus(null);
+      setLabProgress(null);
+      setIsLaunching(false);
+      setLaunchError(null);
     }
   };
 
+  // Helper function to get status messages
   const getStatusMessage = (status) => {
     switch (status) {
       case "launching":
@@ -116,21 +162,27 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
       case "stopped":
         return "Lab has been stopped";
       default:
-        return "";
+        return "Not launched"; // Default message if no specific status
     }
   };
 
+  // Function to handle launching the lab
   const handleLaunchLab = async () => {
     setIsLaunching(true);
     setLaunchError(null);
     setLabStatus("launching");
 
     try {
-      const result = await labLauncher.launchLab(lab);
+      // --- Use the named export function `launchLab` ---
+      // `labIdentifier` is already the full path (e.g., "/labs/routing/ospf-single-area")
+      const result = await launchLab(labIdentifier, labData, {});
 
-      // Call the original onLaunch if provided
       if (onLaunch) {
         await onLaunch(lab);
+      }
+
+      if (!result.success) {
+        throw new Error(result.message);
       }
     } catch (error) {
       setLaunchError(error.message);
@@ -139,17 +191,25 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
     }
   };
 
+  // Function to handle stopping the lab
   const handleStopLab = async () => {
     try {
-      const labId = `${lab.category}-${lab.slug}`;
-      await labLauncher.stopLab(labId);
-      setLabStatus("stopped");
+      if (!labIdentifier) return;
+
+      // --- Use the named export function `stopLab` ---
+      // `labIdentifier` is already the full path
+      await stopLab(labIdentifier);
+
+      setLabStatus("stopping");
       setLabProgress(null);
     } catch (error) {
       console.error("Failed to stop lab:", error);
+      setLaunchError(error.message);
+      setLabStatus("failed");
     }
   };
 
+  // Helper function to get status icons
   const getStatusIcon = (status) => {
     switch (status) {
       case "launching":
@@ -167,6 +227,7 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
     }
   };
 
+  // Helper function to get status badge colors
   const getStatusColor = (status) => {
     switch (status) {
       case "launching":
@@ -180,16 +241,24 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
       case "stopped":
         return "bg-gray-100 text-gray-800 border-gray-200";
       default:
-        return "";
+        return "bg-gray-100 text-gray-800 border-gray-200"; // Default for unknown/null status
     }
   };
 
-  if (!isOpen || !lab) return null;
+  // Early exit: If modal is not open or lab data is not provided, render nothing
+  // This works in conjunction with conditional rendering in App.jsx
+  if (!isOpen || !lab) {
+    console.log("[LabModal] Not rendering: isOpen =", isOpen, "lab =", lab); // Debug
+    return null;
+  }
+
+  // DEBUG: Log the labData state every time the component renders
+  console.log("Current labData state (during render):", labData);
 
   return (
     <div className="fixed inset-0 z-50 p-4 overflow-y-auto flex items-center justify-center bg-white/30 backdrop-blur-sm">
       <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[95vh] shadow-2xl overflow-hidden flex flex-col">
-        {/* Topology Image */}
+        {/* Topology Image Section */}
         <div className="relative bg-gray-100">
           <img
             src={`/labs/${lab.category}/${lab.slug}/topology.png`}
@@ -197,12 +266,16 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
             className={`w-full h-auto object-contain max-h-[80vh] transition-all`}
             onError={(e) => {
               e.target.style.display = "none";
-              e.target.nextSibling.style.display = "flex";
+              // Display the fallback div if image fails to load
+              if (e.target.nextSibling) {
+                e.target.nextSibling.style.display = "flex";
+              }
             }}
           />
+          {/* Fallback for missing topology image */}
           <div
-            style={{ display: "none" }}
-            className="flex flex-col items-center justify-center bg-gray-100 p-12 border-2 border-dashed border-gray-300"
+            style={{ display: "none" }} // Initially hidden
+            className="flex flex-col items-center justify-center bg-gray-100 p-12 border-2 border-dashed border-gray-300 min-h-[200px]"
           >
             <ImageIcon className="w-16 h-16 text-gray-400 mb-4" />
             <p className="text-gray-500 text-lg">
@@ -238,6 +311,7 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
             </div>
           )}
 
+          {/* Close Button */}
           <button
             onClick={onClose}
             className="absolute top-2 left-2 p-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full shadow-md cursor-pointer"
@@ -247,8 +321,8 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
           </button>
         </div>
 
-        {/* Main content */}
-        <div className="overflow-y-auto p-6 flex-1">
+        {/* Main content area */}
+        <div className="p-6 flex-1 flex flex-col">
           <div className="mb-6">
             <h2 className="text-2xl font-bold mb-1">{lab.title}</h2>
             <p className="text-gray-600">{lab.description}</p>
@@ -305,57 +379,59 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
             </div>
           )}
 
-          {/* Tabs */}
-          <nav className="flex space-x-8 border-b border-gray-200 mb-6">
-            {["overview", "details"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`pb-2 text-sm font-medium cursor-pointer ${
-                  activeTab === tab
-                    ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {tab === "overview" ? "Overview" : "Details"}
-              </button>
-            ))}
+          {/* Tabs Navigation */}
+          <nav className="flex items-center border-b border-gray-200 mb-6">
+            <button
+              key="overview"
+              onClick={() => setActiveTab("overview")}
+              className={`pb-2 px-4 text-sm font-medium cursor-pointer ${
+                activeTab === "overview"
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Overview
+            </button>
+            <div className="h-6 w-[1px] bg-gray-300 mx-4"></div>{" "}
+            {/* Separator */}
+            <button
+              key="details"
+              onClick={() => setActiveTab("details")}
+              className={`pb-2 px-4 text-sm font-medium cursor-pointer ${
+                activeTab === "details"
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Details
+            </button>
           </nav>
 
-          {/* Tab content */}
+          {/* Tab Content Area */}
           {isLoading ? (
-            <div className="flex justify-center items-center py-12">
+            <div className="flex justify-center items-center py-12 flex-1 overflow-y-auto">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : (
-            <div className="prose max-w-none text-gray-700">
+            <div className="prose max-w-none text-gray-700 flex-1 overflow-y-auto">
               {activeTab === "overview" && (
                 <div>
-                  <h3>Overview</h3>
-                  <p>{labData?.overview || "No overview available."}</p>
-                  {labData?.objectives && (
-                    <>
-                      <h4>Objectives</h4>
-                      <ul>
-                        {labData.objectives.map((obj, i) => (
-                          <li key={i}>{obj}</li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
+                  <ReactMarkdown>
+                    {labData?.description || "No description available."}
+                  </ReactMarkdown>
                 </div>
               )}
               {activeTab === "details" && (
                 <div>
-                  <h3>Prerequisites</h3>
-                  {labData?.prerequisites ? (
+                  <h3>Things to do with the lab</h3>
+                  {labData?.objectives ? (
                     <ul>
-                      {labData.prerequisites.map((item, i) => (
+                      {labData.objectives.map((item, i) => (
                         <li key={i}>{item}</li>
                       ))}
                     </ul>
                   ) : (
-                    <p>No prerequisites listed.</p>
+                    <p>No tasks listed for this lab.</p>
                   )}
                 </div>
               )}
@@ -363,9 +439,8 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer with action buttons */}
         <div className="bg-gray-50 px-6 py-4 border-t flex justify-end items-center">
-          {/* The difficulty badge and "Advanced" button have been removed from the left */}
           <div className="flex space-x-3">
             {labStatus === "running" || labStatus === "completed" ? (
               <button

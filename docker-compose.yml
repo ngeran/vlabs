@@ -1,0 +1,27 @@
+# vlabs/docker-compose.yml
+
+version: '3.8' # Specify the Docker Compose file format version
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001" # Host port 3001 maps to container port 3001
+    volumes:
+      # --- THIS IS THE CRITICAL CHANGE ---
+      # Mount your host's 'public' directory directly into the container's '/public'.
+      # This matches the path that your backend server.js calculates.
+      - ./public:/public
+
+      # This line is correct and necessary to allow Docker commands from inside the container
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    restart: unless-stopped
+    # Optional: If you have environment variables specific to your backend,
+    # you can define them here or use an .env file.
+    # environment:
+    #   NODE_ENV: development
+    #   PORT: 3001 # If you want to explicitly set the port via env var for the container
+    command: node server.js # Make sure this command starts your server (or `npm start`)

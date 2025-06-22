@@ -11,60 +11,148 @@ import LabCard from "./components/LabCard";
 import LabModal from "./components/LabModal";
 import { Network } from "lucide-react";
 
+// --- IMPORT THE LAB LAUNCHER UTILITIES ---
+import {
+  launchLab,
+  stopLab,
+  getLabStatus,
+  onLabStatusChange,
+  offLabStatusChange,
+} from "./utils/labLauncher";
+
 const App = () => {
   const [activeCategory, setActiveCategory] = useState("all");
   const [filteredLabs, setFilteredLabs] = useState([]);
-  const [selectedLab, setSelectedLab] = useState(null); // Starts as null
-  const [isModalOpen, setIsModalOpen] = useState(false); // Starts as false
+  const [selectedLab, setSelectedLab] = useState(null); // Null if no modal open
+  const [isModalOpen, setIsModalOpen] = useState(false); // Controls modal visibility
+  const [labStatuses, setLabStatuses] = useState({}); // NEW: State to track all lab statuses globally
 
-  // Effect to filter labs based on active category
+  // Effect to filter labs and initialize/update lab statuses based on active category
   useEffect(() => {
+    let allLabs = [];
     if (activeCategory === "all") {
-      const allLabs = Object.entries(labsData).flatMap(([category, labs]) =>
+      allLabs = Object.entries(labsData).flatMap(([category, labs]) =>
         labs.map((lab) => ({ ...lab, category })),
       );
-      setFilteredLabs(allLabs);
     } else {
       const labs = labsData[activeCategory] || [];
-      setFilteredLabs(
-        labs.map((lab) => ({ ...lab, category: activeCategory })),
-      );
+      allLabs = labs.map((lab) => ({ ...lab, category: activeCategory }));
     }
-  }, [activeCategory]);
+    setFilteredLabs(allLabs);
+
+    // Initialize/refresh lab statuses based on newly filtered labs
+    const initialStatuses = {};
+    allLabs.forEach((lab) => {
+      const labIdentifier = `/labs/${lab.category}/${lab.slug}`;
+      initialStatuses[labIdentifier] = getLabStatus(labIdentifier) || {
+        status: "stopped",
+      }; // Default to stopped
+    });
+    setLabStatuses(initialStatuses);
+
+    // --- Set up global status listener for all labs ---
+    const handleGlobalStatusChange = (data) => {
+      // `data.id` is the `labIdentifier` (e.g., "/labs/routing/ospf-single-area")
+      console.log("[App] Global lab status change received:", data); // Debugging global status updates
+      setLabStatuses((prevStatuses) => ({
+        ...prevStatuses,
+        [data.id]: data, // Update the specific lab's status
+      }));
+    };
+
+    // Listen for status changes for any lab (pass null as the ID to listen globally)
+    onLabStatusChange(null, handleGlobalStatusChange);
+
+    // Cleanup listener on component unmount (or category change if unmounting old listener)
+    return () => {
+      offLabStatusChange(null, handleGlobalStatusChange);
+    };
+  }, [activeCategory]); // Re-run when activeCategory changes
 
   // Function to handle opening the lab modal when "View Details" is clicked
   const handleViewDetails = (lab) => {
-    console.log("[App] handleViewDetails called with lab:", lab); // DEBUG LOG
-    setSelectedLab(lab); // Set the lab object to be displayed in the modal
-    setIsModalOpen(true); // Set modal open state to true
-    console.log("[App] isModalOpen set to true, selectedLab set to:", lab); // DEBUG LOG
+    console.log("[App] handleViewDetails called with lab:", lab);
+    setSelectedLab(lab);
+    setIsModalOpen(true);
   };
 
-  // This function is defined in App.jsx but is NOT used by LabModal directly now.
-  // LabModal calls labLauncher.executeDockerCompose internally.
-  // You can remove this `handleStartLab` if it's not used anywhere else.
-  const handleStartLab = async (lab) => {
-    console.log(
-      `[App] Launching lab: ${lab.title} (This is from App.jsx's handleStartLab)`,
-    );
-    // Add actual logic here (e.g., call to backend or script) if needed elsewhere
+  // --- Function to handle launching labs from LabCard (or anywhere else) ---
+  const handleStartLabFromCard = async (labToLaunch) => {
+    const labIdentifier = `/labs/${labToLaunch.category}/${labToLaunch.slug}`;
+    console.log(`[App] Attempting to launch lab from card: ${labIdentifier}`);
+
+    // Immediately update status to 'launching' for instant UI feedback
+    setLabStatuses((prevStatuses) => ({
+      ...prevStatuses,
+      [labIdentifier]: {
+        status: "launching",
+        message: "Preparing lab environment...",
+      },
+    }));
+
+    try {
+      // The backend's `launchLab` only needs the `labPath` (labIdentifier)
+      // The `labData` (parsed YAML) is currently only used within LabModal itself.
+      // If `labLauncher` on the frontend needs the full `labData` (e.g. for access URLs before backend provides them),
+      // you might need to fetch the YAML here or update your `labLauncher.js` to fetch it.
+      // For now, passing an empty object for `labData` as it's not strictly required by backend `launch` endpoint.
+      const result = await launchLab(labIdentifier, {}, {});
+
+      if (!result.success) {
+        throw new Error(result.message || "Unknown launch error from backend.");
+      }
+      // Success will be reflected by the global status listener updating `labStatuses` to 'running'
+    } catch (error) {
+      console.error("Error launching lab from card:", error);
+      setLabStatuses((prevStatuses) => ({
+        ...prevStatuses,
+        [labIdentifier]: {
+          status: "failed",
+          error: error.message,
+          message: "Lab launch failed",
+        },
+      }));
+    }
+  };
+
+  // --- Function to handle stopping labs from LabCard (or anywhere else) ---
+  const handleStopLabFromCard = async (labToStop) => {
+    const labIdentifier = `/labs/${labToStop.category}/${labToStop.slug}`;
+    console.log(`[App] Attempting to stop lab from card: ${labIdentifier}`);
+
+    // Immediately update status to 'stopping' for instant UI feedback
+    setLabStatuses((prevStatuses) => ({
+      ...prevStatuses,
+      [labIdentifier]: {
+        status: "stopping",
+        message: "Stopping lab environment...",
+      },
+    }));
+
+    try {
+      await stopLab(labIdentifier);
+      // Success will be reflected by the global status listener updating `labStatuses` to 'stopped'
+    } catch (error) {
+      console.error("Error stopping lab from card:", error);
+      setLabStatuses((prevStatuses) => ({
+        ...prevStatuses,
+        [labIdentifier]: {
+          status: "failed",
+          error: error.message,
+          message: "Lab stop failed",
+        },
+      }));
+    }
   };
 
   // Function to handle closing the lab modal
   const handleCloseModal = () => {
-    console.log("[App] handleCloseModal called."); // DEBUG LOG
-    setSelectedLab(null); // Clear the selected lab data
-    setIsModalOpen(false); // Set modal open state to false
-    console.log("[App] isModalOpen set to false, selectedLab cleared."); // DEBUG LOG
+    console.log("[App] handleCloseModal called.");
+    setSelectedLab(null);
+    setIsModalOpen(false);
   };
 
-  // DEBUG LOG to show current modal state on every render of App.jsx
-  console.log(
-    "[App] Current modal state (on render) - isModalOpen:",
-    isModalOpen,
-    "selectedLab:",
-    selectedLab,
-  );
+  // console.log("[App] Current modal state (on render) - isModalOpen:", isModalOpen, "selectedLab:", selectedLab); // Debug
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -81,14 +169,26 @@ const App = () => {
           categories={categories}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredLabs.map((lab, index) => (
-            <LabCard
-              key={`${lab.category || "unknown"}-${lab.id}-${index}`}
-              lab={lab}
-              onViewDetails={handleViewDetails} // Pass the handler to LabCard
-              onStartLab={handleStartLab} // Pass if LabCard has a 'Start' button
-            />
-          ))}
+          {filteredLabs.map((lab, index) => {
+            // Construct the unique identifier for this lab
+            const labIdentifier = `/labs/${lab.category}/${lab.slug}`;
+            // Get the current status from the global labStatuses state
+            const currentLabStatus = labStatuses[labIdentifier] || {
+              status: "stopped",
+            }; // Default to 'stopped' if no status found
+
+            return (
+              <LabCard
+                key={`${lab.category || "unknown"}-${lab.slug || lab.id}-${index}`} // Using slug for key as it's consistent
+                lab={lab}
+                onViewDetails={handleViewDetails}
+                onStartLab={handleStartLabFromCard} // Pass the new start handler
+                onStopLab={handleStopLabFromCard} // Pass the new stop handler
+                currentStatus={currentLabStatus.status} // Pass current status to LabCard
+                isLaunching={currentLabStatus.status === "launching"} // Specific flag for launching state
+              />
+            );
+          })}
         </div>
         {filteredLabs.length === 0 && (
           <div className="text-center py-12">
@@ -105,16 +205,14 @@ const App = () => {
       </main>
       <Footer />
 
-      {/* Lab Modal - CONDITIONAL RENDERING IS CRUCIAL HERE */}
-      {/* The modal is only rendered if both isModalOpen is true AND selectedLab is not null */}
+      {/* Lab Modal - Render only if open and a lab is selected */}
       {isModalOpen && selectedLab && (
         <LabModal
           lab={selectedLab} // Pass the selected lab object to the modal
           isOpen={isModalOpen}
           onClose={handleCloseModal} // Pass the close handler to the modal
-          // Removed unused props:
-          // isOpen={isModalOpen} // Modal's existence is controlled by this conditional rendering
-          // onLaunch={handleStartLab} // LabModal handles launch internally via labLauncher
+          // LabModal will internally get its status from `getLabStatus` and `onLabStatusChange`
+          // so no need to pass status props down to it from App.jsx, keeping it consistent.
         />
       )}
     </div>

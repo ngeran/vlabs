@@ -1,14 +1,65 @@
+// src/components/LabCard.jsx
 import React from "react";
-import { Clock, Info } from "lucide-react"; // Importing icons for duration and details button
+import { Clock, Info, Play, Square, Loader, AlertCircle } from "lucide-react"; // Import new icons
 import getDifficultyColor from "../utils/getDifficultyColor"; // Utility to get appropriate Tailwind CSS color classes
 
-const LabCard = ({ lab, onViewDetails, onStartLab }) => {
+// Accept new props: onStopLab, currentStatus, isLaunching
+const LabCard = ({
+  lab,
+  onViewDetails,
+  onStartLab,
+  onStopLab,
+  currentStatus,
+  isLaunching,
+}) => {
+  // Helper to get status icon for LabCard
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "launching":
+        return <Loader className="w-3.5 h-3.5 animate-spin text-blue-600" />;
+      case "running":
+        return <Play className="w-3.5 h-3.5 text-green-600" />;
+      case "failed":
+        return <AlertCircle className="w-3.5 h-3.5 text-red-600" />;
+      case "stopped":
+        return <Square className="w-3.5 h-3.5 text-gray-600" />;
+      case "stopping": // Added stopping state for visual feedback
+        return <Loader className="w-3.5 h-3.5 animate-spin text-gray-600" />;
+      default:
+        return null;
+    }
+  };
+
+  // Helper to get status badge colors for LabCard
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case "launching":
+        return "bg-blue-100 text-blue-800";
+      case "running":
+        return "bg-green-100 text-green-800";
+      case "failed":
+        return "bg-red-100 text-red-800";
+      case "stopped":
+        return "bg-gray-100 text-gray-800";
+      case "stopping":
+        return "bg-gray-100 text-gray-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  // Determine if the lab is currently running or in a state where it should be stopped
+  const isLabRunning = currentStatus === "running";
+  // Determine if the lab is currently launching (from either LabCard or LabModal)
+  const isLabLaunching = currentStatus === "launching" || isLaunching;
+  // Determine if the lab is currently stopping
+  const isLabStopping = currentStatus === "stopping";
+
   return (
-    // Main container for the LabCard components.
     <div className="w-full">
       {/* Topology Image Section: Clickable to launch LabModal */}
       <div
-        className="relative bg-white shadow-md rounded-xl overflow-hidden cursor-pointer" // cursor-pointer already here
+        className="relative bg-white shadow-md rounded-xl overflow-hidden cursor-pointer"
         onClick={() => onViewDetails(lab)}
       >
         <img
@@ -41,6 +92,15 @@ const LabCard = ({ lab, onViewDetails, onStartLab }) => {
             {lab.difficulty}
           </span>
         )}
+        {/* NEW: Lab Status Badge on the image (Bottom-left) */}
+        {currentStatus && (
+          <span
+            className={`absolute bottom-3 left-3 px-3 py-1 rounded-md text-xs font-semibold uppercase flex items-center space-x-1 ${getStatusBadgeClass(currentStatus)}`}
+          >
+            {getStatusIcon(currentStatus)}
+            <span>{currentStatus}</span>
+          </span>
+        )}
       </div>
 
       {/* Content Section: Visually merges with the page's background */}
@@ -62,22 +122,55 @@ const LabCard = ({ lab, onViewDetails, onStartLab }) => {
 
           {/* Buttons Group (Right side, next to each other, smaller) */}
           <div className="flex items-center space-x-2">
-            {/* Details Button: Added cursor-pointer */}
+            {/* Details Button */}
             <button
               onClick={() => onViewDetails(lab)}
-              className="flex items-center justify-center space-x-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-3 py-1.5 rounded-md text-xs transition-colors duration-200 cursor-pointer" // Added cursor-pointer
+              className="flex items-center justify-center space-x-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-3 py-1.5 rounded-md text-xs transition-colors duration-200 cursor-pointer"
             >
               <Info className="h-3.5 w-3.5" />
               <span>Details</span>
             </button>
 
-            {/* Start Lab Button: Added cursor-pointer */}
-            <button
-              onClick={() => onStartLab(lab)}
-              className="flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-center text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-colors duration-200 cursor-pointer" // Added cursor-pointer
-            >
-              Start Lab
-            </button>
+            {/* Conditional Start/Stop Button */}
+            {isLabRunning ? (
+              // Stop Button (visible when lab is running)
+              <button
+                onClick={() => onStopLab(lab)}
+                disabled={isLabStopping} // Disable while stopping
+                className="flex items-center rounded-md bg-red-600 px-3 py-1.5 text-center text-xs font-medium text-white hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed transition-colors duration-200 cursor-pointer"
+              >
+                {isLabStopping ? (
+                  <>
+                    <Loader className="w-3.5 h-3.5 animate-spin" />
+                    <span>Stopping</span>
+                  </>
+                ) : (
+                  <>
+                    <Square className="w-3.5 h-3.5" />
+                    <span>Stop Lab</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              // Start Lab Button (visible when lab is not running)
+              <button
+                onClick={() => onStartLab(lab)}
+                disabled={isLabLaunching || isLabStopping} // Disable while launching or if it's currently stopping
+                className="flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-center text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors duration-200 cursor-pointer"
+              >
+                {isLabLaunching ? (
+                  <>
+                    <Loader className="w-3.5 h-3.5 animate-spin" />
+                    <span>Launching</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Start Lab</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>

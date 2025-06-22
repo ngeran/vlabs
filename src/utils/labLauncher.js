@@ -3,14 +3,9 @@
 const API_BASE_URL = "http://localhost:3001"; // Or 3333 if you changed it
 
 // --- Lab Status Management (In-Memory Store) ---
-// This object will store the status of each launched lab, keyed by labPath (or lab slug/id).
-// Example structure: { "/labs/routing/ospf-single-area": { status: "running", accessUrl: "...", ports: [...] } }
 const labStatusStore = {};
-
-// --- Simple Event Emitter for Lab Status Changes ---
-// This will allow components to subscribe to status updates.
-// eventListeners structure: { "labPath": [callback1, callback2], "labPath2": [...] }
 const eventListeners = {};
+const pollingIntervals = {}; // To store polling timers for each lab
 
 /**
  * Stores and updates the status of a specific lab in the client-side store.
@@ -22,16 +17,25 @@ const setLabStatus = (labPath, statusData) => {
   labStatusStore[labPath] = {
     ...labStatusStore[labPath],
     ...statusData,
-    id: labPath,
-  }; // Ensure ID is part of statusData
+    id: labPath, // Ensure ID is part of statusData
+  };
   console.log(
     `[labLauncher] Status updated for ${labPath}:`,
     labStatusStore[labPath],
   );
-  // Emit event for this specific labPath
+
+  // Emit event for this specific labPath listener
   if (eventListeners[labPath]) {
     eventListeners[labPath].forEach((callback) =>
       callback(labStatusStore[labPath]),
+    );
+  }
+
+  // NEW: Also emit event for the global listener (labPath = null)
+  // This is what `App.jsx` likely uses for `handleGlobalStatusChange`
+  if (eventListeners[null]) {
+    eventListeners[null].forEach(
+      (callback) => callback(labStatusStore[labPath]), // Pass the updated lab's status object
     );
   }
 };
@@ -47,7 +51,8 @@ export const getLabStatus = (labPath) => {
 
 /**
  * Subscribes a callback function to status changes for a specific lab.
- * @param {string} labPath - The unique identifier for the lab.
+ * The `labPath` can also be `null` to register a global listener.
+ * @param {string|null} labPath - The unique identifier for the lab, or null for a global listener.
  * @param {function} callback - The function to call when the lab's status changes.
  */
 export const onLabStatusChange = (labPath, callback) => {
@@ -56,13 +61,15 @@ export const onLabStatusChange = (labPath, callback) => {
   }
   eventListeners[labPath].push(callback);
   console.log(
-    `[labLauncher] Added listener for ${labPath}. Total: ${eventListeners[labPath].length}`,
+    `[labLauncher] Added listener for ${
+      labPath === null ? "global" : labPath
+    }. Total: ${eventListeners[labPath].length}`,
   );
 };
 
 /**
  * Unsubscribes a callback function from status changes for a specific lab.
- * @param {string} labPath - The unique identifier for the lab.
+ * @param {string|null} labPath - The unique identifier for the lab.
  * @param {function} callback - The function to remove.
  */
 export const offLabStatusChange = (labPath, callback) => {
@@ -71,11 +78,59 @@ export const offLabStatusChange = (labPath, callback) => {
       (cb) => cb !== callback,
     );
     console.log(
-      `[labLauncher] Removed listener for ${labPath}. Total: ${eventListeners[labPath].length}`,
+      `[labLauncher] Removed listener for ${
+        labPath === null ? "global" : labPath
+      }. Total: ${eventListeners[labPath].length}`,
     );
   }
 };
 // --- END Lab Status Management ---
+
+/**
+ * Function to start polling for a lab's status.
+ * @param {string} labPath - The unique identifier for the lab.
+ */
+const startPollingLabStatus = (labPath) => {
+  if (pollingIntervals[labPath]) {
+    clearInterval(pollingIntervals[labPath]); // Clear existing one if any
+  }
+
+  const poll = async () => {
+    const statusResult = await checkLabStatus(labPath);
+    console.log(
+      `[labLauncher] Polling status for ${labPath}:`,
+      statusResult.status,
+    );
+
+    // Stop polling if lab is running, stopped, or failed
+    // The backend now correctly returns 'stopped' even if it wasn't explicitly stopped,
+    // if no containers are found for that project.
+    if (["running", "stopped", "failed"].includes(statusResult.status)) {
+      clearInterval(pollingIntervals[labPath]);
+      delete pollingIntervals[labPath];
+      console.log(
+        `[labLauncher] Stopped polling for ${labPath}. Final status: ${statusResult.status}`,
+      );
+    }
+  };
+
+  // Poll immediately and then every 3 seconds
+  poll();
+  pollingIntervals[labPath] = setInterval(poll, 3000); // Poll every 3 seconds
+  console.log(`[labLauncher] Started polling for ${labPath}`);
+};
+
+/**
+ * Function to stop polling for a lab's status.
+ * @param {string} labPath - The unique identifier for the lab.
+ */
+const stopPollingLabStatus = (labPath) => {
+  if (pollingIntervals[labPath]) {
+    clearInterval(pollingIntervals[labPath]);
+    delete pollingIntervals[labPath];
+    console.log(`[labLauncher] Manually stopped polling for ${labPath}`);
+  }
+};
 
 /**
  * Sends a request to the backend to launch a Docker Compose lab.
@@ -111,26 +166,25 @@ export const launchLab = async (labPath, config = {}, options = {}) => {
     }
 
     const data = await response.json();
-    console.log("[Frontend] Lab launch request successful:", data.message);
+    console.log(
+      "[Frontend] Lab launch request initiated successfully:",
+      data.message,
+    );
 
-    // Update status based on backend response (even if simulated initially)
     setLabStatus(labPath, {
-      status: "running", // Assuming successful launch implies running, or parse a specific status from 'data'
       message: data.message,
-      containerId: data.containerId, // Still a placeholder from backend
-      ports: data.ports, // Still a placeholder from backend
-      accessUrl: data.accessUrl, // Still a placeholder from backend
     });
+
+    // --- NEW: Start polling for the lab's actual status ---
+    startPollingLabStatus(labPath);
 
     return {
       success: true,
       message: data.message,
-      containerId: data.containerId,
-      ports: data.ports,
-      accessUrl: data.accessUrl,
+      labPath: labPath, // Return labPath for clarity
     };
   } catch (error) {
-    console.error("[Frontend] Error launching lab:", error.message);
+    console.error("[Frontend] Error initiating lab launch:", error.message);
     setLabStatus(labPath, {
       status: "failed",
       error: error.message,
@@ -147,10 +201,14 @@ export const launchLab = async (labPath, config = {}, options = {}) => {
  * @returns {object} - An object indicating success/failure and a message.
  */
 export const stopLab = async (labPath) => {
+  console.log(`[labLauncher] --- Initiating stopLab for ${labPath} ---`); // NEW LOG
   setLabStatus(labPath, {
     status: "stopping",
     message: "Sending stop request...",
   });
+  // Stop any active polling for this lab as we are manually stopping it.
+  stopPollingLabStatus(labPath);
+
   try {
     const response = await fetch(`${API_BASE_URL}/api/labs/stop`, {
       method: "POST",
@@ -160,23 +218,41 @@ export const stopLab = async (labPath) => {
       body: JSON.stringify({ labPath }),
     });
 
+    console.log(
+      `[labLauncher] Stop request for ${labPath} responded. Status: ${response.status}, OK: ${response.ok}`,
+    ); // NEW LOG
+
     if (!response.ok) {
       const errorData = await response.json();
+      console.error(
+        "[labLauncher] Stop failed - Backend responded with error:",
+        errorData,
+      ); // NEW LOG
       const errorMessage = errorData.message || "Failed to stop lab";
       setLabStatus(labPath, {
         status: "failed",
         error: errorMessage,
         message: `Stop Failed: ${errorMessage}`,
       });
-      throw new Error(errorMessage);
+      return { success: false, message: `Stop Failed: ${errorMessage}` };
     }
 
     const data = await response.json();
-    console.log("[Frontend] Lab stop request successful:", data.message);
-    setLabStatus(labPath, { status: "stopped", message: data.message });
+    console.log(
+      "[labLauncher] Lab stop request successful! Backend Data:",
+      data,
+    ); // NEW LOG
+    setLabStatus(labPath, { status: data.status, message: data.message }); // This should set status to "stopped"
+    console.log(
+      `[labLauncher] Final status set to "${data.status}" for ${labPath}`,
+    ); // NEW LOG
     return { success: true, message: data.message };
   } catch (error) {
-    console.error("[Frontend] Error stopping lab:", error.message);
+    console.error(
+      "[labLauncher] Error in stopLab fetch:",
+      error.message,
+      error,
+    ); // NEW LOG
     setLabStatus(labPath, {
       status: "failed",
       error: error.message,
@@ -187,16 +263,16 @@ export const stopLab = async (labPath) => {
 };
 
 /**
- * Sends a request to the backend to check the status of a lab.
- * This is primarily for initial status check on page load or modal open.
- * Note: Your backend endpoint for this currently returns simulated data.
- * @param {string} containerId - The ID of the container to check status for (currently a placeholder in backend).
+ * UPDATED: Sends a request to the backend to check the status of a lab by its path.
+ * This is primarily for polling and initial status check on page load.
+ * @param {string} labPath - The unique identifier for the lab (e.g., "/labs/routing/ospf-single-area").
  * @returns {object} - An object indicating success/failure and status data.
  */
-export const checkLabStatus = async (containerId) => {
+export const checkLabStatus = async (labPath) => {
   try {
+    // IMPORTANT: Changed endpoint and parameter to labPath
     const response = await fetch(
-      `${API_BASE_URL}/api/labs/status/${containerId}`,
+      `${API_BASE_URL}/api/labs/status-by-path?labPath=${encodeURIComponent(labPath)}`,
     );
 
     if (!response.ok) {
@@ -205,20 +281,13 @@ export const checkLabStatus = async (containerId) => {
     }
 
     const data = await response.json();
-    console.log("[Frontend] Lab status check successful:", data);
+    // Removed extensive logging here to keep console cleaner during polling,
+    // but the setLabStatus will log the update.
+    // console.log("[Frontend] Lab status check successful for", labPath, ":", data);
 
     // Update the client-side store with the fetched status.
-    // NOTE: This assumes `containerId` is how you uniquely identify the lab for client-side status.
-    // If you prefer to use `labPath`, you'd need to modify the backend's `/status` endpoint to accept `labPath`
-    // and your frontend to send `labPath` instead of `containerId` here.
-    setLabStatus(containerId, {
-      status: data.isRunning
-        ? "running"
-        : data.hasFailed
-          ? "failed"
-          : data.isComplete
-            ? "completed"
-            : "unknown",
+    setLabStatus(labPath, {
+      status: data.status, // Use the actual status returned from backend
       message: data.message,
       accessUrl: data.accessUrl, // If backend returns this
       ports: data.ports, // If backend returns this
@@ -227,7 +296,8 @@ export const checkLabStatus = async (containerId) => {
     return { success: true, ...data };
   } catch (error) {
     console.error("[Frontend] Error checking lab status:", error.message);
-    setLabStatus(containerId, {
+    // If status check fails, set lab status to failed
+    setLabStatus(labPath, {
       status: "failed",
       error: error.message,
       message: `Status check failed: ${error.message}`,

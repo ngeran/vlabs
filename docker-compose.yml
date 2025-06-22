@@ -1,27 +1,37 @@
 # vlabs/docker-compose.yml
 
-version: '3.8' # Specify the Docker Compose file format version
+version: '3.8' # Specify the Docker Compose file format version (can be omitted for Docker Compose V2, but harmless to keep)
 
 services:
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: ./backend # The build context is your backend directory
+      dockerfile: Dockerfile # The Dockerfile for building the backend image is inside ./backend
     ports:
       - "3001:3001" # Host port 3001 maps to container port 3001
     volumes:
-      # --- THIS IS THE CRITICAL CHANGE ---
-      # Mount your host's 'public' directory directly into the container's '/public'.
-      # This matches the path that your backend server.js calculates.
-      - ./public:/public
+      # --- CORRECTED LINE HERE ---
+      # Mount your host's `./backend` directory (where your server.js and backend code resides)
+      # into the container's `/app/backend`. Your Dockerfile should set `/app/backend`
+      # as the working directory, or your `command` should reference files within it.
+      - ./backend:/app/backend
 
       # This line is correct and necessary to allow Docker commands from inside the container
+      # by giving it access to the Docker daemon socket on the host.
       - /var/run/docker.sock:/var/run/docker.sock
 
-    restart: unless-stopped
+      # IMPORTANT: If your lab YMLs are in a 'public' folder directly under 'vlabs' root,
+      # and your backend needs to read them, you might also need this volume:
+      - ./public:/public
+
+    restart: unless-stopped # Automatically restart the container unless it's explicitly stopped
     # Optional: If you have environment variables specific to your backend,
     # you can define them here or use an .env file.
     # environment:
     #   NODE_ENV: development
     #   PORT: 3001 # If you want to explicitly set the port via env var for the container
-    command: node server.js # Make sure this command starts your server (or `npm start`)
+
+    # Ensure this command correctly starts your Node.js server within the container.
+    # It assumes your Dockerfile has set /app/backend as the WORKDIR.
+    # If not, you might need: `command: node /app/backend/server.js`
+    command: node server.js

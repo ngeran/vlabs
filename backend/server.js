@@ -1,180 +1,372 @@
-// vlabs/backend/server.js
-
 const express = require("express");
-const cors = require("cors"); // Required for cross-origin communication with your frontend
-const { exec } = require("child_process"); // For executing shell commands (docker compose)
-const path = require("path"); // For resolving file paths
+const cors = require("cors");
+const { exec } = require("child_process");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
+const port = 3001;
 
-// --- Configuration ---
-// Define the port the backend server will listen on.
-// Uses environment variable PORT if available (e.g., for deployment), otherwise defaults to 3001.
-const PORT = process.env.PORT || 3001;
-
-// Define the root directory of your project.
-// This is crucial for correctly locating the 'public' folder and lab directories.
-// Assumes server.js is in 'vlabs/backend' and 'public' is in 'vlabs'.
-const projectRoot = path.join(__dirname, ".."); // Go up one level from 'backend' to 'vlabs'
-
-// --- Middleware ---
-// Enable CORS for all origins. This is essential for your frontend (likely on a different port)
-// to be able to make requests to this backend. In a production environment, you might restrict this.
+// Use CORS for cross-origin requests from your React frontend
 app.use(cors());
+app.use(express.json()); // To parse JSON request bodies
 
-// Enable Express to parse JSON formatted request bodies.
-app.use(express.json());
+// Define the absolute path to your public directory where labs are stored
+// This assumes your `vlabs/docker-compose.yml` mounts `./public` to `/public`
+// AND your backend Dockerfile sets `/app/backend` as WORKDIR.
+const LABS_BASE_PATH_IN_CONTAINER = "/public"; // Path inside the backend container
 
-// --- API Endpoints ---
+// Store lab statuses in memory (for simplicity)
+const labStatuses = {}; // { labPath: { status: 'stopped' | 'running' | 'failed' | 'starting' } }
 
-/**
- * API Endpoint to Launch a Docker Compose Lab.
- * Expects { labPath: string, config: object, options: object } in the request body.
- * `labPath` should be relative to /public (e.g., "/labs/routing/ospf-single-area").
- */
-app.post("/api/labs/launch", (req, res) => {
-  const { labPath, config, options } = req.body;
-  if (!labPath) {
-    console.error("[BACKEND] Launch Error: labPath is required.");
-    return res
-      .status(400)
-      .json({ message: "Error: labPath is required in the request body." });
-  }
+// Helper function to get Docker Compose status for a specific lab
+const getDockerComposeStatus = (labPath) => {
+  return new Promise((resolve) => {
+    // Construct the full path to the lab's directory inside the container
+    const labDirectory = path.join(LABS_BASE_PATH_IN_CONTAINER, labPath);
+    const dockerComposeFilePath = path.join(labDirectory, "docker-compose.yml");
 
-  // Construct the full path to the lab's directory
-  const labDirectory = path.join(projectRoot, "public", labPath);
-  const dockerComposeFilePath = path.join(labDirectory, "docker-compose.yml");
-
-  console.log(`\n[BACKEND] Received launch request for: ${labPath}`);
-  console.log(
-    `[BACKEND] Attempting to launch lab from directory: ${labDirectory}`,
-  );
-  console.log(`[BACKEND] Using docker-compose file: ${dockerComposeFilePath}`);
-
-  // Ensure the lab directory exists before attempting to run docker compose
-  // (Optional but good for robustness)
-  if (!require("fs").existsSync(labDirectory)) {
-    console.error(`[BACKEND] Lab directory not found: ${labDirectory}`);
-    return res
-      .status(404)
-      .json({ message: `Lab directory not found: ${labDirectory}` });
-  }
-  if (!require("fs").existsSync(dockerComposeFilePath)) {
-    console.error(
-      `[BACKEND] docker-compose.yml not found: ${dockerComposeFilePath}`,
+    console.log(
+      `[BACKEND] Checking real status for lab: ${labPath} in directory: ${labDirectory}`,
     );
-    return res
-      .status(404)
-      .json({ message: `docker-compose.yml not found in ${labDirectory}` });
-  }
 
-  // The command to bring up the Docker Compose project in detached mode
-  // Using `-f` to explicitly specify the compose file.
-  const command = `docker compose -f "${dockerComposeFilePath}" up -d`;
-
-  exec(command, { cwd: labDirectory }, (error, stdout, stderr) => {
-    if (error) {
-      console.error(
-        `[BACKEND] Docker Compose exec error for ${labPath}:`,
-        error,
+    if (!fs.existsSync(dockerComposeFilePath)) {
+      console.warn(
+        `[BACKEND] docker-compose.yml not found at: ${dockerComposeFilePath}`,
       );
-      console.error(`[BACKEND] Docker Compose stderr for ${labPath}:`, stderr);
-      return res.status(500).json({
-        message: `Failed to launch lab: ${stderr || error.message}`,
-        details: stderr,
+      return resolve({
+        status: "stopped",
+        message: "Lab definition file not found.",
       });
     }
 
-    console.log(`[BACKEND] Docker Compose stdout for ${labPath}:\n${stdout}`);
-    console.log(`[BACKEND] Lab launched successfully for: ${labPath}`);
+    const command = `docker compose -f "${dockerComposeFilePath}" ps --format json`;
+    console.log(`[BACKEND] Executing status check command: ${command}`);
 
-    // --- IMPORTANT: These are still placeholders ---
-    // In a real application, you'd parse `stdout` to get actual container IDs,
-    // exposed ports, and generate a dynamic access URL.
+    exec(command, { cwd: labDirectory }, (error, stdout, stderr) => {
+      if (error) {
+        console.error(
+          `[BACKEND] Docker Compose status check error for ${labPath}:`,
+          error.message,
+        );
+        console.error(`[BACKEND] Stderr:`, stderr);
+        // If there's an error, it often means no containers are running or the project doesn't exist.
+        return resolve({
+          status: "stopped",
+          message: `Docker Compose command failed: ${error.message}`,
+        });
+      }
+
+      if (!stdout.trim()) {
+        console.log(
+          `[BACKEND] Docker Compose ps output is empty for ${labPath}.`,
+        );
+        return resolve({
+          status: "stopped",
+          message: "No active containers found for this lab.",
+        });
+      }
+
+      let services = [];
+      try {
+        // Parse each line as a separate JSON object
+        services = stdout
+          .trim()
+          .split("\n")
+          .map((line) => {
+            try {
+              return JSON.parse(line);
+            } catch (parseError) {
+              console.error(
+                `[BACKEND] Failed to parse a line of Docker Compose ps output:`,
+                parseError,
+              );
+              console.error(`[BACKEND] Faulty line:`, line);
+              return null; // Return null for lines that can't be parsed
+            }
+          })
+          .filter(Boolean); // Filter out any nulls from failed parsing
+
+        if (services.length === 0) {
+          console.log(
+            `[BACKEND] No valid services found after parsing for ${labPath}. Raw stdout:`,
+            stdout,
+          );
+          return resolve({
+            status: "stopped",
+            message: "No valid service information found.",
+          });
+        }
+      } catch (parseError) {
+        console.error(
+          `[BACKEND] Failed to process Docker Compose ps output unexpectedly for ${labPath}:`,
+          parseError,
+        );
+        console.error(`[BACKEND] Raw stdout:`, stdout);
+        return resolve({
+          status: "failed",
+          message: "Failed to parse Docker status output.",
+        });
+      }
+
+      // Determine overall status based on parsed services
+      const allRunning = services.every(
+        (service) => service.State === "running",
+      );
+      const anyExited = services.some((service) => service.State === "exited");
+      const anyStarting = services.some(
+        (service) => service.State === "starting",
+      );
+      const anyDegraded = services.some(
+        (service) => service.State === "degraded",
+      );
+
+      if (allRunning) {
+        return resolve({
+          status: "running",
+          message: "All lab containers are running.",
+        });
+      } else if (anyExited || anyDegraded) {
+        return resolve({
+          status: "failed",
+          message: "Some lab containers have exited or are unhealthy.",
+        });
+      } else if (anyStarting) {
+        return resolve({
+          status: "starting",
+          message: "Lab containers are still starting.",
+        });
+      } else {
+        return resolve({
+          status: "unknown",
+          message: "Lab status is indeterminate.",
+        });
+      }
+    });
+  });
+};
+
+// API endpoint to launch a lab
+app.post("/api/labs/launch", async (req, res) => {
+  const { labPath } = req.body;
+  console.log(`[BACKEND] Received launch request for: ${labPath}`);
+
+  if (!labPath) {
+    return res
+      .status(400)
+      .json({ success: false, message: "labPath is required." });
+  }
+
+  const labDirectory = path.join(LABS_BASE_PATH_IN_CONTAINER, labPath);
+  const dockerComposeFilePath = path.join(labDirectory, "docker-compose.yml");
+
+  if (!fs.existsSync(dockerComposeFilePath)) {
+    console.error(
+      `[BACKEND] Launch failed: docker-compose.yml not found at ${dockerComposeFilePath}`,
+    );
+    labStatuses[labPath] = {
+      status: "failed",
+      message: "Lab definition file not found.",
+    };
+    return res
+      .status(404)
+      .json({ success: false, message: "Lab definition file not found." });
+  }
+
+  // Set initial status to starting
+  labStatuses[labPath] = {
+    status: "starting",
+    message: "Initiating lab launch...",
+  };
+
+  const command = `docker compose -f "${dockerComposeFilePath}" up -d`;
+  exec(command, { cwd: labDirectory }, (error, stdout, stderr) => {
+    if (error) {
+      console.error(
+        `[BACKEND] Docker Compose up error for ${labPath}:`,
+        error.message,
+      );
+      console.error(`[BACKEND] Stderr:`, stderr);
+      labStatuses[labPath] = {
+        status: "failed",
+        message: `Launch failed: ${error.message}`,
+      };
+      return res.status(500).json({
+        success: false,
+        message: `Failed to launch lab: ${error.message}`,
+      });
+    }
+    console.log(`[BACKEND] Docker Compose stdout for ${labPath}:\n${stdout}`);
+    if (stderr) {
+      console.warn(
+        `[BACKEND] Docker Compose stderr for ${labPath}:\n${stderr}`,
+      );
+    }
+    console.log(
+      `[BACKEND] Lab launch command initiated successfully for: ${labPath}`,
+    );
+    // At this point, the command was sent. The actual status will be determined by polling.
+    labStatuses[labPath] = {
+      status: "starting",
+      message: "Lab launch command sent. Polling for status...",
+    };
     res.json({
       success: true,
-      message:
-        "Lab launch request sent successfully! Check your Docker containers.",
-      containerId: "simulated_container_id_123", // Placeholder
-      ports: [80, 443], // Placeholder
-      accessUrl: `http://localhost:8080/access/${labPath.split("/").pop()}`, // More realistic placeholder URL
+      message: "Lab launch command sent. Polling for status...",
     });
   });
 });
 
-/**
- * API Endpoint to Stop a Docker Compose Lab.
- * Expects { labPath: string } in the request body.
- * `labPath` should be relative to /public (e.g., "/labs/routing/ospf-single-area").
- */
+// API endpoint to stop a lab
 app.post("/api/labs/stop", (req, res) => {
   const { labPath } = req.body;
+  console.log(`[BACKEND] Received stop request for: ${labPath}`);
+
   if (!labPath) {
-    console.error("[BACKEND] Stop Error: labPath is required.");
     return res
       .status(400)
-      .json({ message: "Error: labPath is required to stop the lab." });
+      .json({ success: false, message: "labPath is required." });
   }
 
-  const labDirectory = path.join(projectRoot, "public", labPath);
+  const labDirectory = path.join(LABS_BASE_PATH_IN_CONTAINER, labPath);
   const dockerComposeFilePath = path.join(labDirectory, "docker-compose.yml");
 
-  console.log(`\n[BACKEND] Received stop request for: ${labPath}`);
-  console.log(
-    `[BACKEND] Attempting to stop lab from directory: ${labDirectory}`,
-  );
-  console.log(
-    `[BACKEND] Using docker-compose file for stop: ${dockerComposeFilePath}`,
-  );
+  if (!fs.existsSync(dockerComposeFilePath)) {
+    console.error(
+      `[BACKEND] Stop failed: docker-compose.yml not found at ${dockerComposeFilePath}`,
+    );
+    labStatuses[labPath] = {
+      status: "stopped",
+      message: "Lab definition file not found for stopping.",
+    };
+    return res
+      .status(404)
+      .json({ success: false, message: "Lab definition file not found." });
+  }
 
-  // Command to bring down the Docker Compose project (stops and removes containers)
+  // Set status to stopping immediately
+  labStatuses[labPath] = {
+    status: "stopping",
+    message: "Initiating lab stop...",
+  };
+
   const command = `docker compose -f "${dockerComposeFilePath}" down`;
-
   exec(command, { cwd: labDirectory }, (error, stdout, stderr) => {
     if (error) {
       console.error(
-        `[BACKEND] Docker Compose stop error for ${labPath}:`,
-        error,
+        `[BACKEND] Docker Compose down error for ${labPath}:`,
+        error.message,
       );
-      console.error(
-        `[BACKEND] Docker Compose stop stderr for ${labPath}:`,
-        stderr,
-      );
+      console.error(`[BACKEND] Stderr:`, stderr);
+      labStatuses[labPath] = {
+        status: "failed",
+        message: `Stop failed: ${error.message}`,
+      };
       return res.status(500).json({
-        message: `Failed to stop lab: ${stderr || error.message}`,
-        details: stderr,
+        success: false,
+        message: `Failed to stop lab: ${error.message}`,
       });
     }
     console.log(
       `[BACKEND] Docker Compose stop stdout for ${labPath}:\n${stdout}`,
     );
+    if (stderr) {
+      console.warn(
+        `[BACKEND] Docker Compose stop stderr for ${labPath}:\n${stderr}`,
+      );
+    }
     console.log(`[BACKEND] Lab stopped successfully for: ${labPath}`);
-    res.json({ success: true, message: `Lab ${labPath} stopped and removed.` });
+    labStatuses[labPath] = { status: "stopped", message: "Lab stopped." };
+    res.json({ success: true, message: "Lab stopped successfully." });
   });
 });
 
-/**
- * API Endpoint for Lab Status Check (Placeholder).
- * Currently returns simulated data. To make this real, you would need to:
- * 1. Pass the actual Docker container ID or lab project name from frontend.
- * 2. Use `docker ps --filter "name=..."` or `docker compose ps` to check actual status.
- */
-app.get("/api/labs/status/:containerId", (req, res) => {
-  const { containerId } = req.params;
-  console.log(`\n[BACKEND] Checking status for container: ${containerId}`);
-  // Simulate a running status for now
-  res.json({
-    isRunning: true, // Simulate as running
-    isComplete: false,
-    hasFailed: false,
-    message: `Simulated status for ${containerId}`,
-    accessUrl: `http://localhost:8080/access/${containerId}`, // Simulate an access URL
-    ports: [8080], // Simulate some ports
-  });
+// API endpoint to get status for a single lab
+app.get("/api/labs/status-by-path", async (req, res) => {
+  const { labPath } = req.query;
+  if (!labPath) {
+    return res
+      .status(400)
+      .json({ success: false, message: "labPath is required." });
+  }
+
+  // First, check in-memory status
+  let currentStatus = labStatuses[labPath] || {
+    status: "stopped",
+    message: "Not launched yet.",
+  };
+
+  // Then, perform a real-time Docker check if it's not already in a terminal state
+  // Or if the frontend is actively polling for updates
+  if (
+    currentStatus.status === "starting" ||
+    currentStatus.status === "running" ||
+    currentStatus.status === "unknown"
+  ) {
+    try {
+      const realStatus = await getDockerComposeStatus(labPath);
+      currentStatus = realStatus; // Update in-memory status with real-time status
+      labStatuses[labPath] = realStatus; // Persist the latest status
+    } catch (error) {
+      console.error(
+        `[BACKEND] Error getting real-time status for ${labPath}:`,
+        error,
+      );
+      currentStatus = {
+        status: "failed",
+        message: "Error checking real-time status.",
+      };
+      labStatuses[labPath] = currentStatus; // Update status in case of error
+    }
+  }
+  console.log(`[BACKEND] Real status for ${labPath}:`, currentStatus.status);
+  res.json(currentStatus);
 });
 
-// --- Start the Express backend server ---
-app.listen(PORT, () => {
-  console.log(`[BACKEND] Backend server listening at http://localhost:${PORT}`);
-  console.log(`[BACKEND] Project root is: ${projectRoot}`);
+// API endpoint to get statuses for all labs (useful for initial load)
+app.get("/api/labs/all-statuses", async (req, res) => {
+  console.log("[BACKEND] Received request for all lab statuses.");
+  const allLabPaths = [
+    "routing/ospf-single-area", // Example lab path
+    // Add all your lab paths here, dynamically if possible
+  ];
+
+  const statuses = {};
+  for (const labPath of allLabPaths) {
+    try {
+      const status = await getDockerComposeStatus(labPath);
+      statuses[labPath] = status;
+      labStatuses[labPath] = status; // Keep in-memory cache updated
+    } catch (error) {
+      console.error(`[BACKEND] Error fetching status for ${labPath}:`, error);
+      statuses[labPath] = {
+        status: "failed",
+        message: "Error fetching status.",
+      };
+      labStatuses[labPath] = {
+        status: "failed",
+        message: "Error fetching status.",
+      };
+    }
+  }
+  res.json(statuses);
+});
+
+// Serve static files from the build directory of your React app (if integrated)
+// This assumes your frontend build output (e.g., `build` folder) is mounted
+// into the root of the backend container, or that the backend serves it
+// if the frontend and backend are deployed together.
+// For development, this is often handled by the frontend's dev server.
+// If you are serving your frontend from this backend, uncomment and adjust:
+/*
+app.use(express.static(path.join(__dirname, '..', 'build'))); // Assumes 'build' is parallel to 'backend'
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'build', 'index.html'));
+});
+*/
+
+app.listen(port, () => {
+  console.log(`[BACKEND] Backend server listening at http://localhost:${port}`);
+  // Log the project root for debugging paths in container
+  console.log(`[BACKEND] Project root is: ${process.cwd()}`);
 });

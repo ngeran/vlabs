@@ -1,0 +1,66 @@
+# vlabs/public/scripts.yaml
+
+scripts:
+  - name: hello_world.py
+    description: A simple script to greet with a message.
+    category: Basic
+    # --- NEW: Added tags for featured and categorization ---
+    tags:
+      - featured
+      - utility
+    arguments:
+      - name: message
+        type: string
+        description: The message to display.
+        default: Hello from script!
+        placeholder: Enter your greeting message
+    resources: [] # No specific lab resources needed for this one
+
+  - name: ping_test.py
+    description: Pings a target IP address from within a specified lab.
+    category: Connectivity
+    # --- NEW: Added tags for featured and categorization ---
+    tags:
+      - featured
+      - troubleshooting
+      - network_diagnostic
+    arguments:
+      - name: target_ip
+        type: string
+        description: IP address to ping (e.g., 172.20.0.10).
+        required: true
+        placeholder: e.g., 172.20.0.10
+      - name: lab_path
+        type: string
+        description: The path of the lab (e.g., routing/ospf-single-area) to get network context.
+        required: true
+        placeholder: e.g., routing/ospf-single-area
+    resources:
+      - type: lab_network # Indicates the script needs access to a running lab's network
+        depends_on_lab_status: running # Script needs the lab to be running to access its network
+        # More details could be added here, like specific container names to derive IPs
+
+  # --- EXAMPLE: Add this type of entry for your 'code upgrade' or 'pre/post config' scripts ---
+  - name: router_firmware_upgrade.py
+    description: Automates the firmware upgrade process for network devices.
+    category: Network Automation
+    tags:
+      - featured
+      - code_upgrade
+      - critical_operation
+    arguments:
+      - name: device_ip
+        type: string
+        description: IP address of the device to upgrade.
+        required: true
+        placeholder: e.g., 192.168.1.1
+      - name: firmware_version
+        type: string
+        description: Target firmware version to install.
+        required: true
+        placeholder: e.g., IOS-XE-17.6.3
+      - name: backup_config
+        type: boolean
+        description: Perform a configuration backup before upgrade?
+        default: true
+    resources: [] # Or define resources if it needs lab access

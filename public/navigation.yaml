@@ -1,0 +1,19 @@
+# vlabs/public/navigation.yaml
+
+menu:
+#  - title: Home
+#    type: link # This is a simple link
+#    path: / # Points to your new home page
+  - title: Labs
+    type: dropdown # This item will be a dropdown menu
+    items:
+      - title: Docker Labs Dashboard
+        path: /labs-dashboard # A new, explicit path for the labs list
+        description: Explore and manage Docker-based network labs.
+      - title: Python Script Runner
+        path: /python-runner
+        description: Run Python scripts to interact with labs.
+  # Example of another top-level link for future expansion
+  # - title: About Us
+  #   type: link
+  #   path: /about

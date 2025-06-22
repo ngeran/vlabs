@@ -1,0 +1,5 @@
+# vlabs/public/python-scripts/requirements.txt
+junos-eznc
+paramiko
+PyYAML
+jsnapy

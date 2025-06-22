@@ -1,8 +1,11 @@
+// backend/server.js
+
 const express = require("express");
 const cors = require("cors");
 const { exec } = require("child_process");
 const path = require("path");
 const fs = require("fs");
+const yaml = require("js-yaml"); // NEW: Import js-yaml
 
 const app = express();
 const port = 3001;
@@ -18,6 +21,18 @@ const LABS_BASE_PATH_IN_CONTAINER = "/public"; // Path inside the backend contai
 
 // Store lab statuses in memory (for simplicity)
 const labStatuses = {}; // { labPath: { status: 'stopped' | 'running' | 'failed' | 'starting' } }
+
+// Define the path to your Python scripts directory (good for future use)
+const PYTHON_SCRIPTS_BASE_PATH_IN_CONTAINER = path.join(LABS_BASE_PATH_IN_CONTAINER, 'python-scripts');
+
+// NEW: Define the absolute path to your scripts configuration YAML file
+const SCRIPTS_CONFIG_PATH_IN_CONTAINER = path.join(LABS_BASE_PATH_IN_CONTAINER, 'scripts.yaml');
+
+// NEW: Define the absolute path to your navigation configuration YAML file
+const NAVIGATION_CONFIG_PATH_IN_CONTAINER = path.join(LABS_BASE_PATH_IN_CONTAINER, 'navigation.yaml');
+
+// NEW: Store script statuses and outputs in memory
+const scriptRuns = {}; // { runId: { status: 'running' | 'completed' | 'failed', output: '', error: '' } }
 
 // Helper function to get Docker Compose status for a specific lab
 const getDockerComposeStatus = (labPath) => {
@@ -350,6 +365,111 @@ app.get("/api/labs/all-statuses", async (req, res) => {
     }
   }
   res.json(statuses);
+});
+
+// NEW API endpoint to get the list of available Python scripts from YAML
+app.get("/api/scripts/list", (req, res) => {
+    console.log(`[BACKEND] Received request for script list.`);
+    console.log(`[BACKEND] Attempting to read scripts config from: ${SCRIPTS_CONFIG_PATH_IN_CONTAINER}`);
+    try {
+        // Read the YAML file
+        const fileContents = fs.readFileSync(SCRIPTS_CONFIG_PATH_IN_CONTAINER, 'utf8');
+        // Parse the YAML content
+        const config = yaml.load(fileContents);
+
+        if (config && Array.isArray(config.scripts)) {
+            console.log(`[BACKEND] Successfully loaded ${config.scripts.length} scripts.`);
+            res.json({ success: true, scripts: config.scripts });
+        } else {
+            console.warn(`[BACKEND] scripts.yaml found but 'scripts' array is missing or malformed.`);
+            res.status(500).json({ success: false, message: "Scripts configuration malformed." });
+        }
+    } catch (e) {
+        console.error(`[BACKEND] Error reading or parsing scripts.yaml:`, e.message);
+        res.status(500).json({ success: false, message: `Failed to load script list: ${e.message}` });
+    }
+});
+
+
+// NEW API endpoint to run a Python script
+app.post('/api/scripts/run', (req, res) => {
+    const { scriptName, args } = req.body; // Expect scriptName and optional arguments
+    const runId = Date.now().toString() + Math.random().toString(36).substring(2, 9); // Simple unique ID for this run
+
+    console.log(`[BACKEND] Received request to run Python script: ${scriptName} (ID: ${runId}) with args: ${args}`);
+
+    if (!scriptName) {
+        return res.status(400).json({ success: false, message: 'scriptName is required.' });
+    }
+
+    // Initialize script status
+    scriptRuns[runId] = { status: 'running', output: '', error: '' };
+
+    // Construct the command to run the Python script within the Docker container
+    // We assume the script is baked into the 'vlabs-python-runner' image at /app/scriptName
+    // If you plan to dynamically mount scripts later, this command will change.
+    const dockerCommandArgs = [
+        'run',
+        '--rm',                     // Remove the container after it exits
+        'vlabs-python-runner',      // The name of your Python Docker image
+        'python',
+        path.join('/app', scriptName) // Path to the script inside the Python container
+    ];
+
+    // Add any provided arguments to the command
+    if (args && Array.isArray(args)) {
+        dockerCommandArgs.push(...args);
+    } else if (typeof args === 'string' && args.length > 0) {
+        dockerCommandArgs.push(args); // For a single string argument
+    }
+
+    console.log(`[BACKEND] Executing docker command: docker ${dockerCommandArgs.join(' ')}`);
+
+    // Use child_process.exec for simplicity in Stage 1.
+    // For real-time streaming and long-running scripts, we'll switch to spawn.
+    exec('docker ' + dockerCommandArgs.join(' '), (error, stdout, stderr) => {
+        if (error) {
+            console.error(`[BACKEND] Error running Python script ${scriptName} (ID: ${runId}):`, error.message);
+            console.error(`[BACKEND] Stderr:`, stderr);
+            scriptRuns[runId] = { status: 'failed', output: stdout, error: stderr || error.message };
+            return res.status(500).json({
+                success: false,
+                message: `Failed to run script: ${error.message}`,
+                output: stdout,
+                error: stderr
+            });
+        }
+
+        console.log(`[BACKEND] Python script ${scriptName} (ID: ${runId}) completed successfully.`);
+        scriptRuns[runId] = { status: 'completed', output: stdout, error: stderr };
+        res.json({
+            success: true,
+            message: 'Script executed successfully.',
+            output: stdout,
+            error: stderr
+        });
+    });
+});
+
+// NEW API endpoint to get the navigation menu from YAML
+app.get("/api/navigation/menu", (req, res) => {
+    console.log(`[BACKEND] Received request for navigation menu.`);
+    console.log(`[BACKEND] Attempting to read navigation config from: ${NAVIGATION_CONFIG_PATH_IN_CONTAINER}`);
+    try {
+        const fileContents = fs.readFileSync(NAVIGATION_CONFIG_PATH_IN_CONTAINER, 'utf8');
+        const config = yaml.load(fileContents);
+
+        if (config && Array.isArray(config.menu)) {
+            console.log(`[BACKEND] Successfully loaded ${config.menu.length} navigation items.`);
+            res.json({ success: true, menu: config.menu });
+        } else {
+            console.warn(`[BACKEND] navigation.yaml found but 'menu' array is missing or malformed.`);
+            res.status(500).json({ success: false, message: "Navigation configuration malformed." });
+        }
+    } catch (e) {
+        console.error(`[BACKEND] Error reading or parsing navigation.yaml:`, e.message);
+        res.status(500).json({ success: false, message: `Failed to load navigation menu: ${e.message}` });
+    }
 });
 
 // Serve static files from the build directory of your React app (if integrated)

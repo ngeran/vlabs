@@ -17,7 +17,6 @@ import {
   Globe,
 } from "lucide-react";
 import getDifficultyColor from "../utils/getDifficultyColor";
-// --- CORRECTED IMPORT from previous step ---
 import {
   launchLab,
   stopLab,
@@ -31,14 +30,12 @@ import ReactMarkdown from "react-markdown";
 
 const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
   const safeLab = lab || {};
-  // Use lab.slug for consistency with how labs are identified in paths and the store
-  const labIdentifier = `/labs/${safeLab.category}/${safeLab.slug}`; // Changed to full path as identifier
+  const labIdentifier = `/labs/${safeLab.category}/${safeLab.slug}`;
 
   const [activeTab, setActiveTab] = useState("overview");
-  const [labData, setLabData] = useState(null); // Parsed YAML content
-  const [isLoading, setIsLoading] = useState(false); // For YAML loading
+  const [labData, setLabData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Lab launch/runtime state
   const [labStatus, setLabStatus] = useState(
     labIdentifier ? getLabStatus(labIdentifier)?.status : null,
   );
@@ -48,7 +45,6 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
     labIdentifier ? getLabStatus(labIdentifier) : null,
   );
 
-  // Effect to load YAML content and check existing lab status when modal opens or lab changes
   useEffect(() => {
     if (isOpen && lab) {
       loadYamlContent();
@@ -56,11 +52,9 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
     }
   }, [isOpen, lab]);
 
-  // Effect for setting up and tearing down lab status event listeners
   useEffect(() => {
     if (isOpen && labIdentifier) {
       const handleStatusChange = (data) => {
-        // Ensure the event is for *this* labIdentifier if the listener is global
         if (data.id !== labIdentifier) return;
 
         setLabStatus(data.status);
@@ -80,7 +74,6 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
         }
       };
 
-      // --- Use the named export functions from labLauncher ---
       onLabStatusChange(labIdentifier, handleStatusChange);
 
       return () => {
@@ -89,10 +82,8 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
     }
   }, [isOpen, labIdentifier]);
 
-  // Function to fetch and parse YAML content
   const loadYamlContent = async () => {
     setIsLoading(true);
-    // Construct the full path to the YAML file
     const yamlPath = `/labs/${lab.category}/${lab.slug}/${lab.slug}.yml`;
     console.log("Attempting to fetch YAML from:", yamlPath);
 
@@ -110,21 +101,19 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
         console.error(
           `Failed to fetch YAML for ${lab.title}. Status: ${response.status}, ${response.statusText}`,
         );
-        setLabData(null); // Ensure labData is null on failure
+        setLabData(null);
       }
     } catch (error) {
       console.error("Error loading YAML content:", error);
-      setLabData(null); // Ensure labData is null on error
+      setLabData(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Function to check and set the lab's existing status from labLauncher
   const checkExistingLabStatus = () => {
     if (!labIdentifier) return;
 
-    // --- Use the named export function from labLauncher ---
     const existingStatus = getLabStatus(labIdentifier);
 
     if (existingStatus) {
@@ -148,7 +137,6 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
     }
   };
 
-  // Helper function to get status messages
   const getStatusMessage = (status) => {
     switch (status) {
       case "launching":
@@ -162,19 +150,16 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
       case "stopped":
         return "Lab has been stopped";
       default:
-        return "Not launched"; // Default message if no specific status
+        return "Not launched";
     }
   };
 
-  // Function to handle launching the lab
   const handleLaunchLab = async () => {
     setIsLaunching(true);
     setLaunchError(null);
     setLabStatus("launching");
 
     try {
-      // --- Use the named export function `launchLab` ---
-      // `labIdentifier` is already the full path (e.g., "/labs/routing/ospf-single-area")
       const result = await launchLab(labIdentifier, labData, {});
 
       if (onLaunch) {
@@ -191,13 +176,10 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
     }
   };
 
-  // Function to handle stopping the lab
   const handleStopLab = async () => {
     try {
       if (!labIdentifier) return;
 
-      // --- Use the named export function `stopLab` ---
-      // `labIdentifier` is already the full path
       await stopLab(labIdentifier);
 
       setLabStatus("stopping");
@@ -209,7 +191,6 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
     }
   };
 
-  // Helper function to get status icons
   const getStatusIcon = (status) => {
     switch (status) {
       case "launching":
@@ -227,7 +208,6 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
     }
   };
 
-  // Helper function to get status badge colors
   const getStatusColor = (status) => {
     switch (status) {
       case "launching":
@@ -241,18 +221,15 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
       case "stopped":
         return "bg-gray-100 text-gray-800 border-gray-200";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200"; // Default for unknown/null status
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
-  // Early exit: If modal is not open or lab data is not provided, render nothing
-  // This works in conjunction with conditional rendering in App.jsx
   if (!isOpen || !lab) {
-    console.log("[LabModal] Not rendering: isOpen =", isOpen, "lab =", lab); // Debug
+    console.log("[LabModal] Not rendering: isOpen =", isOpen, "lab =", lab);
     return null;
   }
 
-  // DEBUG: Log the labData state every time the component renders
   console.log("Current labData state (during render):", labData);
 
   return (
@@ -266,7 +243,6 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
             className={`w-full h-auto object-contain max-h-[80vh] transition-all`}
             onError={(e) => {
               e.target.style.display = "none";
-              // Display the fallback div if image fails to load
               if (e.target.nextSibling) {
                 e.target.nextSibling.style.display = "flex";
               }
@@ -274,7 +250,7 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
           />
           {/* Fallback for missing topology image */}
           <div
-            style={{ display: "none" }} // Initially hidden
+            style={{ display: "none" }}
             className="flex flex-col items-center justify-center bg-gray-100 p-12 border-2 border-dashed border-gray-300 min-h-[200px]"
           >
             <ImageIcon className="w-16 h-16 text-gray-400 mb-4" />
@@ -322,107 +298,116 @@ const LabModal = ({ lab, isOpen, onClose, onLaunch }) => {
         </div>
 
         {/* Main content area */}
-        <div className="p-6 flex-1 flex flex-col">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-1">{lab.title}</h2>
-            <p className="text-gray-600">{lab.description}</p>
-            <div className="flex space-x-6 mt-4 text-sm text-gray-500">
-              <div className="flex items-center space-x-1">
-                <Clock className="w-4 h-4" />
-                <span>{lab.duration}</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <BarChart3 className="w-4 h-4" />
-                <span>{lab.difficulty}</span>
-              </div>
-              <div className="flex items-center space-x-1 capitalize">
-                <Network className="w-4 h-4" />
-                <span>{lab.category}</span>
+        <div className="p-6 flex-1 flex flex-col overflow-hidden">
+          {/* Wrapper for all static content above the tabs - No flex properties here */}
+          <div>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold mb-1">{lab.title}</h2>
+              <p className="text-gray-600">{lab.description}</p>
+              <div className="flex space-x-6 mt-4 text-sm text-gray-500">
+                <div className="flex items-center space-x-1">
+                  <Clock className="w-4 h-4" />
+                  <span>{lab.duration}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <BarChart3 className="w-4 h-4" />
+                  <span>{lab.difficulty}</span>
+                </div>
+                <div className="flex items-center space-x-1 capitalize">
+                  <Network className="w-4 h-4" />
+                  <span>{lab.category}</span>
+                </div>
               </div>
             </div>
+
+            {/* Error Display */}
+            {launchError && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="w-5 h-5 text-red-600" />
+                  <span className="font-medium text-red-800">
+                    Launch Failed
+                  </span>
+                </div>
+                <p className="text-red-700 mt-1">{launchError}</p>
+              </div>
+            )}
+
+            {/* Lab Access URLs */}
+            {labProgress?.accessUrl && labStatus === "running" && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <h4 className="font-medium text-green-800 mb-2">
+                  Lab Environment Access
+                </h4>
+                <div className="space-y-2">
+                  <a
+                    href={labProgress.accessUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-2 text-green-700 hover:text-green-800 hover:underline"
+                  >
+                    <Globe className="w-4 h-4" />
+                    <span>Primary Lab Interface</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  {labProgress.ports && (
+                    <div className="text-sm text-green-600">
+                      <span>
+                        Available ports: {labProgress.ports.join(", ")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tabs Navigation */}
+            <nav className="flex items-center border-b border-gray-200 mb-6">
+              <button
+                key="overview"
+                onClick={() => setActiveTab("overview")}
+                className={`pb-2 px-4 text-sm font-medium cursor-pointer ${
+                  activeTab === "overview"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Overview
+              </button>
+              <div className="h-6 w-[1px] bg-gray-300 mx-4"></div>{" "}
+              {/* Separator */}
+              <button
+                key="details"
+                onClick={() => setActiveTab("details")}
+                className={`pb-2 px-4 text-sm font-medium cursor-pointer ${
+                  activeTab === "details"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Details
+              </button>
+            </nav>
           </div>
+          {/* END: Wrapper for all static content above the tabs */}
 
-          {/* Error Display */}
-          {launchError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="w-5 h-5 text-red-600" />
-                <span className="font-medium text-red-800">Launch Failed</span>
-              </div>
-              <p className="text-red-700 mt-1">{launchError}</p>
-            </div>
-          )}
-
-          {/* Lab Access URLs */}
-          {labProgress?.accessUrl && labStatus === "running" && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <h4 className="font-medium text-green-800 mb-2">
-                Lab Environment Access
-              </h4>
-              <div className="space-y-2">
-                <a
-                  href={labProgress.accessUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-2 text-green-700 hover:text-green-800 hover:underline"
-                >
-                  <Globe className="w-4 h-4" />
-                  <span>Primary Lab Interface</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-                {labProgress.ports && (
-                  <div className="text-sm text-green-600">
-                    <span>Available ports: {labProgress.ports.join(", ")}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Tabs Navigation */}
-          <nav className="flex items-center border-b border-gray-200 mb-6">
-            <button
-              key="overview"
-              onClick={() => setActiveTab("overview")}
-              className={`pb-2 px-4 text-sm font-medium cursor-pointer ${
-                activeTab === "overview"
-                  ? "border-b-2 border-blue-600 text-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Overview
-            </button>
-            <div className="h-6 w-[1px] bg-gray-300 mx-4"></div>{" "}
-            {/* Separator */}
-            <button
-              key="details"
-              onClick={() => setActiveTab("details")}
-              className={`pb-2 px-4 text-sm font-medium cursor-pointer ${
-                activeTab === "details"
-                  ? "border-b-2 border-blue-600 text-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Details
-            </button>
-          </nav>
-
-          {/* Tab Content Area */}
+          {/* Tab Content Area - This should now correctly take remaining space and scroll */}
           {isLoading ? (
             <div className="flex justify-center items-center py-12 flex-1 overflow-y-auto">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : (
-            <div className="prose max-w-none text-gray-700 flex-1 overflow-y-auto">
+            <div className="prose max-w-none text-gray-700 flex-1 overflow-y-auto min-h-50">
+              {/* Added 'block' class to ensure these children behave predictably within the flex container */}
               {activeTab === "overview" && (
-                <div>
+                <div className="block">
                   <ReactMarkdown>
                     {labData?.description || "No description available."}
                   </ReactMarkdown>
                 </div>
               )}
               {activeTab === "details" && (
-                <div>
+                <div className="block">
                   <h3>Things to do with the lab</h3>
                   {labData?.objectives ? (
                     <ul>

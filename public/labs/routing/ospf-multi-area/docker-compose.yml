@@ -13,6 +13,8 @@ services:
         ipv4_address: 10.100.13.10
       vmx1_vmx4:
         ipv4_address: 10.100.14.10
+      vmx1_vmx5:
+        ipv4_address: 10.100.15.10
     volumes:
       - ./configs/vmx1.conf:/config
       - ./varlog/vmx1:/var/log
@@ -32,6 +34,8 @@ services:
         ipv4_address: 10.100.23.20
       vmx2_vmx4:
         ipv4_address: 10.100.24.20
+      vmx2_vmx6:
+        ipv4_address: 10.100.26.20
     volumes:
       - ./configs/vmx2.conf:/config
       - ./varlog/vmx2:/var/log
@@ -51,6 +55,8 @@ services:
         ipv4_address: 10.100.23.30
       vmx3_vmx4:
         ipv4_address: 10.100.34.30
+      vmx3_vmx5:
+        ipv4_address: 10.100.35.30
     volumes:
       - ./configs/vmx3.conf:/config
       - ./varlog/vmx3:/var/log
@@ -64,15 +70,51 @@ services:
     networks:
       mgmt_net:
         ipv4_address: 192.168.100.40
+      vmx1_vmx4:
+        ipv4_address: 10.100.14.40
       vmx2_vmx4:
         ipv4_address: 10.100.24.40
       vmx3_vmx4:
         ipv4_address: 10.100.34.40
-      vmx1_vmx4:
-        ipv4_address: 10.100.14.40
+      vmx4_vmx6:
+        ipv4_address: 10.100.46.40
     volumes:
       - ./configs/vmx4.conf:/config
       - ./varlog/vmx4:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+  vmx5:
+    image: crpd:23.4R2-S4.11
+    container_name: vmx5
+    hostname: vMX5
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.50
+      vmx1_vmx5:
+        ipv4_address: 10.100.15.50
+      vmx3_vmx5:
+        ipv4_address: 10.100.35.50
+    volumes:
+      - ./configs/vmx5.conf:/config
+      - ./varlog/vmx5:/var/log
+    command: ["/sbin/runit-init.sh"]
+
+  vmx6:
+    image: crpd:23.4R2-S4.11
+    container_name: vmx6
+    hostname: vMX6
+    privileged: true
+    networks:
+      mgmt_net:
+        ipv4_address: 192.168.100.60
+      vmx2_vmx6:
+        ipv4_address: 10.100.26.60
+      vmx4_vmx6:
+        ipv4_address: 10.100.46.60
+    volumes:
+      - ./configs/vmx6.conf:/config
+      - ./varlog/vmx6:/var/log
     command: ["/sbin/runit-init.sh"]
 
 networks:
@@ -96,6 +138,11 @@ networks:
     ipam:
       config:
         - subnet: 10.100.14.0/24
+  vmx1_vmx5:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.100.15.0/24
   vmx2_vmx3:
     driver: bridge
     ipam:
@@ -106,8 +153,28 @@ networks:
     ipam:
       config:
         - subnet: 10.100.24.0/24
+  vmx2_vmx5:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.100.25.0/24
+  vmx2_vmx6:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.100.26.0/24
   vmx3_vmx4:
     driver: bridge
     ipam:
       config:
         - subnet: 10.100.34.0/24
+  vmx3_vmx5:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.100.35.0/24
+  vmx4_vmx6:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.100.46.0/24

@@ -16,7 +16,7 @@ const HomePage = () => {
             <Network className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 mb-4 leading-tight">
-            Welcome to vLabs
+            Welcome to Vlabs
           </h1>
           <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto mb-8">
             Your hands-on platform for **Advanced Networking Labs**.

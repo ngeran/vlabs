@@ -503,6 +503,42 @@ app.get("/api/scripts/list", (req, res) => {
   }
 });
 
+// --- Route to list available inventory files ---
+app.get("/api/inventories/list", async (req, res) => {
+  const dataDir = path.join(__dirname, "..", "python_pipeline", "data");
+  console.log(`Attempting to list inventories from: ${dataDir}`); // For debugging
+
+  try {
+    // Check if the directory exists
+    if (!fs.existsSync(dataDir)) {
+      console.warn(`Inventory data directory not found: ${dataDir}`);
+      return res
+        .status(200)
+        .json({
+          success: true,
+          inventories: [],
+          message: "Inventory directory not found, returning empty list.",
+        });
+    }
+
+    const files = await fs.promises.readdir(dataDir);
+    const inventoryFiles = files.filter((file) => {
+      const ext = path.extname(file).toLowerCase();
+      return ext === ".yml" || ext === ".yaml" || ext === ".ini";
+    });
+    res.json({ success: true, inventories: inventoryFiles });
+  } catch (error) {
+    console.error("Error listing inventory files:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Failed to list inventory files",
+        error: error.message,
+      });
+  }
+});
+
 // --- MODIFIED API endpoint to run a Python script ---
 app.post("/api/scripts/run", (req, res) => {
   const { scriptId, parameters } = req.body; // Frontend now sends 'scriptId' (e.g., "hello_world")

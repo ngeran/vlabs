@@ -1,12 +1,28 @@
 # vlabs/python_pipeline/get_device_facts/get_device_facts.yml
 
 parameters:
+  - name: inventory_file
+    label: Inventory File
+    type: enum
+    description: Select the Ansible inventory file to use. Mutually exclusive with 'Hosts'.
+    required: false
+    # Options for this enum are dynamically populated by the frontend
+    # from the /api/inventories/list endpoint, so no 'options' field is needed here.
+
+  - name: hosts
+    label: Hosts
+    type: string
+    description: Enter host(s) manually (comma-separated). Mutually exclusive with 'Inventory File'.
+    required: false
+    placeholder: e.g., device1.lab.com,10.0.0.1,device3.local
+
   - name: username
     type: string
     label: "SSH Username"
     description: "Username for connecting to network devices."
     required: true
     placeholder: "e.g., admin"
+
   - name: password
     type: string
     label: "SSH Password"
@@ -14,12 +30,7 @@ parameters:
     required: true
     placeholder: "Enter password"
     sensitive: true # Hint for UI not to display this
-  - name: get_version
-    type: boolean
-    label: "Fetch 'show version'"
-    description: "If checked, fetches 'show version' command output instead of basic device facts."
-    defaultValue: false
-    required: false
+
   - name: dry_run
     type: boolean
     label: "Dry Run (Simulate Connection)"

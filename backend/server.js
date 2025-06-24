@@ -5,7 +5,7 @@ const cors = require("cors");
 const { exec } = require("child_process");
 const path = require("path");
 const fs = require("fs");
-const yaml = require("js-yaml"); // NEW: Import js-yaml
+const yaml = require("js-yaml"); // Import js-yaml for YAML parsing
 
 const app = express();
 const port = 3001;
@@ -17,27 +17,46 @@ app.use(express.json()); // To parse JSON request bodies
 // Define the absolute path to your public directory where labs are stored
 // This assumes your `vlabs/docker-compose.yml` mounts `./public` to `/public`
 // AND your backend Dockerfile sets `/app/backend` as WORKDIR.
-const LABS_BASE_PATH_IN_CONTAINER = "/public"; // Path inside the backend container
+const LABS_BASE_PATH_IN_CONTAINER = "/public"; // Path inside the backend container (for docker-compose paths)
 
 // Store lab statuses in memory (for simplicity)
 const labStatuses = {}; // { labPath: { status: 'stopped' | 'running' | 'failed' | 'starting' } }
 
-// Define the path to your Python scripts directory (good for future use)
-const PYTHON_SCRIPTS_BASE_PATH_IN_CONTAINER = path.join(LABS_BASE_PATH_IN_CONTAINER, 'python-scripts');
+// --- Paths for Python Scripting Pipeline ---
 
-// NEW: Define the absolute path to your scripts configuration YAML file
-const SCRIPTS_CONFIG_PATH_IN_CONTAINER = path.join(LABS_BASE_PATH_IN_CONTAINER, 'scripts.yaml');
+// The absolute path on the host machine to the python_pipeline directory.
+// This is used for the Docker volume mount *source* when launching the python_runner container.
+// It leverages the HOST_PROJECT_ROOT environment variable.
+const PYTHON_PIPELINE_PATH_ON_HOST = process.env.HOST_PROJECT_ROOT
+  ? path.join(process.env.HOST_PROJECT_ROOT, "python_pipeline")
+  : path.resolve(__dirname, "../../python_pipeline"); // Fallback for local development outside Docker
 
-// NEW: Define the absolute path to your navigation configuration YAML file
-const NAVIGATION_CONFIG_PATH_IN_CONTAINER = path.join(LABS_BASE_PATH_IN_CONTAINER, 'navigation.yaml');
+// The absolute path *inside the backend container* to the scripts configuration YAML file.
+// This path leverages the mount `- ./python_pipeline:/python_pipeline` in docker-compose.yml
+// so the backend can read `scripts.yaml` directly using fs.readFileSync.
+const SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER = "/python_pipeline/scripts.yaml";
 
-// NEW: Store script statuses and outputs in memory
+// The internal path inside the Python runner Docker container where scripts will be mounted.
+// This is used in the `docker run -v` command as the *destination* path.
+const SCRIPT_MOUNT_POINT_IN_CONTAINER = "/app/python-scripts";
+// --- END Python Paths ---
+
+// --- Path for Navigation Configuration ---
+
+// Assuming navigation.yaml is in the 'public' directory, which is mounted to `/public`
+// inside the backend container. This path is used for fs.readFileSync.
+const NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER = "/public/navigation.yaml";
+// --- END Navigation Paths ---
+
+// Store script statuses and outputs in memory (for tracking runs, though not fully utilized yet)
 const scriptRuns = {}; // { runId: { status: 'running' | 'completed' | 'failed', output: '', error: '' } }
 
 // Helper function to get Docker Compose status for a specific lab
 const getDockerComposeStatus = (labPath) => {
   return new Promise((resolve) => {
     // Construct the full path to the lab's directory inside the container
+    // This path is relative to the backend's mount of the public folder
+    // NOTE: This assumes your 'public' folder is mounted directly as '/public' in the backend container.
     const labDirectory = path.join(LABS_BASE_PATH_IN_CONTAINER, labPath);
     const dockerComposeFilePath = path.join(labDirectory, "docker-compose.yml");
 
@@ -45,6 +64,8 @@ const getDockerComposeStatus = (labPath) => {
       `[BACKEND] Checking real status for lab: ${labPath} in directory: ${labDirectory}`,
     );
 
+    // IMPORTANT: fs.existsSync works on the *backend container's filesystem*.
+    // If /public is mounted correctly, this check is valid.
     if (!fs.existsSync(dockerComposeFilePath)) {
       console.warn(
         `[BACKEND] docker-compose.yml not found at: ${dockerComposeFilePath}`,
@@ -65,7 +86,6 @@ const getDockerComposeStatus = (labPath) => {
           error.message,
         );
         console.error(`[BACKEND] Stderr:`, stderr);
-        // If there's an error, it often means no containers are running or the project doesn't exist.
         return resolve({
           status: "stopped",
           message: `Docker Compose command failed: ${error.message}`,
@@ -84,7 +104,6 @@ const getDockerComposeStatus = (labPath) => {
 
       let services = [];
       try {
-        // Parse each line as a separate JSON object
         services = stdout
           .trim()
           .split("\n")
@@ -97,10 +116,10 @@ const getDockerComposeStatus = (labPath) => {
                 parseError,
               );
               console.error(`[BACKEND] Faulty line:`, line);
-              return null; // Return null for lines that can't be parsed
+              return null;
             }
           })
-          .filter(Boolean); // Filter out any nulls from failed parsing
+          .filter(Boolean);
 
         if (services.length === 0) {
           console.log(
@@ -124,7 +143,6 @@ const getDockerComposeStatus = (labPath) => {
         });
       }
 
-      // Determine overall status based on parsed services
       const allRunning = services.every(
         (service) => service.State === "running",
       );
@@ -344,6 +362,7 @@ app.get("/api/labs/all-statuses", async (req, res) => {
   const allLabPaths = [
     "routing/ospf-single-area", // Example lab path
     // Add all your lab paths here, dynamically if possible
+    // (You might read these from a lab definition YAML if you had one)
   ];
 
   const statuses = {};
@@ -367,126 +386,186 @@ app.get("/api/labs/all-statuses", async (req, res) => {
   res.json(statuses);
 });
 
-// NEW API endpoint to get the list of available Python scripts from YAML
-app.get("/api/scripts/list", (req, res) => {
-    console.log(`[BACKEND] Received request for script list.`);
-    console.log(`[BACKEND] Attempting to read scripts config from: ${SCRIPTS_CONFIG_PATH_IN_CONTAINER}`);
-    try {
-        // Read the YAML file
-        const fileContents = fs.readFileSync(SCRIPTS_CONFIG_PATH_IN_CONTAINER, 'utf8');
-        // Parse the YAML content
-        const config = yaml.load(fileContents);
-
-        if (config && Array.isArray(config.scripts)) {
-            console.log(`[BACKEND] Successfully loaded ${config.scripts.length} scripts.`);
-            res.json({ success: true, scripts: config.scripts });
-        } else {
-            console.warn(`[BACKEND] scripts.yaml found but 'scripts' array is missing or malformed.`);
-            res.status(500).json({ success: false, message: "Scripts configuration malformed." });
-        }
-    } catch (e) {
-        console.error(`[BACKEND] Error reading or parsing scripts.yaml:`, e.message);
-        res.status(500).json({ success: false, message: `Failed to load script list: ${e.message}` });
-    }
-});
-
-
-// NEW API endpoint to run a Python script
-app.post('/api/scripts/run', (req, res) => {
-    const { scriptName, args } = req.body; // Expect scriptName and optional arguments
-    const runId = Date.now().toString() + Math.random().toString(36).substring(2, 9); // Simple unique ID for this run
-
-    console.log(`[BACKEND] Received request to run Python script: ${scriptName} (ID: ${runId}) with args: ${args}`);
-
-    if (!scriptName) {
-        return res.status(400).json({ success: false, message: 'scriptName is required.' });
-    }
-
-    // Initialize script status
-    scriptRuns[runId] = { status: 'running', output: '', error: '' };
-
-    // Construct the command to run the Python script within the Docker container
-    // We assume the script is baked into the 'vlabs-python-runner' image at /app/scriptName
-    // If you plan to dynamically mount scripts later, this command will change.
-    const dockerCommandArgs = [
-        'run',
-        '--rm',                     // Remove the container after it exits
-        'vlabs-python-runner',      // The name of your Python Docker image
-        'python',
-        path.join('/app', scriptName) // Path to the script inside the Python container
-    ];
-
-    // Add any provided arguments to the command
-    if (args && Array.isArray(args)) {
-        dockerCommandArgs.push(...args);
-    } else if (typeof args === 'string' && args.length > 0) {
-        dockerCommandArgs.push(args); // For a single string argument
-    }
-
-    console.log(`[BACKEND] Executing docker command: docker ${dockerCommandArgs.join(' ')}`);
-
-    // Use child_process.exec for simplicity in Stage 1.
-    // For real-time streaming and long-running scripts, we'll switch to spawn.
-    exec('docker ' + dockerCommandArgs.join(' '), (error, stdout, stderr) => {
-        if (error) {
-            console.error(`[BACKEND] Error running Python script ${scriptName} (ID: ${runId}):`, error.message);
-            console.error(`[BACKEND] Stderr:`, stderr);
-            scriptRuns[runId] = { status: 'failed', output: stdout, error: stderr || error.message };
-            return res.status(500).json({
-                success: false,
-                message: `Failed to run script: ${error.message}`,
-                output: stdout,
-                error: stderr
-            });
-        }
-
-        console.log(`[BACKEND] Python script ${scriptName} (ID: ${runId}) completed successfully.`);
-        scriptRuns[runId] = { status: 'completed', output: stdout, error: stderr };
-        res.json({
-            success: true,
-            message: 'Script executed successfully.',
-            output: stdout,
-            error: stderr
-        });
-    });
-});
-
-// NEW API endpoint to get the navigation menu from YAML
+// --- API endpoint to get the navigation menu from YAML ---
 app.get("/api/navigation/menu", (req, res) => {
-    console.log(`[BACKEND] Received request for navigation menu.`);
-    console.log(`[BACKEND] Attempting to read navigation config from: ${NAVIGATION_CONFIG_PATH_IN_CONTAINER}`);
-    try {
-        const fileContents = fs.readFileSync(NAVIGATION_CONFIG_PATH_IN_CONTAINER, 'utf8');
-        const config = yaml.load(fileContents);
+  console.log(`[BACKEND] Received request for navigation menu.`);
+  console.log(
+    `[BACKEND] Attempting to read navigation config from: ${NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER}`,
+  );
+  try {
+    // Read the YAML file from its resolved container location
+    const fileContents = fs.readFileSync(
+      NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER, // Use the CONTAINER path for fs.readFileSync
+      "utf8",
+    );
+    // Parse the YAML content
+    const config = yaml.load(fileContents);
 
-        if (config && Array.isArray(config.menu)) {
-            console.log(`[BACKEND] Successfully loaded ${config.menu.length} navigation items.`);
-            res.json({ success: true, menu: config.menu });
-        } else {
-            console.warn(`[BACKEND] navigation.yaml found but 'menu' array is missing or malformed.`);
-            res.status(500).json({ success: false, message: "Navigation configuration malformed." });
-        }
-    } catch (e) {
-        console.error(`[BACKEND] Error reading or parsing navigation.yaml:`, e.message);
-        res.status(500).json({ success: false, message: `Failed to load navigation menu: ${e.message}` });
+    if (config && Array.isArray(config.menu)) {
+      // Assuming 'menu' is the top-level array key in navigation.yaml
+      console.log(
+        `[BACKEND] Successfully loaded ${config.menu.length} navigation items.`,
+      );
+      res.json({ success: true, menu: config.menu });
+    } else {
+      console.warn(
+        `[BACKEND] navigation.yaml found but 'menu' array is missing or malformed.`,
+      );
+      res.status(500).json({
+        success: false,
+        message: "Navigation configuration malformed.",
+      });
     }
+  } catch (e) {
+    console.error(
+      `[BACKEND] Error reading or parsing navigation.yaml at ${NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER}:`,
+      e.message,
+    );
+    res.status(500).json({
+      success: false,
+      message: `Failed to load navigation menu: ${e.message}`,
+    });
+  }
+});
+// --- END API endpoint for navigation ---
+
+// API endpoint to get the list of available Python scripts from YAML
+app.get("/api/scripts/list", (req, res) => {
+  console.log(`[BACKEND] Received request for script list.`);
+  console.log(
+    `[BACKEND] Attempting to read scripts config from: ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}`,
+  );
+  try {
+    // Read the YAML file from its resolved container location
+    const fileContents = fs.readFileSync(
+      SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, // Use the CONTAINER path for fs.readFileSync
+      "utf8",
+    );
+    // Parse the YAML content
+    const config = yaml.load(fileContents);
+
+    if (config && Array.isArray(config.scripts)) {
+      console.log(
+        `[BACKEND] Successfully loaded ${config.scripts.length} scripts.`,
+      );
+      res.json({ success: true, scripts: config.scripts });
+    } else {
+      console.warn(
+        `[BACKEND] scripts.yaml found but 'scripts' array is missing or malformed.`,
+      );
+      res
+        .status(500)
+        .json({ success: false, message: "Scripts configuration malformed." });
+    }
+  } catch (e) {
+    console.error(
+      `[BACKEND] Error reading or parsing scripts.yaml at ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}:`,
+      e.message,
+    );
+    res.status(500).json({
+      success: false,
+      message: `Failed to load script list: ${e.message}`,
+    });
+  }
 });
 
-// Serve static files from the build directory of your React app (if integrated)
-// This assumes your frontend build output (e.g., `build` folder) is mounted
-// into the root of the backend container, or that the backend serves it
-// if the frontend and backend are deployed together.
-// For development, this is often handled by the frontend's dev server.
-// If you are serving your frontend from this backend, uncomment and adjust:
-/*
-app.use(express.static(path.join(__dirname, '..', 'build'))); // Assumes 'build' is parallel to 'backend'
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'build', 'index.html'));
-});
-*/
+// API endpoint to run a Python script
+app.post("/api/scripts/run", (req, res) => {
+  const { scriptName, args } = req.body; // Expect scriptName and optional arguments
+  const runId =
+    Date.now().toString() + Math.random().toString(36).substring(2, 9); // Simple unique ID for this run
 
+  console.log(
+    `[BACKEND] Received request to run Python script: ${scriptName} (ID: ${runId}) with args: ${JSON.stringify(args)}`,
+  );
+
+  if (!scriptName) {
+    return res
+      .status(400)
+      .json({ success: false, message: "scriptName is required." });
+  }
+
+  // Initialize script status (for potential future status polling, not used by frontend currently)
+  scriptRuns[runId] = { status: "running", output: "", error: "" };
+
+  // Construct the command to run the Python script within a new Docker container
+  // The script will be located at this path *inside* the Python runner container.
+  const scriptInternalPath = path.join(
+    SCRIPT_MOUNT_POINT_IN_CONTAINER,
+    scriptName,
+  );
+
+  const dockerCommandArgs = [
+    "run",
+    "--rm", // Remove the container after it exits
+    "--network",
+    "host", // Allows Python script to access host network (e.g., your Node.js backend if needed)
+    // Exercise caution with '--network host' in production.
+    // Mount the entire python_pipeline directory from the host into the container
+    "-v",
+    // This is the critical volume mount: HOST_PATH:CONTAINER_PATH
+    `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+    "vlabs-python-runner", // The name of your Python Docker image (must be built)
+    "python",
+    scriptInternalPath, // Path to the script inside the Python container
+  ];
+
+  // Add any provided arguments to the command, ensuring they are properly quoted
+  // This basic quoting handles spaces but not all complex shell characters.
+  const finalArgs = args.map(
+    (arg) => `'${String(arg).replace(/'/g, "'\\''")}'`,
+  ); // More robust single quote escaping
+  dockerCommandArgs.push(...finalArgs);
+
+  const command = `docker ${dockerCommandArgs.join(" ")}`;
+  console.log(`[BACKEND] Executing Docker command: ${command}`);
+
+  exec(command, { timeout: 30000 }, (error, stdout, stderr) => {
+    // Added 30-second timeout
+    if (error) {
+      console.error(
+        `[BACKEND] Error running Python script ${scriptName}:`,
+        error.message,
+      );
+      console.error(`[BACKEND] Script Stderr:`, stderr);
+      scriptRuns[runId] = {
+        status: "failed",
+        output: stdout, // Still capture stdout for debugging context
+        error: stderr || error.message,
+      };
+      return res.status(500).json({
+        success: false,
+        message: `Script execution failed: ${stderr || error.message}`,
+        output: stdout, // Send stdout even on error, for context
+        error: stderr || error.message,
+      });
+    }
+
+    console.log(`[BACKEND] Script ${scriptName} stdout:\n${stdout}`);
+    if (stderr) {
+      console.warn(`[BACKEND] Script ${scriptName} stderr:\n${stderr}`);
+    }
+
+    scriptRuns[runId] = {
+      status: "completed",
+      output: stdout,
+      error: stderr,
+    };
+    // Respond with success and the script's output and any stderr
+    res.json({ success: true, output: stdout, error: stderr });
+  });
+});
+
+// Start the Express server
 app.listen(port, () => {
-  console.log(`[BACKEND] Backend server listening at http://localhost:${port}`);
-  // Log the project root for debugging paths in container
-  console.log(`[BACKEND] Project root is: ${process.cwd()}`);
+  console.log(`[BACKEND] Server listening at http://localhost:${port}`);
+  console.log(
+    `[BACKEND] Scripts config expected at: ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER} (inside container)`,
+  );
+  console.log(
+    `[BACKEND] Python pipeline host path for mounting: ${PYTHON_PIPELINE_PATH_ON_HOST} (on host)`,
+  );
+  console.log(
+    `[BACKEND] Navigation config expected at: ${NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER} (inside container)`,
+  );
 });

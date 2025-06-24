@@ -1,0 +1,8 @@
+actions:
+  - name: ping
+    display_name: Ping Hosts
+  - name: interfaces
+    display_name: Configure Interfaces
+    template_file: templates/interface_template.j2
+  - name: route_monitor
+    display_name: Monitor Routing Tables

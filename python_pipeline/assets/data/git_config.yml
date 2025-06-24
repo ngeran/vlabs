@@ -1,0 +1,4 @@
+repository_url: https://github.com/ngeran/vector-py.git
+branch: vector-py-with-git
+username: ngeran
+token: "{{ GIT_TOKEN }}"

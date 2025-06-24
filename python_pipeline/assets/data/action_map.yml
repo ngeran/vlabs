@@ -1,0 +1,9 @@
+actions:
+  - name: ping
+    display_name: Ping Hosts
+  - name: interfaces
+    display_name: Configure Interfaces
+  - name: route_monitor
+    display_name: Monitor Routing Tables
+  - name: code_upgrade
+    display_name: Code Upgrade

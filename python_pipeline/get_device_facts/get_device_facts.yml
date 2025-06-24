@@ -1,0 +1,30 @@
+# vlabs/python_pipeline/get_device_facts/get_device_facts.yml
+
+parameters:
+  - name: username
+    type: string
+    label: "SSH Username"
+    description: "Username for connecting to network devices."
+    required: true
+    placeholder: "e.g., admin"
+  - name: password
+    type: string
+    label: "SSH Password"
+    description: "Password for connecting to network devices."
+    required: true
+    placeholder: "Enter password"
+    sensitive: true # Hint for UI not to display this
+  - name: get_version
+    type: boolean
+    label: "Fetch 'show version'"
+    description: "If checked, fetches 'show version' command output instead of basic device facts."
+    defaultValue: false
+    required: false
+  - name: dry_run
+    type: boolean
+    label: "Dry Run (Simulate Connection)"
+    description: "If checked, simulates connections without fetching actual data from devices."
+    defaultValue: false
+    required: false
+
+resources: [] # No specific lab resources for this script, as it connects to arbitrary IPs

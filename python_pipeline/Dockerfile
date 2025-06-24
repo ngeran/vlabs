@@ -7,6 +7,10 @@ FROM python:3.9-slim-buster
 # This should match the SCRIPT_MOUNT_POINT_IN_CONTAINER variable in your backend/server.js
 WORKDIR /app/python-scripts
 
+# --- START FIX: Add this line to ensure Python finds sibling modules like 'utils' ---
+ENV PYTHONPATH=${PYTHONPATH}:/app/python-scripts
+# --- END FIX ---
+
 # Install system dependencies needed by Python packages (like PyEZ, Paramiko for SSH)
 # These are for Debian-based images (like slim-buster)
 RUN apt-get update && apt-get install -y --no-install-recommends \

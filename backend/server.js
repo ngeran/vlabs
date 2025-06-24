@@ -32,9 +32,12 @@ const PYTHON_PIPELINE_PATH_ON_HOST = process.env.HOST_PROJECT_ROOT
   : path.resolve(__dirname, "../../python_pipeline"); // Fallback for local development outside Docker
 
 // The absolute path *inside the backend container* to the scripts configuration YAML file.
-// This path leverages the mount `- ./python_pipeline:/python_pipeline` in docker-compose.yml
-// so the backend can read `scripts.yaml` directly using fs.readFileSync.
+// Assuming scripts.yaml is in /python_pipeline/scripts.yaml within the container.
 const SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER = "/python_pipeline/scripts.yaml";
+
+// The base path *inside the backend container* to the python_pipeline directory itself
+// This is used to construct paths to individual script directories and their metadata files.
+const PYTHON_PIPELINE_BASE_PATH_IN_CONTAINER = "/python_pipeline";
 
 // The internal path inside the Python runner Docker container where scripts will be mounted.
 // This is used in the `docker run -v` command as the *destination* path.
@@ -54,9 +57,6 @@ const scriptRuns = {}; // { runId: { status: 'running' | 'completed' | 'failed',
 // Helper function to get Docker Compose status for a specific lab
 const getDockerComposeStatus = (labPath) => {
   return new Promise((resolve) => {
-    // Construct the full path to the lab's directory inside the container
-    // This path is relative to the backend's mount of the public folder
-    // NOTE: This assumes your 'public' folder is mounted directly as '/public' in the backend container.
     const labDirectory = path.join(LABS_BASE_PATH_IN_CONTAINER, labPath);
     const dockerComposeFilePath = path.join(labDirectory, "docker-compose.yml");
 
@@ -64,8 +64,6 @@ const getDockerComposeStatus = (labPath) => {
       `[BACKEND] Checking real status for lab: ${labPath} in directory: ${labDirectory}`,
     );
 
-    // IMPORTANT: fs.existsSync works on the *backend container's filesystem*.
-    // If /public is mounted correctly, this check is valid.
     if (!fs.existsSync(dockerComposeFilePath)) {
       console.warn(
         `[BACKEND] docker-compose.yml not found at: ${dockerComposeFilePath}`,
@@ -305,7 +303,7 @@ app.post("/api/labs/stop", (req, res) => {
     );
     if (stderr) {
       console.warn(
-        `[BACKEND] Docker Compose stop stderr for ${labPath}:\n${stderr}`,
+        `[BACKEND] Docker Compose stderr for ${labPath}:\n${stderr}`,
       );
     }
     console.log(`[BACKEND] Lab stopped successfully for: ${labPath}`);
@@ -429,26 +427,62 @@ app.get("/api/navigation/menu", (req, res) => {
 });
 // --- END API endpoint for navigation ---
 
-// API endpoint to get the list of available Python scripts from YAML
+// Helper function to load individual script metadata
+const getScriptIndividualMetadata = (scriptId, metadataFileName) => {
+  // Construct the path to the individual metadata file:
+  // /python_pipeline/<script_id>/<metadataFileName>
+  const metadataPathInContainer = path.join(
+    PYTHON_PIPELINE_BASE_PATH_IN_CONTAINER,
+    scriptId,
+    metadataFileName,
+  );
+  try {
+    const fileContents = fs.readFileSync(metadataPathInContainer, "utf8");
+    return yaml.load(fileContents);
+  } catch (e) {
+    console.error(
+      `[BACKEND] Error reading or parsing individual script metadata file at ${metadataPathInContainer}:`,
+      e.message,
+    );
+    return null;
+  }
+};
+
+// --- MODIFIED API endpoint to get the list of available Python scripts from YAML with full metadata ---
 app.get("/api/scripts/list", (req, res) => {
   console.log(`[BACKEND] Received request for script list.`);
   console.log(
-    `[BACKEND] Attempting to read scripts config from: ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}`,
+    `[BACKEND] Attempting to read main scripts config from: ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}`,
   );
   try {
-    // Read the YAML file from its resolved container location
     const fileContents = fs.readFileSync(
-      SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, // Use the CONTAINER path for fs.readFileSync
+      SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER,
       "utf8",
     );
-    // Parse the YAML content
     const config = yaml.load(fileContents);
 
     if (config && Array.isArray(config.scripts)) {
+      const scriptsWithFullMetadata = config.scripts.map((scriptEntry) => {
+        // scriptEntry contains id, displayName, description, category, tags, scriptFile, metadataFile
+        let individualMetadata = { parameters: [], resources: [] }; // Default empty
+        if (scriptEntry.id && scriptEntry.metadataFile) {
+          individualMetadata = getScriptIndividualMetadata(
+            scriptEntry.id,
+            scriptEntry.metadataFile,
+          );
+        }
+        // Merge the main script entry with parameters and resources from its individual metadata
+        return {
+          ...scriptEntry,
+          parameters: individualMetadata ? individualMetadata.parameters : [],
+          resources: individualMetadata ? individualMetadata.resources : [],
+        };
+      });
+
       console.log(
-        `[BACKEND] Successfully loaded ${config.scripts.length} scripts.`,
+        `[BACKEND] Successfully loaded ${scriptsWithFullMetadata.length} scripts with merged metadata.`,
       );
-      res.json({ success: true, scripts: config.scripts });
+      res.json({ success: true, scripts: scriptsWithFullMetadata });
     } else {
       console.warn(
         `[BACKEND] scripts.yaml found but 'scripts' array is missing or malformed.`,
@@ -459,7 +493,7 @@ app.get("/api/scripts/list", (req, res) => {
     }
   } catch (e) {
     console.error(
-      `[BACKEND] Error reading or parsing scripts.yaml at ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}:`,
+      `[BACKEND] Error reading or parsing main scripts.yaml at ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}:`,
       e.message,
     );
     res.status(500).json({
@@ -469,81 +503,119 @@ app.get("/api/scripts/list", (req, res) => {
   }
 });
 
-// API endpoint to run a Python script
+// --- MODIFIED API endpoint to run a Python script ---
 app.post("/api/scripts/run", (req, res) => {
-  const { scriptName, args } = req.body; // Expect scriptName and optional arguments
+  const { scriptId, parameters } = req.body; // Frontend now sends 'scriptId' (e.g., "hello_world")
   const runId =
-    Date.now().toString() + Math.random().toString(36).substring(2, 9); // Simple unique ID for this run
+    Date.now().toString() + Math.random().toString(36).substring(2, 9);
 
   console.log(
-    `[BACKEND] Received request to run Python script: ${scriptName} (ID: ${runId}) with args: ${JSON.stringify(args)}`,
+    `[BACKEND] Received request to run Python script: ${scriptId} (ID: ${runId}) with parameters: ${JSON.stringify(parameters)}`,
   );
 
-  if (!scriptName) {
+  if (!scriptId) {
     return res
       .status(400)
-      .json({ success: false, message: "scriptName is required." });
+      .json({ success: false, message: "scriptId is required." });
   }
 
-  // Initialize script status (for potential future status polling, not used by frontend currently)
-  scriptRuns[runId] = { status: "running", output: "", error: "" };
+  // Fetch the full script definition from scripts.yaml to get the script's actual file path.
+  let allScriptsConfig;
+  try {
+    const fileContents = fs.readFileSync(
+      SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER,
+      "utf8",
+    );
+    allScriptsConfig = yaml.load(fileContents);
+  } catch (e) {
+    console.error(
+      `[BACKEND] Failed to read main scripts.yaml for script run: ${e.message}`,
+    );
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to load script definitions." });
+  }
 
-  // Construct the command to run the Python script within a new Docker container
-  // The script will be located at this path *inside* the Python runner container.
-  const scriptInternalPath = path.join(
-    SCRIPT_MOUNT_POINT_IN_CONTAINER,
-    scriptName,
+  const scriptDefinition = allScriptsConfig.scripts.find(
+    (s) => s.id === scriptId,
   );
+
+  if (!scriptDefinition) {
+    console.error(`[BACKEND] Script definition not found for ID: ${scriptId}`);
+    return res
+      .status(404)
+      .json({ success: false, message: "Script definition not found." });
+  }
+
+  // Construct the full path to the Python script within its dedicated directory inside the container's mount
+  const scriptInternalPath = path.join(
+    SCRIPT_MOUNT_POINT_IN_CONTAINER, // /app/python-scripts (the base mount for python_pipeline)
+    scriptDefinition.id, // e.g., hello_world (the subdirectory name)
+    scriptDefinition.scriptFile, // e.g., hello_world.py (the actual Python file name)
+  );
+
+  scriptRuns[runId] = { status: "running", output: "", error: "" };
 
   const dockerCommandArgs = [
     "run",
-    "--rm", // Remove the container after it exits
+    "--rm",
     "--network",
-    "host", // Allows Python script to access host network (e.g., your Node.js backend if needed)
-    // Exercise caution with '--network host' in production.
-    // Mount the entire python_pipeline directory from the host into the container
+    "host",
     "-v",
-    // This is the critical volume mount: HOST_PATH:CONTAINER_PATH
     `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
     "vlabs-python-runner", // The name of your Python Docker image (must be built)
     "python",
     scriptInternalPath, // Path to the script inside the Python container
   ];
 
-  // Add any provided arguments to the command, ensuring they are properly quoted
-  // This basic quoting handles spaces but not all complex shell characters.
-  const finalArgs = args.map(
-    (arg) => `'${String(arg).replace(/'/g, "'\\''")}'`,
-  ); // More robust single quote escaping
-  dockerCommandArgs.push(...finalArgs);
+  // Dynamically add arguments from the 'parameters' object (received from frontend)
+  if (parameters) {
+    for (const key in parameters) {
+      if (Object.prototype.hasOwnProperty.call(parameters, key)) {
+        const value = parameters[key];
+        // Handle booleans for argparse (store_true/store_false)
+        if (typeof value === "boolean") {
+          if (value) {
+            // Only add the flag if true
+            dockerCommandArgs.push(`--${key}`);
+          }
+        } else if (value !== undefined && value !== null && value !== "") {
+          // Only add if it has a value
+          dockerCommandArgs.push(`--${key}`);
+          // Ensure values are properly quoted for shell execution to prevent shell injection.
+          // This is a basic form of quoting. For maximum security, validate inputs rigorously.
+          dockerCommandArgs.push(`'${String(value).replace(/'/g, "'\\''")}'`);
+        }
+      }
+    }
+  }
 
   const command = `docker ${dockerCommandArgs.join(" ")}`;
   console.log(`[BACKEND] Executing Docker command: ${command}`);
 
   exec(command, { timeout: 30000 }, (error, stdout, stderr) => {
-    // Added 30-second timeout
     if (error) {
       console.error(
-        `[BACKEND] Error running Python script ${scriptName}:`,
+        `[BACKEND] Error running Python script ${scriptId}:`,
         error.message,
       );
       console.error(`[BACKEND] Script Stderr:`, stderr);
       scriptRuns[runId] = {
         status: "failed",
-        output: stdout, // Still capture stdout for debugging context
+        output: stdout,
         error: stderr || error.message,
       };
       return res.status(500).json({
         success: false,
         message: `Script execution failed: ${stderr || error.message}`,
-        output: stdout, // Send stdout even on error, for context
+        output: stdout,
         error: stderr || error.message,
       });
     }
 
-    console.log(`[BACKEND] Script ${scriptName} stdout:\n${stdout}`);
+    console.log(`[BACKEND] Script ${scriptId} stdout:\n${stdout}`);
     if (stderr) {
-      console.warn(`[BACKEND] Script ${scriptName} stderr:\n${stderr}`);
+      console.warn(`[BACKEND] Script ${scriptId} stderr:\n${stderr}`);
     }
 
     scriptRuns[runId] = {
@@ -551,7 +623,6 @@ app.post("/api/scripts/run", (req, res) => {
       output: stdout,
       error: stderr,
     };
-    // Respond with success and the script's output and any stderr
     res.json({ success: true, output: stdout, error: stderr });
   });
 });

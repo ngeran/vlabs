@@ -21,3 +21,9 @@ scripts:
       - Junos
     scriptFile: "get_device_facts.py"
     metadataFile: "get_device_facts.yml"
+    factOptions: # <--- ADD THIS SECTION!
+      - id: interfaces
+        label: Interfaces
+        description: Retrieve summary of all physical and logical interfaces.
+    # IMPORTANT: Do NOT add 'version', 'bgp_neighbors', etc. here yet.
+    # Only 'interfaces' should be here for now, as that's the only one you're implementing.

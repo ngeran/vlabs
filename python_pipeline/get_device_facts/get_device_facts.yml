@@ -6,8 +6,6 @@ parameters:
     type: enum
     description: Select the Ansible inventory file to use. Mutually exclusive with 'Hosts'.
     required: false
-    # Options for this enum are dynamically populated by the frontend
-    # from the /api/inventories/list endpoint, so no 'options' field is needed here.
 
   - name: hosts
     label: Hosts
@@ -29,7 +27,15 @@ parameters:
     description: "Password for connecting to network devices."
     required: true
     placeholder: "Enter password"
-    sensitive: true # Hint for UI not to display this
+    sensitive: true
+
+  # --- ADD THIS NEW PARAMETER ---
+  - name: backup_config
+    type: boolean
+    label: "Backup Configuration"
+    description: "If checked, backs up the device configuration in 'set' format to the 'configuration_backup' folder."
+    defaultValue: false
+    required: false
 
   - name: dry_run
     type: boolean
@@ -38,4 +44,4 @@ parameters:
     defaultValue: false
     required: false
 
-resources: [] # No specific lab resources for this script, as it connects to arbitrary IPs
+resources: []

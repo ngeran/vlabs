@@ -1,233 +1,66 @@
-# python_pipeline/run_jsnapy_tests/metadata.yml
-# Enhanced metadata for dynamic JSNAPy testing script
-# Updated: 2025-06-26 by nikos-geranios_vgi
+# vlabs/python_pipeline/scripts.yaml (Industry Standard Implementation)
 
-script_info:
-  name: "Dynamic JSNAPy Network Tests"
-  displayName: "JSNAPy: Dynamic Network Tests"
-  description: "Advanced network device testing with dynamic test discovery and environment-based configuration"
-  version: "2.0.0"
-  author: "nikos-geranios_vgi"
-  created: "2025-06-26"
-  last_modified: "2025-06-26 16:56:39"
-  type: "network_testing"
-  category: "Network Automation"
-  
-compatibility:
-  min_python_version: "3.8"
-  required_libraries:
-    - "junos-eznc"
-    - "jxmlease" 
-    - "jsnapy"
-    - "PyYAML"
-  supported_devices:
-    - "Juniper Junos"
-  environments:
-    - "lab"
-    - "development" 
-    - "production"
+scripts:
+  - id: hello_world
+    displayName: "Hello World Example"
+    description: "A simple script to greet with a message."
+    category: Basic
+    tags:
+      - featured
+      - utility
+    scriptFile: "hello_world.py"
 
-parameters:
-  # Required parameters
-  - name: "hostname"
-    type: "string"
-    required: true
-    description: "Target device hostname or IP address"
-    placeholder: "192.168.1.1 or router.lab.local"
-    validation:
-      pattern: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$|^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$"
-      message: "Must be a valid IP address or hostname"
-    example: "192.168.1.1"
-  
-  - name: "username"
-    type: "string"
-    required: true
-    description: "SSH username for device access"
-    placeholder: "admin"
-    example: "admin"
-    default: "admin"
-  
-  - name: "password"
-    type: "password"
-    required: true
-    description: "SSH password for device access"
-    placeholder: "Enter device password"
-    sensitive: true
-  
-  # Optional parameters
-  - name: "tests"
-    type: "string"
-    required: false
-    description: "Comma-separated list of specific tests to run"
-    placeholder: "test_version,test_interfaces,test_bgp"
-    help_text: "Leave empty to run all discovered tests"
-    validation:
-      pattern: "^[a-zA-Z0-9_]+(,[a-zA-Z0-9_]+)*$"
-      message: "Must be comma-separated test names without spaces"
-    example: "test_version,test_interfaces"
-  
-  - name: "network_type"
-    type: "select"
-    required: false
-    default: "enterprise"
-    description: "Network environment type for optimized test selection"
-    options:
-      - value: "enterprise"
-        label: "Enterprise Network"
-        description: "Corporate/enterprise environment with OSPF, basic BGP"
-      - value: "service_provider"
-        label: "Service Provider"
-        description: "SP environment with MPLS, IS-IS, extensive BGP"
-      - value: "datacenter"
-        label: "Data Center"
-        description: "DC environment with EVPN, VXLAN, spine-leaf topology"
-    help_text: "Affects which tests are enabled and their validation thresholds"
-  
-  - name: "list_tests"
-    type: "boolean"
-    required: false
-    default: false
-    description: "List available tests and exit (don't run actual tests)"
-    help_text: "Useful for discovering what tests are available"
-  
-  - name: "show_pipeline"
-    type: "boolean"
-    required: false
-    default: false
-    description: "Show pipeline structure information and exit"
-    help_text: "Shows directory structure and configuration details"
-  
-  - name: "test_configs_dir"
-    type: "string"
-    required: false
-    description: "Custom path to test configuration directory"
-    placeholder: "/custom/test/configs"
-    help_text: "Advanced: Override default test configs location"
-    advanced: true
+  - id: get_device_facts
+    displayName: "Get Device Facts (Junos)"
+    description: "Connects to Juniper devices from inventory and retrieves device facts or version."
+    category: Network Automation
+    tags:
+      - featured
+      - device_management
+      - Junos
+    scriptFile: "get_device_facts.py" 
+    metadataFile: "get_device_facts.yml"
+    factOptions:
+      - id: interfaces
+        label: Interfaces
+        description: Retrieve summary of all physical and logical interfaces.
 
-features:
-  dynamic_discovery:
-    enabled: true
-    description: "Automatically discovers JSNAPy test files in test_configs directory"
-    patterns: ["test_*.yml", "test_*.yaml", "*_test.yml", "*_test.yaml"]
-  
-  environment_awareness:
-    enabled: true
-    description: "Adapts test selection and thresholds based on network environment"
-    supported_environments: ["enterprise", "service_provider", "datacenter"]
-  
-  fallback_testing:
-    enabled: true
-    description: "Falls back to RPC calls when JSNAPy tests are unavailable"
-    supported_rpcs:
-      - "get_software_information"
-      - "get_interface_information"
-      - "get_bgp_neighbor_information"
-      - "get_ospf_neighbor_information"
-      - "get_route_information"
-      - "get_lldp_neighbors_information"
-  
-  pipeline_integration:
-    enabled: true
-    description: "Integrates with existing python_pipeline structure"
-    auto_migration: true
-    preserves_existing_configs: true
-
-output:
-  format: "json"
-  structure:
-    status: "success|partial|failed|error"
-    summary:
-      total_tests: "number"
-      passed: "number" 
-      failed: "number"
-      success_rate: "percentage"
-      total_execution_time: "seconds"
-    test_results: "array of test result objects"
-    environment: "environment context information"
-    discovery_info: "test discovery metadata"
-  
-examples:
-  basic_usage:
-    description: "Run all discovered tests on a device"
-    parameters:
-      hostname: "192.168.1.1"
-      username: "admin"
-      password: "admin123"
-  
-  specific_tests:
-    description: "Run only version and interface tests"
-    parameters:
-      hostname: "192.168.1.1"
-      username: "admin"
-      password: "admin123"
-      tests: "test_version,test_interfaces"
-  
-  service_provider:
-    description: "Test service provider network device"
-    parameters:
-      hostname: "pe1.sp.local"
-      username: "netops"
-      password: "sp_password"
-      network_type: "service_provider"
-  
-  discovery_mode:
-    description: "Discover available tests without running them"
-    parameters:
-      hostname: "192.168.1.1"
-      username: "admin"
-      password: "admin123"
-      list_tests: true
-
-resources:
-  - name: "JSNAPy Test Configurations"
-    path: "test_configs/"
-    type: "directory"
-    description: "Directory containing JSNAPy test definition files (.yml/.yaml)"
-    auto_created: true
-  
-  - name: "Script Configurations"
-    path: "configs/"
-    type: "directory"
-    description: "Script configuration and metadata files"
-    auto_created: true
-    migrated_files: ["test_configs.yml", "metadata.yml", "logging.yml"]
-  
-  - name: "Log Files"
-    path: "logs/"
-    type: "directory"
-    description: "Script execution logs and debugging information"
-    auto_created: true
-    log_files: ["pipeline_tests.log", "network_automation.log"]
-
-troubleshooting:
-  common_issues:
-    - issue: "No tests discovered"
-      solution: "Ensure JSNAPy test files are in test_configs/ directory with proper naming (test_*.yml)"
-    
-    - issue: "Connection failed"
-      solution: "Verify device is reachable, SSH is enabled, and credentials are correct"
-    
-    - issue: "JSNAPy test failed"
-      solution: "Script will automatically fall back to RPC testing for basic validation"
-    
-    - issue: "Permission denied"
-      solution: "Check that user has proper permissions on device and required protocols are enabled"
-
-migration:
-  from_legacy_script: true
-  auto_migration_features:
-    - "Moves test files to test_configs/ directory"
-    - "Moves config files to configs/ directory" 
-    - "Moves log files to logs/ directory"
-    - "Preserves existing configurations"
-    - "Maintains backwards compatibility"
-  
-execution:
-  timeout: 300  # 5 minutes
-  supports_streaming: false
-  requires_network_access: true
-  container_requirements:
-    image: "vlabs-python-runner"
-    network_mode: "host"
-    volumes: ["python_pipeline:/app/python-scripts"]
+  # ✨ INDUSTRY STANDARD: Enhanced JSNAPy script with professional directory structure
+  - id: run_jsnapy_tests
+    displayName: "JSNAPy: Industry Standard Network Tests"
+    description: "Professional network device testing with industry standard directory structure (tests/ | config/ | logs/), dynamic test discovery, and automated pipeline integration."
+    category: Network Automation
+    tags:
+      - network_validation
+      - Junos
+      - featured
+      - industry_standard
+      - professional
+      - dynamic_discovery
+      - pipeline_integrated
+    scriptFile: "run_jsnapy_tests_dynamic.py"
+    metadataFile: "metadata.yml"
+    version: "2.0.0"
+    author: "nikos-geranios_vgi"
+    lastUpdated: "2025-06-26 17:22:25 UTC"
+    standard: "Testing Framework Industry Standard v1.0.0"
+    features:
+      - "Industry standard directory structure (tests/ | config/ | logs/)"
+      - "Dynamic test discovery with professional organization"
+      - "Auto-migration to standard structure"
+      - "Environment-aware configuration"
+      - "JSNAPy + RPC fallback with enhanced logging"
+      - "Pipeline integration with proper separation of concerns"
+    capabilities:
+      industryStandard: true
+      directoryStructure: "tests/ | config/ | logs/"
+      dynamicDiscovery: true
+      environmentAware: true
+      pipelineIntegrated: true
+      autoMigration: true
+      professionalLogging: true
+    compliance:
+      standard: "Testing Framework Industry Standard"
+      version: "1.0.0"
+      implemented_by: "nikos-geranios_vgi"
+      compliance_date: "2025-06-26 17:22:25 UTC"

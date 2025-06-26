@@ -1,0 +1,20 @@
+# vlabs/python_pipeline/run_jsnapy_tests/tests/test_ospf.yml
+tests_include:
+  - test_ospf_neighbors
+
+test_ospf_neighbors:
+  - description: "OSPF neighbor adjacency monitoring"
+  - rpc: get-ospf-neighbor-information
+  - kwargs:
+      dev_timeout: 45
+  - iterate:
+      xpath: '/ospf-neighbor-information/ospf-neighbor'
+      id: 'neighbor-address'
+      tests:
+        - is-equal: ospf-neighbor-state, Full
+          err: "❌ OSPF NOT FULL: Neighbor <{{post['neighbor-address']}}> state is <{{post['ospf-neighbor-state']}}>"
+          info: "✅ OSPF FULL: Neighbor <{{post['neighbor-address']}}> adjacency is Full"
+        
+        - is-equal: activity-timer, "00:00:00"
+          err: "❌ OSPF ACTIVITY: Neighbor <{{post['neighbor-address']}}> activity timer is <{{post['activity-timer']}}>"
+          info: "✅ OSPF STABLE: Neighbor <{{post['neighbor-address']}}> is stable"

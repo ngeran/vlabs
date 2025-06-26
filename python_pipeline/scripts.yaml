@@ -27,8 +27,8 @@ scripts:
 
   # ✨ INDUSTRY STANDARD: Enhanced JSNAPy script with professional directory structure
   - id: run_jsnapy_tests
-    displayName: "JSNAPy: Industry Standard Network Tests"
-    description: "Professional network device testing with industry standard directory structure (tests/ | config/ | logs/), dynamic test discovery, and automated pipeline integration."
+    displayName: "Network Tests"
+    description: "Professional network device testing "
     category: Network Automation
     tags:
       - network_validation
@@ -38,7 +38,7 @@ scripts:
       - professional
       - dynamic_discovery
       - pipeline_integrated
-    scriptFile: "run_jsnapy_tests_dynamic.py"
+    scriptFile: "run_jsnapy_tests.py"
     metadataFile: "metadata.yml"
     version: "2.0.0"
     author: "nikos-geranios_vgi"

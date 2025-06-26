@@ -38,11 +38,6 @@ parameters:
       - value: test_ospf
         label: Test OSPF
 
-
-
-
-
-
 # This section defines external resource files used by the script.
 resources:
   - id: test_version.yml

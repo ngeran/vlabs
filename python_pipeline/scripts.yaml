@@ -39,7 +39,7 @@ scripts:
       - dynamic_discovery
       - pipeline_integrated
     scriptFile: "run_jsnapy_tests.py"
-    metadataFile: "metadata.yml"
+    metadataFile: "config/metadata.yml"
     version: "2.0.0"
     author: "nikos-geranios_vgi"
     lastUpdated: "2025-06-26 17:22:25 UTC"

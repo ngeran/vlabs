@@ -94,7 +94,7 @@ function PythonScriptRunner() {
     }
     // --- END MODIFIED ---
 
-    // --- NEW: Process testOptions checkboxes from currentArgs ---
+    // --- ENHANCED: Process testOptions checkboxes from currentArgs ---
     if (selectedScriptConfig.testOptions) {
       const selectedTests = selectedScriptConfig.testOptions
         .filter((opt) => currentArgs[opt.id]) // Check if the option's ID is true in currentArgs
@@ -108,10 +108,11 @@ function PythonScriptRunner() {
         setExecutionError("Please select at least one JSNAPy test to run.");
         hasMissingRequired = true;
       } else if (selectedTests.length > 0) {
-        parametersToSend["test_ids"] = selectedTests.join(",");
+        // For JSNAPy tests, send as comma-separated string
+        parametersToSend["tests"] = selectedTests.join(",");
       }
     }
-    // --- END NEW ---
+    // --- END ENHANCED ---
 
     // Special handling for 'get_device_facts' to manage inventory/hosts
     if (selectedScriptConfig.id === "get_device_facts") {
@@ -170,8 +171,12 @@ function PythonScriptRunner() {
         hasMissingRequired = true;
       }
 
-      // Add to payload
-      parametersToSend[paramDef.name] = value;
+      // Add to payload (use default value if available and current value is empty)
+      if (value !== undefined && value !== null && value !== "") {
+        parametersToSend[paramDef.name] = value;
+      } else if (paramDef.default && !paramDef.required) {
+        parametersToSend[paramDef.name] = paramDef.default;
+      }
     });
 
     if (hasMissingRequired) {
@@ -336,12 +341,14 @@ function PythonScriptRunner() {
               />
             )}
 
-          {/* Conditional rendering for other Script Parameters */}
+          {/* Conditional rendering for Script Parameters */}
           {selectedScriptConfig &&
             selectedScriptConfig.parameters.length > 0 && (
               <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                  Script Parameters:
+                  {selectedScriptConfig.id === "run_jsnapy_tests"
+                    ? "Device Connection Parameters:"
+                    : "Script Parameters:"}
                 </h3>
                 {selectedScriptConfig.parameters
                   .filter(
@@ -353,7 +360,7 @@ function PythonScriptRunner() {
                     <ScriptParameterInput
                       key={param.name}
                       param={param}
-                      value={currentArgs[param.name]}
+                      value={currentArgs[param.name] || param.default || ""}
                       onChange={handleArgChange}
                     />
                   ))}
@@ -405,11 +412,11 @@ function PythonScriptRunner() {
           )}
           {/* --- END MODIFIED --- */}
 
-          {/* --- NEW: Conditional rendering for testOptions checkboxes --- */}
+          {/* --- ENHANCED: Conditional rendering for testOptions checkboxes --- */}
           {selectedScriptConfig && selectedScriptConfig.testOptions && (
             <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                Select JSNAPy Tests:
+                Select JSNAPy Tests to Run:
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {selectedScriptConfig.testOptions.map((test) => (
@@ -448,7 +455,7 @@ function PythonScriptRunner() {
                 )}
             </div>
           )}
-          {/* --- END NEW --- */}
+          {/* --- END ENHANCED --- */}
 
           {/* Run Script Button */}
           <button
@@ -456,6 +463,11 @@ function PythonScriptRunner() {
             disabled={
               isLoading ||
               !selectedScriptConfig ||
+              // Required parameter validation for JSNAPy tests
+              (selectedScriptConfig.id === "run_jsnapy_tests" &&
+                (!currentArgs["hostname"] ||
+                  !currentArgs["username"] ||
+                  !currentArgs["password"])) ||
               // --- MODIFIED: Include validation for checkboxes ---
               (selectedScriptConfig.id === "get_device_facts" &&
                 !currentArgs.fact_types &&
@@ -465,7 +477,6 @@ function PythonScriptRunner() {
                   (opt) => !currentArgs[opt.id],
                 )) ||
               (selectedScriptConfig.id === "run_jsnapy_tests" &&
-                !currentArgs.test_ids &&
                 selectedScriptConfig.testOptions &&
                 selectedScriptConfig.testOptions.length > 0 &&
                 selectedScriptConfig.testOptions.every(

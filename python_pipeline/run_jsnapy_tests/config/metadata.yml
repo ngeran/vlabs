@@ -1,5 +1,12 @@
 # vlabs/python_pipeline/run_jsnapy_tests/metadata.yml
 
+# Script identification
+id: run_jsnapy_tests
+displayName: "Network Testing (JSNAPy)"
+description: "Run JSNAPy network validation tests on Juniper devices"
+category: "Network Testing"
+tags: ["featured", "network", "testing", "jsnapy", "juniper"]
+
 # This section defines the input parameters for the script's UI.
 parameters:
   - name: hostname
@@ -7,36 +14,74 @@ parameters:
     description: IP address or hostname of the Junos device to test.
     type: text
     required: true
+    placeholder: "192.168.1.1 or router.example.com"
   - name: username
     label: Username
     description: The SSH username for logging into the device.
     type: text
     required: true
+    placeholder: "admin"
   - name: password
     label: Password
     description: The SSH password for the device.
     type: password # Use 'password' type to mask the input in the UI.
     required: true
-  - name: test_ids
-    label: Test IDs
-    description: Select the JSNAPy test(s) to run.
-    type: enum # Changed type to 'enum' for a dropdown
-    required: true
-    options: # Define the dropdown options here
-      - value: test_version
-        label: Test Version (Run a version check test on the device.)
-      - value: test_version
-        label: Test Version (Run a version check test on the device.)
-      - value: test_interfaces
-        label: Test Interfaces (Verify interface operational status is 'up'.)
-      - value: test_route_table
-        label: Test Routing Table
-      - value: test_bgp
-        label: Test BGP
-      - value: test_lldp
-        label: Test LLDP
-      - value: test_ospf
-        label: Test OSPF
+    placeholder: "Enter device password"
+  - name: environment
+    label: Target Environment
+    description: Select the deployment environment for safety checks.
+    type: enum
+    required: false
+    default: development
+    options:
+      - value: development
+        label: Development Environment
+      - value: lab
+        label: Lab Environment
+      - value: staging
+        label: Staging Environment  
+      - value: production
+        label: Production Environment
+  - name: network_type
+    label: Network Type
+    description: Type of network deployment.
+    type: enum
+    required: false
+    default: enterprise
+    options:
+      - value: enterprise
+        label: Enterprise Network
+      - value: service_provider
+        label: Service Provider Network
+      - value: datacenter
+        label: Data Center Network
+
+# JSNAPy test options as checkboxes
+testOptions:
+  - id: test_version
+    label: Version Check
+    description: Run a version check test on the device
+  - id: test_interfaces
+    label: Interface Status
+    description: Verify interface operational status is 'up'
+  - id: test_route_table
+    label: Routing Table
+    description: Validate routing table entries
+  - id: test_bgp
+    label: BGP Status
+    description: Check BGP neighbor status
+  - id: test_lldp
+    label: LLDP Neighbors
+    description: Verify LLDP neighbor discovery
+  - id: test_ospf
+    label: OSPF Status
+    description: Check OSPF neighbor relationships
+  - id: test_system_health
+    label: System Health
+    description: Check system alarms and hardware status
+  - id: test_mpls
+    label: MPLS Status
+    description: Validate MPLS LSP status
 
 # This section defines external resource files used by the script.
 resources:
@@ -44,40 +89,39 @@ resources:
     name: JSNAPy Version Test File
     description: Test definition for Junos version validation
     type: file
-    path: run_jsnapy_tests/test_version.yml
+    path: run_jsnapy_tests/tests/test_version.yml
   - id: test_bgp.yml
     name: JSNAPy BGP Test File
     description: Test definition for BGP neighbor validation
     type: file
-    path: run_jsnapy_tests/test_bgp.yml
+    path: run_jsnapy_tests/tests/test_bgp.yml
   - id: test_interfaces.yml
     name: JSNAPy Interface Test File
     description: Test definition for interface status validation
     type: file
-    path: run_jsnapy_tests/test_interfaces.yml
+    path: run_jsnapy_tests/tests/test_interfaces.yml
   - id: test_ospf.yml
     name: JSNAPy OSPF Test File
     description: Test definition for OSPF neighbor validation
     type: file
-    path: run_jsnapy_tests/test_ospf.yml
+    path: run_jsnapy_tests/tests/test_ospf.yml
   - id: test_route_table.yml
     name: JSNAPy Route Table Test File
     description: Test definition for routing table validation
     type: file
-    path: run_jsnapy_tests/test_route_table.yml
+    path: run_jsnapy_tests/tests/test_route_table.yml
   - id: test_system_health.yml
     name: JSNAPy System Health Test File
     description: Test definition for system health validation
     type: file
-    path: run_jsnapy_tests/test_system_health.yml
+    path: run_jsnapy_tests/tests/test_system_health.yml
   - id: test_lldp.yml
     name: JSNAPy LLDP Test File
     description: Test definition for LLDP neighbor validation
     type: file
-    path: run_jsnapy_tests/test_lldp.yml
+    path: run_jsnapy_tests/tests/test_lldp.yml
   - id: test_mpls.yml
     name: JSNAPy MPLS Test File
     description: Test definition for MPLS status validation
     type: file
-    path: run_jsnapy_tests/test_mpls.yml
-
+    path: run_jsnapy_tests/tests/test_mpls.yml

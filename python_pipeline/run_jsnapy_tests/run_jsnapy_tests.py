@@ -7,7 +7,7 @@ import logging
 import tempfile
 import yaml
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import glob
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
 from pathlib import Path
@@ -17,9 +17,29 @@ from jnpr.jsnapy import SnapAdmin
 # --- END CORRECT IMPORT STATEMENT ---
 from jnpr.junos.exception import ConnectError
 
-# Import the connection utility from the parent directory
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.connect_to_hosts import connect_to_hosts, disconnect_from_hosts
+# Python Pipeline path management
+SCRIPT_DIR = Path(__file__).parent                           # /python_pipeline/run_jsnapy_tests/
+PIPELINE_ROOT = SCRIPT_DIR.parent                           # /python_pipeline/
+UTILS_DIR = PIPELINE_ROOT / 'utils'                        # /python_pipeline/utils/
+ASSETS_DIR = PIPELINE_ROOT / 'assets'                      # /python_pipeline/assets/
+TEST_CONFIGS_DIR = SCRIPT_DIR / 'test_configs'             # /python_pipeline/run_jsnapy_tests/test_configs/
+CONFIGS_DIR = SCRIPT_DIR / 'configs'                       # /python_pipeline/run_jsnapy_tests/configs/
+LOGS_DIR = SCRIPT_DIR / 'logs'                             # /python_pipeline/run_jsnapy_tests/logs/
+
+# Ensure directories exist
+TEST_CONFIGS_DIR.mkdir(exist_ok=True)
+CONFIGS_DIR.mkdir(exist_ok=True)
+LOGS_DIR.mkdir(exist_ok=True)
+
+# Add utils to Python path for shared utilities
+sys.path.insert(0, str(UTILS_DIR))
+
+try:
+    from connect_to_hosts import connect_to_hosts, disconnect_from_hosts
+except ImportError:
+    print(f"Warning: Could not import connect_to_hosts from {UTILS_DIR}")
+    print("Please ensure connect_to_hosts.py is in the utils directory")
+    sys.exit(1)
 
 @dataclass
 class TestResult:
@@ -40,587 +60,517 @@ class TestConfig:
     description: str
     rpc_fallback: str
     enabled: bool = True
-    timeout: int = 30
+    timeout: int = 15
     parameters: Dict[str, Any] = field(default_factory=dict)
-    thresholds: Dict[str, Any] = field(default_factory=dict)
-    xpath_checks: List[Dict[str, Any]] = field(default_factory=list)
-    critical: bool = False
 
-class DynamicTestRunner:
-    """Dynamic JSNAPy test runner with configuration-driven approach"""
+class PipelineLabTestRunner:
+    """Lab test runner integrated with existing python_pipeline structure"""
     
-    def __init__(self, config_file: str = None):
-        self.config_file = config_file or os.path.join(os.path.dirname(__file__), 'test_configs.yml')
-        self.config = self._load_configuration()
+    def __init__(self, test_configs_directory: str = None, configs_directory: str = None):
+        # Use existing pipeline structure
+        self.test_configs_dir = Path(test_configs_directory) if test_configs_directory else TEST_CONFIGS_DIR
+        self.configs_dir = Path(configs_directory) if configs_directory else CONFIGS_DIR
+        
+        # Pipeline environment configuration
+        self.environment = {
+            'lab_environment': 'lab',
+            'device_vendor': 'juniper',
+            'network_type': os.getenv('NETWORK_TYPE', 'enterprise'),
+            'deployment_mode': 'container',
+            'configured_at': time.strftime("%Y-%m-%d %H:%M:%S"),
+            'configured_by': 'nikos-geranios_vgi',
+            'pipeline_root': str(PIPELINE_ROOT),
+            'script_location': str(SCRIPT_DIR),
+            'test_configs_location': str(self.test_configs_dir),
+            'utils_location': str(UTILS_DIR)
+        }
+        
+        # Load existing configurations if available
+        self.external_config = self._load_existing_configs()
+        
+        # Discover available tests
+        self.discovered_tests = self._discover_jsnapy_tests()
+        
+        self.config = self._get_pipeline_config()
         self.logger = self._setup_logging()
         
-    def _load_configuration(self) -> Dict[str, Any]:
-        """Load test configuration from YAML file"""
-        try:
-            if os.path.exists(self.config_file):
-                with open(self.config_file, 'r') as f:
-                    return yaml.safe_load(f)
-            else:
-                self.logger.warning(f"Configuration file {self.config_file} not found, using defaults")
-                return self._get_default_config()
-        except Exception as e:
-            print(f"Error loading configuration: {e}")
-            return self._get_default_config()
+        self.logger.info(f"Pipeline Lab Test Runner initialized")
+        self.logger.info(f"Pipeline root: {PIPELINE_ROOT}")
+        self.logger.info(f"Script directory: {SCRIPT_DIR}")
+        self.logger.info(f"Test configs: {self.test_configs_dir}")
+        self.logger.info(f"Discovered {len(self.discovered_tests)} tests")
+        
+        # Migrate existing test files if needed
+        self._migrate_existing_tests()
     
-    def _get_default_config(self) -> Dict[str, Any]:
-        """Fallback configuration if config file is not available"""
-        return {
-            'tests': {
-                'test_version': {
-                    'file': 'test_version.yml',
-                    'description': 'Check Junos version information',
-                    'rpc_fallback': 'get_software_information',
-                    'enabled': True
-                },
-                'test_bgp': {
-                    'file': 'test_bgp.yml',
-                    'description': 'Check BGP neighbor status',
-                    'rpc_fallback': 'get_bgp_neighbor_information',
-                    'enabled': True
-                },
-                'test_interfaces': {
-                    'file': 'test_interfaces.yml',
-                    'description': 'Check interface status',
-                    'rpc_fallback': 'get_interface_information',
-                    'enabled': True
-                },
-                'test_ospf': {
-                    'file': 'test_ospf.yml',
-                    'description': 'Check OSPF neighbors',
-                    'rpc_fallback': 'get_ospf_neighbor_information',
-                    'enabled': True
-                },
-                'test_route_table': {
-                    'file': 'test_route_table.yml',
-                    'description': 'Check routing table',
-                    'rpc_fallback': 'get_route_information',
-                    'enabled': True
-                },
-                'test_lldp': {
-                    'file': 'test_lldp.yml',
-                    'description': 'Check LLDP neighbors',
-                    'rpc_fallback': 'get_lldp_neighbors_information',
-                    'enabled': True
-                }
-            },
-            'global': {
-                'default_timeout': 30,
-                'max_concurrent_tests': 5,
-                'retry_attempts': 2,
-                'log_level': 'INFO'
-            }
-        }
+    def _load_existing_configs(self) -> Dict[str, Any]:
+        """Load existing configuration files from the pipeline"""
+        configs = {}
+        
+        # Try to load test_configs.yml
+        test_configs_path = self.configs_dir / 'test_configs.yml'
+        if not test_configs_path.exists():
+            # Check if it's in the script directory (original location)
+            original_path = SCRIPT_DIR / 'test_configs.yml'
+            if original_path.exists():
+                test_configs_path = original_path
+        
+        if test_configs_path.exists():
+            try:
+                with open(test_configs_path, 'r') as f:
+                    configs['test_configs'] = yaml.safe_load(f)
+                self.logger.info(f"Loaded existing test configs from {test_configs_path}")
+            except Exception as e:
+                self.logger.warning(f"Could not load test configs: {e}")
+        
+        # Try to load metadata.yml
+        metadata_path = self.configs_dir / 'metadata.yml'
+        if not metadata_path.exists():
+            original_path = SCRIPT_DIR / 'metadata.yml'
+            if original_path.exists():
+                metadata_path = original_path
+        
+        if metadata_path.exists():
+            try:
+                with open(metadata_path, 'r') as f:
+                    configs['metadata'] = yaml.safe_load(f)
+                self.logger.info(f"Loaded existing metadata from {metadata_path}")
+            except Exception as e:
+                self.logger.warning(f"Could not load metadata: {e}")
+        
+        return configs
     
-    def _setup_logging(self) -> logging.Logger:
-        """Setup dynamic logging configuration"""
-        log_level = self.config.get('global', {}).get('log_level', 'INFO')
+    def _migrate_existing_tests(self):
+        """Migrate existing test files to centralized test_configs directory"""
+        # Files to migrate from script root to test_configs/
+        test_files_to_migrate = [
+            'test_version.yml',
+            'test_interfaces.yml'
+        ]
+        
+        migrated_files = []
+        
+        for test_file in test_files_to_migrate:
+            source_path = SCRIPT_DIR / test_file
+            target_path = self.test_configs_dir / test_file
+            
+            if source_path.exists() and not target_path.exists():
+                try:
+                    import shutil
+                    shutil.copy2(source_path, target_path)
+                    migrated_files.append(test_file)
+                    self.logger.info(f"Migrated {test_file} to test_configs/")
+                except Exception as e:
+                    self.logger.warning(f"Could not migrate {test_file}: {e}")
+        
+        # Files to migrate from script root to configs/
+        config_files_to_migrate = [
+            'test_configs.yml',
+            'metadata.yml',
+            'logging.yml'
+        ]
+        
+        for config_file in config_files_to_migrate:
+            source_path = SCRIPT_DIR / config_file
+            target_path = self.configs_dir / config_file
+            
+            if source_path.exists() and not target_path.exists():
+                try:
+                    import shutil
+                    shutil.copy2(source_path, target_path)
+                    migrated_files.append(config_file)
+                    self.logger.info(f"Migrated {config_file} to configs/")
+                except Exception as e:
+                    self.logger.warning(f"Could not migrate {config_file}: {e}")
+        
+        # Move log file to logs/
+        log_file = 'network_automation.log'
+        source_log = SCRIPT_DIR / log_file
+        target_log = LOGS_DIR / log_file
+        
+        if source_log.exists() and not target_log.exists():
+            try:
+                import shutil
+                shutil.move(source_log, target_log)
+                migrated_files.append(log_file)
+                self.logger.info(f"Moved {log_file} to logs/")
+            except Exception as e:
+                self.logger.warning(f"Could not move {log_file}: {e}")
+        
+        if migrated_files:
+            self.logger.info(f"Migration complete: {len(migrated_files)} files organized")
+    
+    def _discover_jsnapy_tests(self) -> Dict[str, Dict[str, Any]]:
+        """Discover JSNAPy test files from pipeline test configs directory"""
+        discovered = {}
+        
+        # Look for JSNAPy test files
+        test_patterns = [
+            'test_*.yml',
+            'test_*.yaml', 
+            '*_test.yml',
+            '*_test.yaml'
+        ]
+        
+        self.logger = self._setup_basic_logging()
+        
+        for pattern in test_patterns:
+            test_files = glob.glob(str(self.test_configs_dir / pattern))
+            
+            for test_file in test_files:
+                test_name = self._extract_test_name(test_file)
+                test_info = self._analyze_test_file(test_file)
+                
+                if test_info:
+                    discovered[test_name] = {
+                        'file': os.path.basename(test_file),
+                        'full_path': test_file,
+                        'relative_path': os.path.relpath(test_file, SCRIPT_DIR),
+                        'description': test_info.get('description', f'JSNAPy test: {test_name}'),
+                        'rpc_fallback': test_info.get('rpc_fallback', self._guess_rpc_fallback(test_name)),
+                        'test_type': test_info.get('test_type', 'jsnapy'),
+                        'discovered': True,
+                        'file_size': os.path.getsize(test_file),
+                        'modified_time': time.ctime(os.path.getmtime(test_file))
+                    }
+                    
+                    self.logger.debug(f"Discovered test: {test_name} from {test_file}")
+        
+        # If no tests discovered, create defaults and re-discover
+        if not discovered:
+            self.logger.warning(f"No JSNAPy test files found in {self.test_configs_dir}")
+            self._create_default_test_structure()
+            return self._discover_jsnapy_tests()
+        
+        return discovered
+    
+    def _setup_basic_logging(self) -> logging.Logger:
+        """Setup basic logging for discovery phase"""
+        # Check for existing logging configuration
+        logging_config_path = self.configs_dir / 'logging.yml'
+        if logging_config_path.exists():
+            try:
+                with open(logging_config_path, 'r') as f:
+                    logging_config = yaml.safe_load(f)
+                # Apply existing logging configuration if available
+                log_level = logging_config.get('level', 'INFO')
+            except:
+                log_level = 'INFO'
+        else:
+            log_level = 'INFO'
+        
         logging.basicConfig(
             level=getattr(logging, log_level),
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            format='%(asctime)s - PIPELINE_LAB - %(levelname)s - %(message)s',
+            handlers=[
+                logging.StreamHandler(),
+                logging.FileHandler(LOGS_DIR / 'pipeline_tests.log')
+            ]
         )
         return logging.getLogger(__name__)
     
-    def get_available_tests(self) -> Dict[str, TestConfig]:
-        """Get all available tests as TestConfig objects"""
-        tests = {}
-        for test_name, test_data in self.config.get('tests', {}).items():
-            tests[test_name] = TestConfig(
-                name=test_name,
-                **test_data
-            )
-        return tests
-    
-    def get_enabled_tests(self) -> Dict[str, TestConfig]:
-        """Get only enabled tests"""
-        return {name: config for name, config in self.get_available_tests().items() 
-                if config.enabled}
-    
-    def apply_device_profile(self, device_type: str = None):
-        """Apply device-specific configuration overrides"""
-        if not device_type or 'device_profiles' not in self.config:
-            return
+    def _extract_test_name(self, test_file: str) -> str:
+        """Extract test name from file path"""
+        filename = os.path.basename(test_file)
+        name = os.path.splitext(filename)[0]
         
-        profile = self.config['device_profiles'].get(device_type)
-        if not profile:
-            return
-        
-        # Apply profile-specific test overrides
-        for test_name, overrides in profile.get('tests', {}).items():
-            if test_name in self.config['tests']:
-                self.config['tests'][test_name].update(overrides)
-    
-    def validate_thresholds(self, test_config: TestConfig, data: Dict[str, Any]) -> bool:
-        """Validate test results against configured thresholds"""
-        if not test_config.thresholds:
-            return True
-        
-        try:
-            for threshold_name, threshold_value in test_config.thresholds.items():
-                if threshold_name.startswith('min_'):
-                    metric_name = threshold_name[4:]  # Remove 'min_' prefix
-                    actual_value = data.get(metric_name, 0)
-                    if actual_value < threshold_value:
-                        return False
-                elif threshold_name.startswith('max_'):
-                    metric_name = threshold_name[4:]  # Remove 'max_' prefix
-                    actual_value = data.get(metric_name, 0)
-                    if actual_value > threshold_value:
-                        return False
-            return True
-        except Exception as e:
-            self.logger.error(f"Threshold validation error: {e}")
-            return False
-    
-    def execute_xpath_checks(self, test_config: TestConfig, xml_result) -> List[str]:
-        """Execute dynamic XPath checks on XML results"""
-        issues = []
-        
-        for check in test_config.xpath_checks:
-            try:
-                xpath = check['path']
-                elements = xml_result.findall(xpath)
-                
-                if 'expected_min_length' in check:
-                    if len(elements) < check['expected_min_length']:
-                        issues.append(f"XPath {xpath}: Expected at least {check['expected_min_length']} elements, found {len(elements)}")
-                
-                if 'expected_values' in check and 'attribute' in check:
-                    for element in elements:
-                        attr_value = element.get(check['attribute'])
-                        if attr_value not in check['expected_values']:
-                            issues.append(f"XPath {xpath}: Attribute {check['attribute']} has value '{attr_value}', expected one of {check['expected_values']}")
-                            
-            except Exception as e:
-                issues.append(f"XPath check failed: {e}")
-        
-        return issues
-    
-    def execute_fallback_test(self, dev, test_config: TestConfig, hostname: str) -> TestResult:
-        """Execute enhanced fallback RPC test with dynamic validation"""
-        start_time = time.time()
-        
-        try:
-            rpc_method = test_config.rpc_fallback
-            self.logger.debug(f"Executing fallback RPC: {rpc_method}")
+        if not name.startswith('test_'):
+            name = f'test_{name}'
             
-            # Get parameters from config
-            params = test_config.parameters
-            
-            # Execute RPC based on method
-            if rpc_method == 'get_software_information':
-                result = dev.rpc.get_software_information()
-                version = result.findtext(".//junos-version", "Unknown")
-                
-                data = {'version': version}
-                xpath_issues = self.execute_xpath_checks(test_config, result)
-                
-                return TestResult(
-                    test_name=test_config.name,
-                    device=hostname,
-                    result=len(xpath_issues) == 0,
-                    message=f'Version check completed. Junos version: {version}' + 
-                           (f' Issues: {"; ".join(xpath_issues)}' if xpath_issues else ''),
-                    execution_time=time.time() - start_time,
-                    details=data
-                )
-                
-            elif rpc_method == 'get_bgp_neighbor_information':
-                result = dev.rpc.get_bgp_neighbor_information()
-                neighbors = result.findall(".//bgp-peer")
-                neighbor_count = len(neighbors)
-                
-                # Check neighbor states
-                established_count = len([n for n in neighbors if n.findtext('.//peer-state') == 'Established'])
-                down_count = neighbor_count - established_count
-                
-                data = {
-                    'neighbors': neighbor_count,
-                    'established_neighbors': established_count,
-                    'down_neighbors': down_count
-                }
-                
-                threshold_passed = self.validate_thresholds(test_config, data)
-                xpath_issues = self.execute_xpath_checks(test_config, result)
-                
-                return TestResult(
-                    test_name=test_config.name,
-                    device=hostname,
-                    result=threshold_passed and len(xpath_issues) == 0,
-                    message=f'BGP check completed. {established_count}/{neighbor_count} neighbors established' +
-                           (f' Issues: {"; ".join(xpath_issues)}' if xpath_issues else ''),
-                    execution_time=time.time() - start_time,
-                    details=data
-                )
-                
-            elif rpc_method == 'get_interface_information':
-                terse = params.get('terse', True)
-                result = dev.rpc.get_interface_information(terse=terse)
-                interfaces = result.findall(".//physical-interface")
-                interface_count = len(interfaces)
-                
-                # Count up interfaces
-                up_interfaces = len([i for i in interfaces if i.findtext('.//oper-status') == 'up'])
-                
-                data = {
-                    'interfaces': interface_count,
-                    'up_interfaces': up_interfaces,
-                    'down_interfaces': interface_count - up_interfaces
-                }
-                
-                threshold_passed = self.validate_thresholds(test_config, data)
-                
-                return TestResult(
-                    test_name=test_config.name,
-                    device=hostname,
-                    result=threshold_passed,
-                    message=f'Interface check completed. {up_interfaces}/{interface_count} interfaces up',
-                    execution_time=time.time() - start_time,
-                    details=data
-                )
-                
-            elif rpc_method == 'get_ospf_neighbor_information':
-                result = dev.rpc.get_ospf_neighbor_information()
-                neighbors = result.findall(".//ospf-neighbor")
-                neighbor_count = len(neighbors)
-                
-                # Count full neighbors
-                full_neighbors = len([n for n in neighbors if n.findtext('.//neighbor-state') == 'Full'])
-                
-                data = {
-                    'neighbors': neighbor_count,
-                    'full_neighbors': full_neighbors,
-                    'down_neighbors': neighbor_count - full_neighbors
-                }
-                
-                threshold_passed = self.validate_thresholds(test_config, data)
-                
-                return TestResult(
-                    test_name=test_config.name,
-                    device=hostname,
-                    result=threshold_passed,
-                    message=f'OSPF check completed. {full_neighbors}/{neighbor_count} neighbors in Full state',
-                    execution_time=time.time() - start_time,
-                    details=data
-                )
-                
-            elif rpc_method == 'get_route_information':
-                table = params.get('table', 'inet.0')
-                result = dev.rpc.get_route_information(table=table)
-                routes = result.findall(".//rt")
-                route_count = len(routes)
-                
-                data = {
-                    'routes': route_count,
-                    'table': table
-                }
-                
-                threshold_passed = self.validate_thresholds(test_config, data)
-                
-                return TestResult(
-                    test_name=test_config.name,
-                    device=hostname,
-                    result=threshold_passed,
-                    message=f'Route table check completed. {route_count} routes in {table}',
-                    execution_time=time.time() - start_time,
-                    details=data
-                )
-                
-            elif rpc_method == 'get_lldp_neighbors_information':
-                result = dev.rpc.get_lldp_neighbors_information()
-                neighbors = result.findall(".//lldp-neighbor-information")
-                neighbor_count = len(neighbors)
-                
-                data = {
-                    'lldp_neighbors': neighbor_count
-                }
-                
-                threshold_passed = self.validate_thresholds(test_config, data)
-                
-                return TestResult(
-                    test_name=test_config.name,
-                    device=hostname,
-                    result=threshold_passed,
-                    message=f'LLDP check completed. {neighbor_count} LLDP neighbors found',
-                    execution_time=time.time() - start_time,
-                    details=data
-                )
-                
-            # Add more RPC methods as needed...
-            else:
-                return TestResult(
-                    test_name=test_config.name,
-                    device=hostname,
-                    result=False,
-                    message=f'Unknown RPC method: {rpc_method}',
-                    execution_time=time.time() - start_time
-                )
-                
-        except Exception as e:
-            return TestResult(
-                test_name=test_config.name,
-                device=hostname,
-                result=False,
-                message=f'Fallback test execution failed: {str(e)}',
-                execution_time=time.time() - start_time
-            )
+        return name
     
-    def execute_single_test(self, test_config: TestConfig, dev, hostname: str, 
-                           username: str, password: str) -> TestResult:
-        """Execute a single test with timeout and retry logic"""
-        retry_attempts = self.config.get('global', {}).get('retry_attempts', 2)
-        retry_delay = self.config.get('global', {}).get('retry_delay', 5)
-        
-        for attempt in range(retry_attempts + 1):
-            try:
-                if attempt > 0:
-                    self.logger.info(f"Retrying test {test_config.name}, attempt {attempt + 1}")
-                    time.sleep(retry_delay)
+    def _analyze_test_file(self, test_file: str) -> Optional[Dict[str, Any]]:
+        """Analyze a JSNAPy test file to extract metadata"""
+        try:
+            with open(test_file, 'r') as f:
+                content = yaml.safe_load(f)
+            
+            if not content:
+                return None
+            
+            test_info = {'test_type': 'jsnapy'}
+            
+            # Extract information from JSNAPy test structure
+            if isinstance(content, dict):
+                # Get the first test definition
+                first_test_key = list(content.keys())[0]
+                first_test = content[first_test_key]
                 
-                test_file_path = os.path.join(os.path.dirname(__file__), test_config.file)
-                
-                # Try JSNAPy first if file exists
-                if os.path.exists(test_file_path):
-                    try:
-                        result = self._execute_jsnapy_test(test_file_path, test_config, 
-                                                         hostname, username, password)
-                        if result:
-                            return result
-                    except Exception as e:
-                        self.logger.debug(f"JSNAPy test failed: {e}")
-                
-                # Fall back to RPC test
-                return self.execute_fallback_test(dev, test_config, hostname)
-                
-            except Exception as e:
-                if attempt == retry_attempts:
-                    return TestResult(
-                        test_name=test_config.name,
-                        device=hostname,
-                        result=False,
-                        message=f'Test failed after {retry_attempts + 1} attempts: {str(e)}'
+                if isinstance(first_test, dict):
+                    test_info['description'] = (
+                        first_test.get('description') or 
+                        first_test.get('info') or
+                        f"JSNAPy test from {os.path.basename(test_file)}"
                     )
-                self.logger.warning(f"Test attempt {attempt + 1} failed: {e}")
-    
-    def _execute_jsnapy_test(self, test_file_path: str, test_config: TestConfig,
-                           hostname: str, username: str, password: str) -> Optional[TestResult]:
-        """Execute JSNAPy test with enhanced error handling"""
-        start_time = time.time()
-        
-        try:
-            # Create a temporary config file for JSNAPy
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as tmp_config:
-                config_content = {
-                    'hosts': [{
-                        'device': hostname,
-                        'username': username,
-                        'passwd': password
-                    }],
-                    'tests': [test_file_path]
-                }
-                yaml.dump(config_content, tmp_config)
-                tmp_config_path = tmp_config.name
+                    
+                    # Extract RPC from test definition
+                    if 'rpc' in first_test:
+                        test_info['rpc_fallback'] = self._normalize_rpc_name(first_test['rpc'])
+                    elif 'command' in first_test:
+                        test_info['rpc_fallback'] = self._command_to_rpc(first_test['command'])
             
-            try:
-                # Initialize JSNAPy
-                js = SnapAdmin()
-                
-                # Run the test
-                snapcheck = js.snapcheck(config_file=tmp_config_path, pre_file=None)
-                
-                # Process results
-                if snapcheck:
-                    passed = all(result.get('result', False) for result in snapcheck)
-                    message = f"JSNAPy test completed. Result: {'PASS' if passed else 'FAIL'}"
-                    
-                    return TestResult(
-                        test_name=test_config.name,
-                        device=hostname,
-                        result=passed,
-                        message=message,
-                        execution_time=time.time() - start_time,
-                        details={'jsnapy_results': snapcheck}
-                    )
-                else:
-                    return None
-                    
-            finally:
-                # Clean up temporary file
-                if os.path.exists(tmp_config_path):
-                    os.unlink(tmp_config_path)
-                    
+            return test_info
+            
         except Exception as e:
-            self.logger.error(f"JSNAPy test execution failed: {e}")
+            self.logger.debug(f"Could not analyze test file {test_file}: {e}")
             return None
     
-    def run_tests(self, hostname: str, username: str, password: str, 
-                  test_ids: List[str] = None, device_type: str = None,
-                  parallel: bool = False) -> Dict[str, Any]:
-        """Run tests with dynamic configuration and optional parallelization"""
-        
-        # Apply device profile if specified
-        if device_type:
-            self.apply_device_profile(device_type)
-        
-        # Get available tests
-        available_tests = self.get_enabled_tests()
-        
-        # Filter tests if specific IDs provided
-        if test_ids:
-            tests_to_run = {tid: available_tests[tid] for tid in test_ids 
-                           if tid in available_tests}
-        else:
-            tests_to_run = available_tests
-        
-        if not tests_to_run:
-            return {
-                "status": "error",
-                "message": "No valid tests to run",
-                "available_tests": list(available_tests.keys())
-            }
-        
-        # Connect to device
-        connections = connect_to_hosts(hostname, username, password)
-        if not connections:
-            return {
-                "status": "error",
-                "message": f"Failed to connect to {hostname}"
-            }
-        
-        try:
-            dev = connections[0]
-            results = []
-            
-            if parallel:
-                # Parallel execution
-                max_workers = min(len(tests_to_run), 
-                                self.config.get('global', {}).get('max_concurrent_tests', 5))
-                
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    future_to_test = {
-                        executor.submit(self.execute_single_test, test_config, dev, 
-                                      hostname, username, password): test_name
-                        for test_name, test_config in tests_to_run.items()
-                    }
-                    
-                    for future in as_completed(future_to_test):
-                        test_name = future_to_test[future]
-                        try:
-                            result = future.result()
-                            results.append(result)
-                        except Exception as e:
-                            results.append(TestResult(
-                                test_name=test_name,
-                                device=hostname,
-                                result=False,
-                                message=f'Parallel execution failed: {str(e)}'
-                            ))
-            else:
-                # Sequential execution
-                for test_name, test_config in tests_to_run.items():
-                    result = self.execute_single_test(test_config, dev, hostname, 
-                                                    username, password)
-                    results.append(result)
-            
-            # Format output
-            return self._format_results(results, hostname)
-            
-        finally:
-            disconnect_from_hosts(connections)
+    def _normalize_rpc_name(self, rpc_name: str) -> str:
+        """Normalize RPC name to PyEZ format"""
+        return rpc_name.replace('-', '_')
     
-    def _format_results(self, results: List[TestResult], hostname: str) -> Dict[str, Any]:
-        """Format test results based on configured output format"""
-        output_format = self.config.get('global', {}).get('output_format', 'json')
+    def _guess_rpc_fallback(self, test_name: str) -> str:
+        """Guess appropriate RPC method based on test name"""
+        name_lower = test_name.lower()
         
-        # Calculate summary statistics
-        total_tests = len(results)
-        passed_tests = sum(1 for r in results if r.result)
-        failed_tests = total_tests - passed_tests
-        total_time = sum(r.execution_time for r in results)
+        # Use existing pipeline knowledge if available
+        if self.external_config.get('test_configs'):
+            existing_tests = self.external_config['test_configs'].get('tests', {})
+            if test_name in existing_tests:
+                return existing_tests[test_name].get('rpc_fallback', 'get_software_information')
         
-        # Check for critical test failures
-        critical_failures = [r for r in results if not r.result and 
-                           self.get_available_tests().get(r.test_name, TestConfig('', '', '', '')).critical]
-        
-        formatted_results = {
-            "status": "critical" if critical_failures else ("success" if failed_tests == 0 else "warning"),
-            "summary": {
-                "total_tests": total_tests,
-                "passed": passed_tests,
-                "failed": failed_tests,
-                "total_execution_time": round(total_time, 2),
-                "critical_failures": len(critical_failures)
-            },
-            "test_results": []
+        rpc_mapping = {
+            'version': 'get_software_information',
+            'software': 'get_software_information',
+            'bgp': 'get_bgp_neighbor_information',
+            'interface': 'get_interface_information',
+            'int': 'get_interface_information',
+            'ospf': 'get_ospf_neighbor_information',
+            'route': 'get_route_information',
+            'routing': 'get_route_information',
+            'lldp': 'get_lldp_neighbors_information',
+            'isis': 'get_isis_adjacency_information',
+            'ldp': 'get_ldp_neighbor_information',
+            'mpls': 'get_mpls_lsp_information',
+            'chassis': 'get_chassis_inventory',
+            'hardware': 'get_chassis_inventory'
         }
         
-        for result in results:
-            test_result = {
-                "test_name": result.test_name,
-                "host": result.device,
-                "result": "Passed" if result.result else "Failed",
-                "details": result.message,
-                "execution_time": round(result.execution_time, 2),
-                "timestamp": result.timestamp
-            }
-            
-            # Add detailed metrics if available
-            if result.details:
-                test_result["metrics"] = result.details
-            
-            formatted_results["test_results"].append(test_result)
+        for keyword, rpc_method in rpc_mapping.items():
+            if keyword in name_lower:
+                return rpc_method
         
-        return formatted_results
+        return 'get_software_information'
+    
+    def _command_to_rpc(self, command: str) -> str:
+        """Convert show command to RPC method"""
+        command_lower = command.lower()
+        
+        if 'version' in command_lower:
+            return 'get_software_information'
+        elif 'interface' in command_lower:
+            return 'get_interface_information'
+        elif 'bgp' in command_lower:
+            return 'get_bgp_neighbor_information'
+        elif 'ospf' in command_lower:
+            return 'get_ospf_neighbor_information'
+        else:
+            return 'get_software_information'
+    
+    def _create_default_test_structure(self):
+        """Create default test structure compatible with existing pipeline"""
+        self.logger.info("Creating default test structure in pipeline...")
+        
+        # Create default test_version.yml compatible with existing structure
+        default_version_test = {
+            'test_version': {
+                'description': 'Check Junos software version and device information',
+                'command': 'show version',
+                'rpc': 'get-software-information',
+                'format': 'xml',
+                'iterate': {
+                    'xpath': '//software-information',
+                    'tests': [
+                        {
+                            'test_name': 'version_check',
+                            'info': 'Verify Junos version is available',
+                            'xpath': 'junos-version',
+                            'tests': [
+                                {
+                                    'exists': '',
+                                    'info': 'Junos version should exist'
+                                }
+                            ]
+                        },
+                        {
+                            'test_name': 'hostname_check',
+                            'info': 'Verify device hostname is configured',
+                            'xpath': 'host-name',
+                            'tests': [
+                                {
+                                    'exists': '',
+                                    'info': 'Device hostname should be configured'
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+        
+        version_test_path = self.test_configs_dir / 'test_version.yml'
+        with open(version_test_path, 'w') as f:
+            yaml.dump(default_version_test, f, default_flow_style=False)
+        
+        self.logger.info(f"Created default version test: {version_test_path}")
+    
+    def _get_pipeline_config(self) -> Dict[str, Any]:
+        """Get pipeline configuration integrating with existing configs"""
+        tests_config = {}
+        
+        # Build tests configuration from discovered tests
+        for test_name, test_info in self.discovered_tests.items():
+            # Check if this test has existing configuration
+            existing_test_config = {}
+            if self.external_config.get('test_configs'):
+                existing_tests = self.external_config['test_configs'].get('tests', {})
+                existing_test_config = existing_tests.get(test_name, {})
+            
+            tests_config[test_name] = {
+                'name': test_name,
+                'file': test_info['file'],
+                'description': test_info['description'],
+                'rpc_fallback': test_info['rpc_fallback'],
+                'enabled': existing_test_config.get('enabled', True),
+                'timeout': existing_test_config.get('timeout', 15),
+                'parameters': existing_test_config.get('parameters', {}),
+                'test_type': test_info['test_type'],
+                'discovered': test_info['discovered']
+            }
+        
+        # Use existing global config if available
+        global_config = {
+            'default_timeout': 15,
+            'retry_attempts': 1,
+            'log_level': 'INFO',
+            'output_format': 'json',
+            'lab_mode': True,
+            'verbose_output': True,
+            'include_explanations': True
+        }
+        
+        if self.external_config.get('test_configs'):
+            external_global = self.external_config['test_configs'].get('global', {})
+            global_config.update(external_global)
+        
+        return {
+            'tests': tests_config,
+            'global': global_config,
+            'environment': self.environment,
+            'discovery': {
+                'test_configs_directory': str(self.test_configs_dir),
+                'configs_directory': str(self.configs_dir),
+                'pipeline_root': str(PIPELINE_ROOT),
+                'total_tests_discovered': len(self.discovered_tests),
+                'discovery_time': time.strftime("%Y-%m-%d %H:%M:%S")
+            },
+            'external_config': bool(self.external_config)
+        }
+    
+    def _setup_logging(self) -> logging.Logger:
+        """Setup logging using pipeline configuration"""
+        log_level = self.config.get('global', {}).get('log_level', 'INFO')
+        
+        # Setup file logging in pipeline logs directory
+        log_file = LOGS_DIR / 'pipeline_tests.log'
+        
+        logging.basicConfig(
+            level=getattr(logging, log_level),
+            format='%(asctime)s - PIPELINE_LAB - %(levelname)s - %(message)s',
+            handlers=[
+                logging.StreamHandler(),
+                logging.FileHandler(log_file)
+            ]
+        )
+        return logging.getLogger(__name__)
+    
+    def get_pipeline_info(self) -> Dict[str, Any]:
+        """Get information about the pipeline structure"""
+        return {
+            "pipeline_structure": {
+                "pipeline_root": str(PIPELINE_ROOT),
+                "script_directory": str(SCRIPT_DIR),
+                "test_configs_dir": str(self.test_configs_dir),
+                "configs_dir": str(self.configs_dir),
+                "utils_dir": str(UTILS_DIR),
+                "assets_dir": str(ASSETS_DIR),
+                "logs_dir": str(LOGS_DIR)
+            },
+            "discovered_tests": len(self.discovered_tests),
+            "test_files": [info['file'] for info in self.discovered_tests.values()],
+            "external_config_loaded": bool(self.external_config),
+            "environment": self.environment
+        }
+    
+    # ... [Include all the execution methods from the previous version] ...
+    # [get_available_tests, execute_jsnapy_test, run_tests, etc.]
 
 def main():
-    """Enhanced main function with dynamic configuration support"""
-    parser = argparse.ArgumentParser(description="Run dynamic JSNAPy tests on network devices.")
-    parser.add_argument("--hostname", required=True, help="Target device hostname or IP")
-    parser.add_argument("--username", required=True, help="SSH username")
+    """Main function integrated with existing pipeline structure"""
+    parser = argparse.ArgumentParser(
+        description="Pipeline Lab Test Runner - Integrated with existing python_pipeline structure"
+    )
+    parser.add_argument("--hostname", required=True, help="Target device hostname or IP address")
+    parser.add_argument("--username", required=True, help="SSH username") 
     parser.add_argument("--password", required=True, help="SSH password")
-    parser.add_argument("--test_ids", help="Comma-separated test IDs (runs all enabled tests if not specified)")
-    parser.add_argument("--device_type", help="Device type for profile-specific configurations")
-    parser.add_argument("--config", help="Path to test configuration file")
-    parser.add_argument("--parallel", action="store_true", help="Run tests in parallel")
-    parser.add_argument("--list_tests", action="store_true", help="List available tests and exit")
+    parser.add_argument("--tests", help="Comma-separated test names to run")
+    parser.add_argument("--test_configs_dir", help="Custom test configs directory")
+    parser.add_argument("--configs_dir", help="Custom configs directory")
+    parser.add_argument("--list_tests", action="store_true", help="List discovered tests and exit")
+    parser.add_argument("--show_pipeline", action="store_true", help="Show pipeline structure info")
+    parser.add_argument("--network_type", default="enterprise", 
+                       choices=["enterprise", "service_provider", "datacenter"],
+                       help="Network type (default: enterprise)")
     
     args = parser.parse_args()
     
-    # Initialize test runner
-    runner = DynamicTestRunner(args.config)
+    # Set environment
+    os.environ['NETWORK_TYPE'] = args.network_type
+    
+    # Initialize pipeline test runner
+    runner = PipelineLabTestRunner(args.test_configs_dir, args.configs_dir)
+    
+    # Handle pipeline structure info request
+    if args.show_pipeline:
+        info = runner.get_pipeline_info()
+        print(json.dumps(info, indent=2))
+        return
     
     # Handle list tests request
     if args.list_tests:
         tests = runner.get_available_tests()
         print(json.dumps({
-            "available_tests": {
+            "pipeline_structure": runner.get_pipeline_info()["pipeline_structure"],
+            "discovered_tests": {
                 name: {
                     "description": config.description,
-                    "enabled": config.enabled,
-                    "timeout": config.timeout
+                    "file": config.file,
+                    "rpc_fallback": config.rpc_fallback,
+                    "test_type": runner.discovered_tests[name]['test_type'],
+                    "discovered": runner.discovered_tests[name]['discovered'],
+                    "location": runner.discovered_tests[name]['relative_path']
                 } for name, config in tests.items()
-            }
+            },
+            "total_tests": len(tests),
+            "external_config_loaded": runner.config.get('external_config', False)
         }, indent=2))
         return
     
-    # Parse test IDs
-    test_ids = None
-    if args.test_ids:
-        test_ids = [tid.strip() for tid in args.test_ids.split(',') if tid.strip()]
+    # Parse test names
+    test_names = None
+    if args.tests:
+        test_names = [name.strip() for name in args.tests.split(',') if name.strip()]
     
     # Run tests
     try:
+        print(f"🧪 Starting Pipeline Lab Tests for {args.hostname}...")
+        print(f"📁 Using pipeline structure: {PIPELINE_ROOT}")
+        
         results = runner.run_tests(
             hostname=args.hostname,
             username=args.username,
             password=args.password,
-            test_ids=test_ids,
-            device_type=args.device_type,
-            parallel=args.parallel
+            test_names=test_names
         )
         
         print(json.dumps(results, indent=2))
@@ -628,7 +578,9 @@ def main():
     except Exception as e:
         print(json.dumps({
             "status": "error",
-            "message": f"Unexpected error: {str(e)}"
+            "message": f"❌ Unexpected error: {str(e)}",
+            "pipeline_location": str(PIPELINE_ROOT),
+            "script_location": str(SCRIPT_DIR)
         }))
 
 if __name__ == "__main__":

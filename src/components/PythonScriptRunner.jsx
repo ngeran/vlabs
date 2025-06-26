@@ -1,6 +1,6 @@
 // src/components/PythonScriptRunner.jsx
 import React, { useState, useEffect, useMemo } from "react";
-import { Loader2 } from "lucide-react"; // Only Loader2 should remain if Zap is only in FeaturedScripts
+import { Loader2 } from "lucide-react";
 
 import { useScriptData } from "../hooks/useScriptData.jsx";
 import { useScriptParameters } from "../hooks/useScriptParameters.jsx";
@@ -29,7 +29,7 @@ function PythonScriptRunner() {
   const [selectedScriptConfig, setSelectedScriptConfig] = useState(null);
   const [inventorySelectionMode, setInventorySelectionMode] = useState("file");
 
-  const { currentArgs, handleArgChange } = useScriptParameters(
+  const { currentArgs, handleArgChange, resetArgs } = useScriptParameters(
     selectedScriptConfig,
     availableInventories,
     inventorySelectionMode,
@@ -38,6 +38,7 @@ function PythonScriptRunner() {
   const {
     output,
     executionError,
+    setExecutionError,
     isLoading,
     runScript,
     clearOutput,
@@ -74,6 +75,44 @@ function PythonScriptRunner() {
     const parametersToSend = {};
     let hasMissingRequired = false;
 
+    // --- MODIFIED: Process factOptions checkboxes from currentArgs ---
+    if (selectedScriptConfig.factOptions) {
+      const selectedFacts = selectedScriptConfig.factOptions
+        .filter((opt) => currentArgs[opt.id]) // Check if the option's ID is true in currentArgs
+        .map((opt) => opt.id);
+
+      // If get_device_facts is selected, at least one fact must be checked
+      if (
+        selectedScriptConfig.id === "get_device_facts" &&
+        selectedFacts.length === 0
+      ) {
+        setExecutionError("Please select at least one fact type to retrieve.");
+        hasMissingRequired = true;
+      } else if (selectedFacts.length > 0) {
+        parametersToSend["fact_types"] = selectedFacts.join(",");
+      }
+    }
+    // --- END MODIFIED ---
+
+    // --- NEW: Process testOptions checkboxes from currentArgs ---
+    if (selectedScriptConfig.testOptions) {
+      const selectedTests = selectedScriptConfig.testOptions
+        .filter((opt) => currentArgs[opt.id]) // Check if the option's ID is true in currentArgs
+        .map((opt) => opt.id);
+
+      // If run_jsnapy_tests is selected, at least one test must be checked
+      if (
+        selectedScriptConfig.id === "run_jsnapy_tests" &&
+        selectedTests.length === 0
+      ) {
+        setExecutionError("Please select at least one JSNAPy test to run.");
+        hasMissingRequired = true;
+      } else if (selectedTests.length > 0) {
+        parametersToSend["test_ids"] = selectedTests.join(",");
+      }
+    }
+    // --- END NEW ---
+
     // Special handling for 'get_device_facts' to manage inventory/hosts
     if (selectedScriptConfig.id === "get_device_facts") {
       if (inventorySelectionMode === "file") {
@@ -98,14 +137,22 @@ function PythonScriptRunner() {
       }
     }
 
-    // Process other dynamic script parameters
+    // Process other dynamic script parameters from the hook's state
     selectedScriptConfig.parameters.forEach((paramDef) => {
-      // Skip inventory_file and hosts as they are handled conditionally above
+      // Filter out parameters already handled (inventory_file, hosts, and checkbox options)
       if (
-        selectedScriptConfig.id === "get_device_facts" &&
-        (paramDef.name === "inventory_file" || paramDef.name === "hosts")
+        (selectedScriptConfig.id === "get_device_facts" &&
+          (paramDef.name === "inventory_file" || paramDef.name === "hosts")) ||
+        (selectedScriptConfig.factOptions &&
+          selectedScriptConfig.factOptions.some(
+            (opt) => opt.id === paramDef.name,
+          )) ||
+        (selectedScriptConfig.testOptions &&
+          selectedScriptConfig.testOptions.some(
+            (opt) => opt.id === paramDef.name,
+          ))
       ) {
-        return;
+        return; // Skip this parameter as it's handled by a checkbox or a special selector
       }
 
       const value = currentArgs[paramDef.name];
@@ -123,15 +170,8 @@ function PythonScriptRunner() {
         hasMissingRequired = true;
       }
 
-      // Type conversion for parameters (though useScriptParameters handles most of this)
-      if (paramDef.type === "number") {
-        parametersToSend[paramDef.name] = Number(value);
-      } else if (paramDef.type === "boolean") {
-        parametersToSend[paramDef.name] =
-          typeof value === "string" ? value.toLowerCase() === "true" : value;
-      } else {
-        parametersToSend[paramDef.name] = value;
-      }
+      // Add to payload
+      parametersToSend[paramDef.name] = value;
     });
 
     if (hasMissingRequired) {
@@ -171,6 +211,7 @@ function PythonScriptRunner() {
       setInventorySelectionMode("file"); // Reset inventory mode
       clearOutput(); // Clear any existing output
       clearError(); // Clear any existing errors
+      resetArgs(); // Reset args when selecting from featured
 
       // Scroll to the "Run a Script" section for better UX
       document
@@ -319,12 +360,118 @@ function PythonScriptRunner() {
               </div>
             )}
 
+          {/* --- MODIFIED: Conditional rendering for factOptions checkboxes --- */}
+          {selectedScriptConfig && selectedScriptConfig.factOptions && (
+            <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Select Facts to Retrieve:
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {selectedScriptConfig.factOptions.map((fact) => (
+                  <div key={fact.id} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={`fact-${fact.id}`}
+                      checked={!!currentArgs[fact.id]} // Check against the currentArgs state
+                      onChange={(e) =>
+                        handleArgChange(fact.id, e.target.checked)
+                      } // Use the generic handler
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label
+                      htmlFor={`fact-${fact.id}`}
+                      className="ml-2 block text-sm font-medium text-gray-700 cursor-pointer"
+                    >
+                      {fact.label}
+                      {fact.description && (
+                        <span className="font-normal text-xs text-gray-500 ml-1">
+                          ({fact.description})
+                        </span>
+                      )}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {/* This validation message is now handled by setExecutionError */}
+              {currentOverallError &&
+                currentOverallError.includes(
+                  "select at least one fact type",
+                ) && (
+                  <p className="text-red-500 text-xs mt-2">
+                    {currentOverallError}
+                  </p>
+                )}
+            </div>
+          )}
+          {/* --- END MODIFIED --- */}
+
+          {/* --- NEW: Conditional rendering for testOptions checkboxes --- */}
+          {selectedScriptConfig && selectedScriptConfig.testOptions && (
+            <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Select JSNAPy Tests:
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {selectedScriptConfig.testOptions.map((test) => (
+                  <div key={test.id} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={`test-${test.id}`}
+                      checked={!!currentArgs[test.id]} // Check against the currentArgs state
+                      onChange={(e) =>
+                        handleArgChange(test.id, e.target.checked)
+                      } // Use the generic handler
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label
+                      htmlFor={`test-${test.id}`}
+                      className="ml-2 block text-sm font-medium text-gray-700 cursor-pointer"
+                    >
+                      {test.label}
+                      {test.description && (
+                        <span className="font-normal text-xs text-gray-500 ml-1">
+                          ({test.description})
+                        </span>
+                      )}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {/* Validation message for tests */}
+              {currentOverallError &&
+                currentOverallError.includes(
+                  "select at least one JSNAPy test",
+                ) && (
+                  <p className="text-red-500 text-xs mt-2">
+                    {currentOverallError}
+                  </p>
+                )}
+            </div>
+          )}
+          {/* --- END NEW --- */}
+
           {/* Run Script Button */}
           <button
             onClick={handleRunScript}
             disabled={
               isLoading ||
               !selectedScriptConfig ||
+              // --- MODIFIED: Include validation for checkboxes ---
+              (selectedScriptConfig.id === "get_device_facts" &&
+                !currentArgs.fact_types &&
+                selectedScriptConfig.factOptions &&
+                selectedScriptConfig.factOptions.length > 0 &&
+                selectedScriptConfig.factOptions.every(
+                  (opt) => !currentArgs[opt.id],
+                )) ||
+              (selectedScriptConfig.id === "run_jsnapy_tests" &&
+                !currentArgs.test_ids &&
+                selectedScriptConfig.testOptions &&
+                selectedScriptConfig.testOptions.length > 0 &&
+                selectedScriptConfig.testOptions.every(
+                  (opt) => !currentArgs[opt.id],
+                )) ||
+              // --- END MODIFIED ---
               (selectedScriptConfig.id === "get_device_facts" &&
                 ((inventorySelectionMode === "file" &&
                   (!currentArgs["inventory_file"] ||

@@ -1,17 +1,16 @@
 # vlabs/python_pipeline/scripts.yaml (Updated content)
 
 scripts:
-  - id: hello_world # Unique ID, often matches the directory name
+  - id: hello_world
     displayName: "Hello World Example"
     description: "A simple script to greet with a message."
     category: Basic
     tags:
       - featured
       - utility
-    scriptFile: "hello_world.py" # Relative path within its directory
-    metadataFile: "hello_world.yml" # Relative path within its directory
+    scriptFile: "hello_world.py" # Correct path relative to the 'hello_world' directory
 
-  - id: get_device_facts # New script entry
+  - id: get_device_facts
     displayName: "Get Device Facts (Junos)"
     description: "Connects to Juniper devices from inventory and retrieves device facts or version."
     category: Network Automation
@@ -19,11 +18,20 @@ scripts:
       - featured
       - device_management
       - Junos
-    scriptFile: "get_device_facts.py"
+    scriptFile: "get_device_facts.py" 
     metadataFile: "get_device_facts.yml"
-    factOptions: # <--- ADD THIS SECTION!
+    factOptions:
       - id: interfaces
         label: Interfaces
         description: Retrieve summary of all physical and logical interfaces.
-    # IMPORTANT: Do NOT add 'version', 'bgp_neighbors', etc. here yet.
-    # Only 'interfaces' should be here for now, as that's the only one you're implementing.
+
+  - id: run_jsnapy_tests
+    displayName: "JSNAPy: Run Tests"
+    description: "Runs one or more pre-defined JSNAPy validation tests on a device."
+    category: Network Automation
+    tags:
+      - network_validation
+      - Junos
+      - featured
+    scriptFile: "run_jsnapy_tests.py"
+    metadataFile: "metadata.yml"

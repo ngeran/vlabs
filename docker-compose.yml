@@ -20,7 +20,7 @@ services:
   python_runner:
     build:
       context: ./python_pipeline
-      dockerfile: Dockerfile_python_runner
+      dockerfile: Dockerfile
     volumes:
       # This mount is correct for the python_runner image build,
       # but the runtime mount will come from server.js's docker run command.

@@ -1,10 +1,9 @@
-# vlabs/python_pipeline/run_jsnapy_tests/run_jsnapy_tests_dynamic.py
+# vlabs/python_pipeline/run_jsnapy_tests/run_jsnapy_tests.py
 """
 Environment-Aware JSNAPy Test Runner
 Author: nikos-geranios_vgi
 Enhanced: 2025-06-26 18:31:13 UTC
 """
-
 import argparse
 import os
 import sys
@@ -23,7 +22,7 @@ from pathlib import Path
 from jnpr.jsnapy import SnapAdmin
 from jnpr.junos.exception import ConnectError
 
-# Path setup (same as before)
+# Path setup
 SCRIPT_DIR = Path(__file__).parent
 PIPELINE_ROOT = SCRIPT_DIR.parent
 UTILS_DIR = PIPELINE_ROOT / 'utils'
@@ -44,7 +43,9 @@ try:
     from connect_to_hosts import connect_to_hosts, disconnect_from_hosts
 except ImportError:
     print(f"Warning: Could not import connect_to_hosts from {UTILS_DIR}")
-    sys.exit(1)
+    # Don't exit here, make it optional
+    connect_to_hosts = None
+    disconnect_from_hosts = None
 
 @dataclass
 class TestResult:
@@ -57,8 +58,7 @@ class TestResult:
     details: Dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: time.strftime("%Y-%m-%d %H:%M:%S"))
 
-# ✨ HERE: Replace your existing TestConfig with the enhanced version
-@dataclass 
+@dataclass
 class TestConfig:
     """Enhanced test configuration with environment safety"""
     name: str
@@ -71,25 +71,23 @@ class TestConfig:
     test_type: str = "jsnapy"
     discovered: bool = True
     location: str = "tests/"
-    
-    # ✨ NEW: Environment and Safety Classifications
-    environment_classification: str = "development"  # development, staging, production
-    safety_level: str = "safe"                      # safe, monitoring_only, potentially_disruptive
-    production_approved: bool = False               # Explicit production approval
-    requires_change_control: bool = False           # Change management requirement
-    max_impact_level: str = "low"                  # low, medium, high, critical
+    # Environment and Safety Classifications
+    environment_classification: str = "development"
+    safety_level: str = "safe"
+    production_approved: bool = False
+    requires_change_control: bool = False
+    max_impact_level: str = "low"
 
 class IndustryStandardTestRunner:
     """Enhanced test runner with environment awareness"""
     
-    def __init__(self, tests_directory: str = None, config_directory: str = None, 
+    def __init__(self, tests_directory: str = None, config_directory: str = None,
                  target_environment: str = None):
-        
-        # ✨ Enhanced environment detection
+        # Enhanced environment detection
         self.target_environment = target_environment or os.getenv('TARGET_ENVIRONMENT', 'development')
         self.deployment_context = os.getenv('DEPLOYMENT_CONTEXT', 'lab')
         
-        # Rest of your initialization...
+        # Directory setup
         self.tests_dir = Path(tests_directory) if tests_directory else TESTS_DIR
         self.config_dir = Path(config_directory) if config_directory else CONFIG_DIR
         
@@ -108,17 +106,18 @@ class IndustryStandardTestRunner:
             'directory_standard': 'industry_standard'
         }
         
-        # Setup logging
+        # Setup basic logging first
         self.logger = self._setup_basic_logging()
         
-        # Migration and discovery
-        migration_results = self._migrate_to_industry_standard()
+        # Initialize components
         self.external_config = self._load_existing_configs()
         self.discovered_tests = self._discover_tests()
         self.config = self._get_test_config()
+        
+        # Setup full logging after config is loaded
         self.logger = self._setup_logging()
-        self._log_initialization_summary(migration_results)
-    
+        self._log_initialization_summary({})
+
     def _determine_safety_mode(self) -> str:
         """Determine safety mode based on environment"""
         safety_modes = {
@@ -128,8 +127,55 @@ class IndustryStandardTestRunner:
             'lab': 'lab_safe'
         }
         return safety_modes.get(self.target_environment, 'development_safe')
-    
-    # ✨ NEW: Environment metadata extraction
+
+    def _setup_basic_logging(self) -> logging.Logger:
+        """Setup basic logging configuration"""
+        logger = logging.getLogger(f'jsnapy_runner_{self.target_environment}')
+        logger.setLevel(logging.INFO)
+        
+        if not logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        
+        return logger
+
+    def _setup_logging(self) -> logging.Logger:
+        """Setup enhanced logging with file output"""
+        log_file = LOGS_DIR / f'jsnapy_{self.target_environment}_{time.strftime("%Y%m%d")}.log'
+        
+        logger = logging.getLogger(f'jsnapy_runner_{self.target_environment}')
+        
+        # Add file handler if not already present
+        if not any(isinstance(h, logging.FileHandler) for h in logger.handlers):
+            file_handler = logging.FileHandler(log_file)
+            file_formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            file_handler.setFormatter(file_formatter)
+            logger.addHandler(file_handler)
+        
+        return logger
+
+    def _load_existing_configs(self) -> Dict[str, Any]:
+        """Load any existing configuration files"""
+        configs = {}
+        config_files = glob.glob(str(self.config_dir / "*.yml")) + glob.glob(str(self.config_dir / "*.yaml"))
+        
+        for config_file in config_files:
+            try:
+                with open(config_file, 'r') as f:
+                    config_name = Path(config_file).stem
+                    configs[config_name] = yaml.safe_load(f)
+            except Exception as e:
+                if hasattr(self, 'logger'):
+                    self.logger.warning(f"Could not load config {config_file}: {e}")
+        
+        return configs
+
     def _extract_environment_metadata(self, test_file_path: Path) -> Dict[str, Any]:
         """Extract environment metadata from test file"""
         try:
@@ -152,7 +198,6 @@ class IndustryStandardTestRunner:
                 'approved_for_environments': ['development', 'lab'],
                 'created_by': 'nikos-geranios_vgi'
             }
-            
             self.logger.debug(f"Using default metadata for {test_file_path.name}")
             return default_metadata
             
@@ -164,12 +209,9 @@ class IndustryStandardTestRunner:
                 'production_approved': False,
                 'max_impact_level': 'low'
             }
-    
-    # ✨ NEW: Environment appropriateness check
+
     def _is_test_appropriate_for_environment(self, metadata: Dict[str, Any]) -> bool:
         """Check if test is appropriate for current target environment"""
-        
-        # Get test's environment settings
         test_env_classification = metadata.get('environment_classification', 'development')
         approved_envs = metadata.get('approved_for_environments', [test_env_classification])
         restricted_envs = metadata.get('restricted_environments', [])
@@ -203,19 +245,47 @@ class IndustryStandardTestRunner:
         is_appropriate = self.target_environment in ['development', 'lab']
         self.logger.debug(f"Conservative check result: {is_appropriate}")
         return is_appropriate
-    
-    # ✨ ENHANCED: Discovery with environment filtering
+
+    def _extract_test_name(self, test_file: str) -> str:
+        """Extract test name from file path"""
+        return Path(test_file).stem
+
+    def _analyze_test_file(self, test_file: str) -> Dict[str, Any]:
+        """Analyze test file and extract information"""
+        try:
+            with open(test_file, 'r') as f:
+                content = yaml.safe_load(f)
+            
+            if isinstance(content, dict):
+                return {
+                    'description': content.get('description', f'Test from {Path(test_file).name}'),
+                    'test_type': 'jsnapy'
+                }
+        except Exception as e:
+            self.logger.warning(f"Could not analyze test file {test_file}: {e}")
+        
+        return {'description': f'Test from {Path(test_file).name}', 'test_type': 'jsnapy'}
+
+    def _guess_rpc_fallback(self, test_name: str) -> str:
+        """Guess appropriate RPC fallback based on test name"""
+        if 'interface' in test_name.lower():
+            return 'get-interface-information'
+        elif 'route' in test_name.lower():
+            return 'get-route-information'
+        elif 'bgp' in test_name.lower():
+            return 'get-bgp-neighbor-information'
+        else:
+            return 'get-chassis-inventory'
+
     def _discover_tests(self) -> Dict[str, Dict[str, Any]]:
         """Discover tests with environment classification"""
         discovered = {}
-        
         test_patterns = ['test_*.yml', 'test_*.yaml', '*_test.yml', '*_test.yaml']
         
         self.logger.info(f"🔍 Discovering tests for {self.target_environment} environment in {self.tests_dir}")
         
         for pattern in test_patterns:
             test_files = glob.glob(str(self.tests_dir / pattern))
-            
             for test_file in test_files:
                 test_name = self._extract_test_name(test_file)
                 test_info = self._analyze_test_file(test_file)
@@ -223,7 +293,6 @@ class IndustryStandardTestRunner:
                 if test_info:
                     # Extract environment metadata
                     env_metadata = self._extract_environment_metadata(Path(test_file))
-                    
                     # Check if appropriate for current environment
                     is_appropriate = self._is_test_appropriate_for_environment(env_metadata)
                     
@@ -239,7 +308,7 @@ class IndustryStandardTestRunner:
                         'file_size': os.path.getsize(test_file),
                         'modified_time': time.ctime(os.path.getmtime(test_file)),
                         'location': 'tests/',
-                        # ✨ NEW: Environment metadata
+                        # Environment metadata
                         'environment_classification': env_metadata.get('environment_classification', 'development'),
                         'safety_level': env_metadata.get('safety_level', 'safe'),
                         'production_approved': env_metadata.get('production_approved', False),
@@ -259,13 +328,74 @@ class IndustryStandardTestRunner:
         self.logger.info(f"📊 Discovery complete: {len(discovered)} total tests, {appropriate_count} appropriate for {self.target_environment}")
         
         return discovered
-    
-    # ✨ ENHANCED: Test config with all environment fields
+
+    def _get_test_config(self) -> Dict[str, Any]:
+        """Build test configuration from discovered tests"""
+        config = {
+            'tests': {},
+            'environment': self.environment,
+            'discovery_metadata': {
+                'discovered_at': time.strftime("%Y-%m-%d %H:%M:%S"),
+                'total_discovered': len(self.discovered_tests),
+                'target_environment': self.target_environment
+            }
+        }
+        
+        for test_name, test_data in self.discovered_tests.items():
+            config['tests'][test_name] = {
+                'name': test_name,
+                'file': test_data['file'],
+                'description': test_data['description'],
+                'rpc_fallback': test_data['rpc_fallback'],
+                'enabled': True,
+                'timeout': 15,
+                'parameters': {},
+                'test_type': test_data['test_type'],
+                'discovered': test_data['discovered'],
+                'location': test_data['location'],
+                'environment_classification': test_data['environment_classification'],
+                'safety_level': test_data['safety_level'],
+                'production_approved': test_data['production_approved'],
+                'requires_change_control': test_data['requires_change_control'],
+                'max_impact_level': test_data['max_impact_level']
+            }
+        
+        return config
+
+    def _log_initialization_summary(self, migration_results: Dict[str, Any]):
+        """Log initialization summary"""
+        self.logger.info(f"🚀 JSNAPy Test Runner initialized for {self.target_environment} environment")
+        self.logger.info(f"📁 Tests directory: {self.tests_dir}")
+        self.logger.info(f"🔧 Config directory: {self.config_dir}")
+        self.logger.info(f"📊 Discovered {len(self.discovered_tests)} tests")
+
+    def get_available_tests(self) -> Dict[str, TestConfig]:
+        """Get available test configurations"""
+        tests = {}
+        for test_name, test_data in self.config['tests'].items():
+            tests[test_name] = TestConfig(
+                name=test_data['name'],
+                file=test_data['file'],
+                description=test_data['description'],
+                rpc_fallback=test_data['rpc_fallback'],
+                enabled=test_data.get('enabled', True),
+                timeout=test_data.get('timeout', 15),
+                parameters=test_data.get('parameters', {}),
+                test_type=test_data.get('test_type', 'jsnapy'),
+                discovered=test_data.get('discovered', True),
+                location=test_data.get('location', 'tests/'),
+                environment_classification=test_data.get('environment_classification', 'development'),
+                safety_level=test_data.get('safety_level', 'safe'),
+                production_approved=test_data.get('production_approved', False),
+                requires_change_control=test_data.get('requires_change_control', False),
+                max_impact_level=test_data.get('max_impact_level', 'low')
+            )
+        return tests
+
     def get_test_by_name(self, test_name: str) -> Optional[TestConfig]:
         """Get a specific test configuration by name with environment data"""
         if test_name in self.config['tests']:
             test_data = self.config['tests'][test_name]
-            
             return TestConfig(
                 name=test_data['name'],
                 file=test_data['file'],
@@ -277,7 +407,6 @@ class IndustryStandardTestRunner:
                 test_type=test_data.get('test_type', 'jsnapy'),
                 discovered=test_data.get('discovered', True),
                 location=test_data.get('location', 'tests/'),
-                # ✨ NEW: Environment fields
                 environment_classification=test_data.get('environment_classification', 'development'),
                 safety_level=test_data.get('safety_level', 'safe'),
                 production_approved=test_data.get('production_approved', False),
@@ -285,30 +414,130 @@ class IndustryStandardTestRunner:
                 max_impact_level=test_data.get('max_impact_level', 'low')
             )
         return None
-    
-    # Continue with all your existing methods...
-    # (I'll show the key ones that need updates)
-    
-    def run_tests(self, hostname: str, username: str, password: str, 
+
+    def execute_jsnapy_test(self, test_name: str, hostname: str, username: str, password: str) -> TestResult:
+        """Execute a single JSNAPy test"""
+        start_time = time.time()
+        test_config = self.get_test_by_name(test_name)
+        
+        if not test_config:
+            return TestResult(
+                test_name=test_name,
+                device=hostname,
+                result=False,
+                message=f"Test configuration not found: {test_name}",
+                execution_time=time.time() - start_time
+            )
+        
+        try:
+            # Create JSNAPy configuration
+            config_data = {
+                'hosts': [{
+                    'device': hostname,
+                    'username': username,
+                    'passwd': password
+                }],
+                'tests': [str(self.tests_dir / test_config.file)]
+            }
+            
+            # Write temporary config file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
+                yaml.dump(config_data, f)
+                temp_config = f.name
+            
+            try:
+                # Execute JSNAPy test
+                js = SnapAdmin()
+                result = js.snapcheck(data=config_data, hostname=hostname)
+                
+                # Parse results
+                success = True
+                message = "Test completed successfully"
+                details = {}
+                
+                if isinstance(result, list) and result:
+                    for test_result in result:
+                        if hasattr(test_result, 'result') and test_result.result == 'Failed':
+                            success = False
+                            message = f"Test failed: {getattr(test_result, 'err_mssg', 'Unknown error')}"
+                            break
+                
+                return TestResult(
+                    test_name=test_name,
+                    device=hostname,
+                    result=success,
+                    message=message,
+                    execution_time=time.time() - start_time,
+                    details=details
+                )
+                
+            finally:
+                # Clean up temp file
+                try:
+                    os.unlink(temp_config)
+                except:
+                    pass
+                    
+        except Exception as e:
+            return TestResult(
+                test_name=test_name,
+                device=hostname,
+                result=False,
+                message=f"Test execution error: {str(e)}",
+                execution_time=time.time() - start_time
+            )
+
+    def _format_results_with_environment(self, results: List[TestResult], hostname: str, 
+                                       test_names: List[str]) -> Dict[str, Any]:
+        """Format results with environment context"""
+        passed = sum(1 for r in results if r.result)
+        failed = len(results) - passed
+        
+        return {
+            "status": "completed",
+            "environment_context": {
+                "target_environment": self.target_environment,
+                "safety_mode": self.environment['safety_mode'],
+                "production_mode": self.environment['production_mode']
+            },
+            "execution_summary": {
+                "hostname": hostname,
+                "total_tests": len(results),
+                "passed": passed,
+                "failed": failed,
+                "success_rate": f"{(passed/len(results)*100):.1f}%" if results else "0%"
+            },
+            "test_results": [
+                {
+                    "test_name": r.test_name,
+                    "result": "PASS" if r.result else "FAIL",
+                    "message": r.message,
+                    "execution_time": f"{r.execution_time:.2f}s",
+                    "timestamp": r.timestamp
+                } for r in results
+            ],
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "enhanced_by": "nikos-geranios_vgi"
+        }
+
+    def run_tests(self, hostname: str, username: str, password: str,
                   test_names: List[str] = None, override_environment_check: bool = False) -> Dict[str, Any]:
         """Enhanced run_tests with environment safety checks"""
-        
         available_tests = self.get_available_tests()
         
-        # ✨ Environment safety validation
+        # Environment safety validation
         if not override_environment_check:
             # Filter tests appropriate for environment
             appropriate_tests = {
                 name: test for name, test in available_tests.items()
-                if getattr(test, 'environment_classification', 'development') in ['development', self.target_environment] or
-                   (self.target_environment == 'production' and getattr(test, 'production_approved', False))
+                if test.environment_classification in ['development', self.target_environment] or
+                   (self.target_environment == 'production' and test.production_approved)
             }
             
             if self.target_environment == 'production':
                 production_safe_tests = {
                     name: test for name, test in appropriate_tests.items()
-                    if getattr(test, 'production_approved', False) and
-                       getattr(test, 'max_impact_level', 'high') in ['low', 'medium']
+                    if test.production_approved and test.max_impact_level in ['low', 'medium']
                 }
                 
                 if test_names:
@@ -323,7 +552,6 @@ class IndustryStandardTestRunner:
                             "safety_check_time": "2025-06-26 18:31:13",
                             "checked_by": "nikos-geranios_vgi"
                         }
-                
                 available_tests = production_safe_tests
             else:
                 available_tests = appropriate_tests
@@ -342,6 +570,15 @@ class IndustryStandardTestRunner:
         else:
             tests_to_run = list(available_tests.keys())
         
+        if not tests_to_run:
+            return {
+                "status": "error",
+                "message": f"No tests available for {self.target_environment} environment",
+                "target_environment": self.target_environment,
+                "discovered_tests": len(self.discovered_tests),
+                "environment_appropriate_tests": len(available_tests)
+            }
+        
         # Log environment context
         self.logger.info(f"🌍 Running {len(tests_to_run)} tests in {self.target_environment} environment")
         self.logger.info(f"🛡️ Safety mode: {self.environment['safety_mode']}")
@@ -355,33 +592,23 @@ class IndustryStandardTestRunner:
         
         return self._format_results_with_environment(results, hostname, tests_to_run)
 
-    # Add all your existing methods here...
-    # (keeping them the same, just ensuring they work with the enhanced TestConfig)
-
-# Continue with main() function that includes environment argument...
-
 def main():
     """Enhanced main with environment specification"""
     parser = argparse.ArgumentParser(
         description="Environment-Aware Industry Standard Test Runner - Enhanced by nikos-geranios_vgi"
     )
-    
     parser.add_argument("--hostname", required=True, help="Target device hostname or IP address")
-    parser.add_argument("--username", required=True, help="SSH username") 
+    parser.add_argument("--username", required=True, help="SSH username")
     parser.add_argument("--password", required=True, help="SSH password")
     parser.add_argument("--tests", help="Comma-separated test names to run")
-    
-    # ✨ NEW: Environment specification
-    parser.add_argument("--environment", 
+    parser.add_argument("--environment",
                        choices=["development", "lab", "staging", "production"],
                        default="development",
                        help="Target environment (default: development)")
-    
     parser.add_argument("--override_environment_check", action="store_true",
                        help="Override environment safety checks (requires authorization)")
-    
     parser.add_argument("--list_tests", action="store_true", help="List environment-appropriate tests")
-    parser.add_argument("--network_type", default="enterprise", 
+    parser.add_argument("--network_type", default="enterprise",
                        choices=["enterprise", "service_provider", "datacenter"])
     
     args = parser.parse_args()
@@ -442,7 +669,8 @@ def main():
             "message": f"❌ Environment-aware testing error: {str(e)}",
             "target_environment": args.environment,
             "enhanced_by": "nikos-geranios_vgi",
-            "error_time": "2025-06-26 18:31:13"
+            "error_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "error_details": str(e)
         }))
         sys.exit(1)
 

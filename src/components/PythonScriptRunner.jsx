@@ -65,7 +65,6 @@ function PythonScriptRunner() {
     clearError(); // Clear previous errors
   };
 
-===============HANDLE-RUN-SCRIPT=======================
   // Handler for running the selected script
   const handleRunScript = async () => {
     if (!selectedScriptConfig) {
@@ -188,15 +187,13 @@ function PythonScriptRunner() {
     await runScript(selectedScriptConfig.id, parametersToSend);
   };
 
-===============HANDLE-RUN-SCRIPT=======================
-================================================================================================
   // Memoized list of featured scripts for the FeaturedScripts component
   const featuredScripts = useMemo(() => {
     return availableScripts.filter(
       (script) => script.tags && script.tags.includes("featured"),
     );
   }, [availableScripts]);
-================================================================================================
+
   // Memoized data for the ScriptStatisticsChart component
   const scriptsByCategoryData = useMemo(() => {
     const categoryCounts = availableScripts.reduce((acc, script) => {
@@ -210,7 +207,7 @@ function PythonScriptRunner() {
       value: categoryCounts[category],
     }));
   }, [availableScripts]);
-================================================================================================
+
   // Handler for when a user selects a script from the Featured Scripts table
   const handleFeaturedScriptSelection = (scriptId) => {
     const config = availableScripts.find((script) => script.id === scriptId);
@@ -227,7 +224,7 @@ function PythonScriptRunner() {
         .scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
-================================================================================================
+
   // Display a full-page loading indicator while initial data is being fetched
   if (fetchingScripts || fetchingInventories) {
     return (
@@ -459,7 +456,7 @@ function PythonScriptRunner() {
             </div>
           )}
           {/* --- END ENHANCED --- */}
-================================================================================================
+
           {/* Run Script Button */}
           <button
             onClick={handleRunScript}

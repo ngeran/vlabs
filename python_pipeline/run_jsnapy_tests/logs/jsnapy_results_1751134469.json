@@ -1,0 +1,31 @@
+{
+  "status": "completed",
+  "environment": "lab",
+  "performance_metrics": {
+    "total_execution_time": "0.04s",
+    "total_memory_usage": "0.00MB",
+    "tests_per_second": "23.88"
+  },
+  "summary": {
+    "hosts": [
+      "172.27.200.200"
+    ],
+    "total_tests_executed": 1,
+    "passed": 0,
+    "failed": 1,
+    "success_rate": "0.0%"
+  },
+  "results": [
+    {
+      "host": "172.27.200.200",
+      "test": "test_version",
+      "status": "FAIL",
+      "message": "Test execution error: snapcheck() got an unexpected keyword argument 'config_file'",
+      "time": "0.01s",
+      "memory": "0.00MB",
+      "details": {}
+    }
+  ],
+  "timestamp": "2025-06-28T18:14:29.910506",
+  "optimized_by": "nikos-geranios_vgi"
+}

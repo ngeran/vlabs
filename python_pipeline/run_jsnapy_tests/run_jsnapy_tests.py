@@ -35,9 +35,14 @@ from pathlib import Path
 from functools import lru_cache
 from contextlib import contextmanager
 from datetime import datetime
+from lxml import etree
+
+# NEW: Import for table formatting
+from tabulate import tabulate
 
 # Third-party imports
 from jnpr.jsnapy import SnapAdmin
+from jnpr.junos import Device
 from jnpr.junos.exception import ConnectError
 
 # Performance monitoring
@@ -53,11 +58,9 @@ LOGS_DIR = SCRIPT_DIR / 'logs'
 CACHE_DIR = SCRIPT_DIR / 'cache'
 
 # Ensure directories exist
-# --- MODIFIED: Add a print statement for debugging
-print(f"[{datetime.now()}] Starting directory creation checks...")
-# --- END MODIFIED ---
-for directory in [TESTS_DIR, CONFIG_DIR, LOGS_DIR, CACHE_DIR]:
-    directory.mkdir(exist_ok=True)
+# Commented out to suppress verbose output in quiet mode
+# for directory in [TESTS_DIR, CONFIG_DIR, LOGS_DIR, CACHE_DIR]:
+#     directory.mkdir(exist_ok=True)
 
 # Add utils to path
 sys.path.insert(0, str(UTILS_DIR))
@@ -171,7 +174,8 @@ class JSNAPyConfigManager:
                 logging_config = yaml.safe_load(f)
             logging.config.dictConfig(logging_config)
             
-            self.logger.info(f"✅ JSNAPy environment configured with config dir: {jsnapy_config_dir}")
+            # Commented out to suppress verbose output in quiet mode
+            # self.logger.info(f"✅ JSNAPy environment configured with config dir: {jsnapy_config_dir}")
             
         except Exception as e:
             self.logger.warning(f"⚠️ JSNAPy configuration warning: {e}")
@@ -214,9 +218,10 @@ class JSNAPyConfigManager:
 class TestDiscovery:
     """Optimized test discovery with caching"""
     
-    def __init__(self, tests_dir: Path, cache: ConfigCache):
+    def __init__(self, tests_dir: Path, cache: ConfigCache, quiet: bool):
         self.tests_dir = tests_dir
         self.cache = cache
+        self.quiet = quiet
         self.logger = logging.getLogger(__name__)
     
     @lru_cache(maxsize=1)
@@ -225,7 +230,9 @@ class TestDiscovery:
         discovered = {}
         test_patterns = ['test_*.yml', 'test_*.yaml', '*_test.yml', '*_test.yaml']
         
-        self.logger.info(f"🔍 Discovering tests for {target_environment}")
+        # Commented out to suppress verbose output in quiet mode
+        # if not self.quiet:
+        #     self.logger.info(f"🔍 Discovering tests for {target_environment}")
         
         # Use glob once and cache results
         all_test_files = []
@@ -249,7 +256,9 @@ class TestDiscovery:
                 except Exception as e:
                     self.logger.error(f"Error processing {test_file}: {e}")
         
-        self.logger.info(f"📊 Discovered {len(discovered)} tests")
+        # Commented out to suppress verbose output in quiet mode
+        # if not self.quiet:
+        #     self.logger.info(f"📊 Discovered {len(discovered)} tests")
         return discovered
     
     def _process_test_file(self, test_file: str, target_environment: str) -> Optional[Dict[str, Any]]:
@@ -312,10 +321,11 @@ class TestDiscovery:
 class TestExecutor:
     """Optimized test execution engine"""
     
-    def __init__(self, tests_dir: Path, config_dir: Path, credential_manager: CredentialManager):
+    def __init__(self, tests_dir: Path, config_dir: Path, credential_manager: CredentialManager, quiet: bool):
         self.tests_dir = tests_dir
         self.config_dir = config_dir
         self.credential_manager = credential_manager
+        self.quiet = quiet
         self.logger = logging.getLogger(__name__)
         
         # Setup JSNAPy configuration
@@ -325,11 +335,13 @@ class TestExecutor:
     async def execute_tests_parallel(self, test_configs: List[TestConfig], 
                                    hostname: str, username: str = None, 
                                    password: str = None, max_workers: int = 3) -> List[TestResult]:
-        """Execute tests in parallel with controlled concurrency"""
+        """Execute tests in parallel with controlled concurrency for a single host"""
         start_time = time.time()
         username, password = self.credential_manager.get_credentials(hostname, username, password)
         
-        self.logger.info(f"🚀 Starting parallel execution of {len(test_configs)} tests")
+        # Commented out to suppress verbose output in quiet mode
+        # if not self.quiet:
+        #     self.logger.info(f"🚀 Starting parallel execution of {len(test_configs)} tests for host {hostname}")
         
         # Use thread pool for I/O bound JSNAPy operations
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -350,12 +362,12 @@ class TestExecutor:
                     results.append(result)
                     completed += 1
                     
-                    # Progress update
-                    if completed % 5 == 0 or completed == len(test_configs):
-                        self.logger.info(f"📈 Progress: {completed}/{len(test_configs)} tests completed")
+                    # Progress update - Commented out to suppress verbose output in quiet mode
+                    # if completed % 5 == 0 or completed == len(test_configs):
+                    #     self.logger.info(f"📈 Progress for {hostname}: {completed}/{len(test_configs)} tests completed")
                         
                 except Exception as e:
-                    self.logger.error(f"❌ Test {test_config.name} failed: {e}")
+                    self.logger.error(f"❌ Test {test_config.name} on {hostname} failed: {e}")
                     results.append(TestResult(
                         test_name=test_config.name,
                         device=hostname,
@@ -365,16 +377,54 @@ class TestExecutor:
                     ))
         
         total_time = time.time() - start_time
-        self.logger.info(f"⏱️ All tests completed in {total_time:.2f}s")
+        # Commented out to suppress verbose output in quiet mode
+        # if not self.quiet:
+        #     self.logger.info(f"⏱️ All tests for {hostname} completed in {total_time:.2f}s")
         
         return results
     
+    # NEW: Method to get Junos version from device using PyEZ
+    def _get_junos_version(self, hostname: str, username: str, password: str) -> Optional[str]:
+        """Connect to device and retrieve Junos version via RPC"""
+        # Commented out to suppress verbose output in quiet mode
+        # if not self.quiet:
+        #     self.logger.info(f"Connecting to {hostname} to retrieve version...")
+        try:
+            with Device(host=hostname, user=username, passwd=password, port=22) as dev:
+                # Use RPC to get software information as XML
+                response_xml = dev.rpc.get_software_information(normalize=True)
+                # Parse XML to find the version
+                version_element = response_xml.findtext('.//junos-version')
+                if version_element:
+                    # Commented out to suppress verbose output in quiet mode
+                    # if not self.quiet:
+                    #     self.logger.info(f"Found Junos version: {version_element}")
+                    return version_element
+                else:
+                    self.logger.warning("Junos version element not found in RPC response.")
+                    return "Not Found"
+        except ConnectError as e:
+            self.logger.error(f"Failed to connect to {hostname} to get version: {e}")
+            return "Connection Error"
+        except Exception as e:
+            self.logger.error(f"Error retrieving Junos version from {hostname}: {e}")
+            return "Extraction Error"
+
     def _execute_single_test(self, test_config: TestConfig, hostname: str, 
                            username: str, password: str) -> TestResult:
         """Execute a single test with performance monitoring"""
         start_time = time.time()
         process = psutil.Process()
         initial_memory = process.memory_info().rss / 1024 / 1024  # MB
+        
+        # Get version for 'test_version'
+        version_details = {}
+        if test_config.name == 'test_version':
+            junos_version = self._get_junos_version(hostname, username, password)
+            version_details['junos_version'] = junos_version
+            # Commented out to suppress verbose output in quiet mode
+            # if not self.quiet:
+            #     self.logger.info(f"Test '{test_config.name}' retrieved version: {junos_version}")
         
         try:
             # Create a temporary configuration file for this test
@@ -411,7 +461,7 @@ class TestExecutor:
                         result = self._execute_simple_jsnapy(test_config, hostname, username, password)
                 
                 # Quick result parsing
-                success, message = self._parse_jsnapy_result(result)
+                success, message = self._parse_jsnapy_result(result, version_details)
                 
             finally:
                 # Clean up temporary config file
@@ -431,7 +481,8 @@ class TestExecutor:
                 result=success,
                 message=message,
                 execution_time=execution_time,
-                memory_usage=memory_usage
+                memory_usage=memory_usage,
+                details=version_details
             )
             
         except Exception as e:
@@ -440,7 +491,8 @@ class TestExecutor:
                 device=hostname,
                 result=False,
                 message=f"Test execution error: {str(e)}",
-                execution_time=time.time() - start_time
+                execution_time=time.time() - start_time,
+                details=version_details
             )
     
     def _execute_simple_jsnapy(self, test_config: TestConfig, hostname: str, 
@@ -468,52 +520,76 @@ class TestExecutor:
             raise Exception(f"Simple JSNAPy execution failed: {str(e)}")
     
     @staticmethod
-    def _parse_jsnapy_result(result) -> Tuple[bool, str]:
+    def _parse_jsnapy_result(result, details: Dict[str, Any]) -> Tuple[bool, str]:
         """Fast JSNAPy result parsing"""
+        message_suffix = ""
+        if 'junos_version' in details:
+            message_suffix = f" (Junos version: {details['junos_version']})"
+
         if not result:
-            return False, "No result returned"
+            return False, f"No result returned{message_suffix}"
         
         if isinstance(result, list):
             for test_result in result:
                 if hasattr(test_result, 'result'):
                     if test_result.result == 'Failed':
-                        return False, f"Test failed: {getattr(test_result, 'err_mssg', 'Unknown error')}"
+                        return False, f"Test failed: {getattr(test_result, 'err_mssg', 'Unknown error')}{message_suffix}"
                     elif test_result.result == 'Passed':
-                        return True, "Test passed successfully"
+                        return True, f"Test passed successfully{message_suffix}"
         
-        return True, "Test completed successfully"
+        return True, f"Test completed successfully{message_suffix}"
 
 class OptimizedTestRunner:
     """Main optimized test runner"""
     
-    def __init__(self, tests_directory: str = None, target_environment: str = None):
+    def __init__(self, tests_directory: str = None, target_environment: str = None, quiet: bool = False):
         self.target_environment = target_environment or os.getenv('TARGET_ENVIRONMENT', 'development')
         self.tests_dir = Path(tests_directory) if tests_directory else TESTS_DIR
+        self.quiet = quiet
         
         # Initialize components
         self.cache = ConfigCache(CACHE_DIR)
         self.credential_manager = CredentialManager()
-        self.discovery = TestDiscovery(self.tests_dir, self.cache)
-        self.executor = TestExecutor(self.tests_dir, CONFIG_DIR, self.credential_manager)
+        self.discovery = TestDiscovery(self.tests_dir, self.cache, self.quiet)
+        self.executor = TestExecutor(self.tests_dir, CONFIG_DIR, self.credential_manager, self.quiet)
         
-        # Setup logging
+        # Setup logging with quiet mode
         self.logger = self._setup_logging()
         
-        # Discover tests once
-        self.discovered_tests = self.discovery.discover_tests(self.target_environment)
-        
-        self.logger.info(f"✅ OptimizedTestRunner initialized for {self.target_environment}")
+        # Commented out to suppress verbose output in quiet mode
+        # if not self.quiet:
+        #     self.logger.info(f"✅ OptimizedTestRunner initialized for {self.target_environment}")
     
     def _setup_logging(self) -> logging.Logger:
         """Efficient logging setup"""
         logger = logging.getLogger(__name__)
         
-        if not logger.handlers:
-            logger.setLevel(logging.INFO)
+        # Set the log level for all loggers to CRITICAL if in quiet mode
+        if self.quiet:
+            # Set the root logger to CRITICAL to suppress all handlers and messages
+            logging.getLogger().setLevel(logging.CRITICAL)
+            # Set other potentially noisy loggers to CRITICAL as well
+            logging.getLogger('__main__').setLevel(logging.CRITICAL)
+            logging.getLogger('ncclient').setLevel(logging.CRITICAL)
+            logging.getLogger('ncclient.transport.ssh').setLevel(logging.CRITICAL)
+            logging.getLogger('ncclient.operations.rpc').setLevel(logging.CRITICAL)
+            logging.getLogger('jnpr').setLevel(logging.CRITICAL)
+            logging.getLogger('jsnapy').setLevel(logging.CRITICAL)
             
-            # Console handler
+        else:
+            # Set log level to INFO for verbose output
+            logging.getLogger().setLevel(logging.INFO)
+            logging.getLogger('__main__').setLevel(logging.INFO)
+            logging.getLogger('ncclient').setLevel(logging.INFO)
+            logging.getLogger('ncclient.transport.ssh').setLevel(logging.INFO)
+            logging.getLogger('ncclient.operations.rpc').setLevel(logging.INFO)
+            logging.getLogger('jnpr').setLevel(logging.INFO)
+            logging.getLogger('jsnapy').setLevel(logging.INFO)
+
+        # Add a console handler if it doesn't exist to ensure output
+        if not logger.handlers:
             console_handler = logging.StreamHandler()
-            console_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+            console_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             console_handler.setFormatter(console_format)
             logger.addHandler(console_handler)
             
@@ -523,7 +599,7 @@ class OptimizedTestRunner:
             file_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             file_handler.setFormatter(file_format)
             logger.addHandler(file_handler)
-        
+
         return logger
     
     def get_available_tests(self) -> Dict[str, TestConfig]:
@@ -543,20 +619,24 @@ class OptimizedTestRunner:
             if data['environment_appropriate']
         }
     
-    async def run_tests_async(self, hostname: str, username: str = None, 
-                            password: str = None, test_names: List[str] = None,
-                            max_workers: int = 3, override_environment_check: bool = False) -> Dict[str, Any]:
-        """Optimized async test execution"""
+    async def run_tests_on_hosts_async(self, hostnames: List[str], username: str = None,
+                                     password: str = None, test_names: List[str] = None,
+                                     max_workers: int = 3, override_environment_check: bool = False) -> Dict[str, Any]:
+        """
+        Run tests on multiple hosts in parallel and collect results.
+        """
         start_time = time.time()
+        
+        # Discover tests once
+        self.discovered_tests = self.discovery.discover_tests(self.target_environment)
         available_tests = self.get_available_tests()
         
-        # Environment safety validation (matching original logic)
+        # Environment safety validation
         if not override_environment_check and self.target_environment == 'production':
             production_safe_tests = {
                 name: test for name, test in available_tests.items()
                 if test.production_approved and test.max_impact_level in ['low', 'medium']
             }
-            
             if test_names:
                 unsafe_tests = [name for name in test_names if name not in production_safe_tests]
                 if unsafe_tests:
@@ -588,46 +668,58 @@ class OptimizedTestRunner:
                 "message": f"No tests available for {self.target_environment}",
                 "discovered_count": len(self.discovered_tests)
             }
+            
+        # Create a list of async tasks, one for each host
+        host_tasks = [
+            self.executor.execute_tests_parallel(
+                test_configs=test_configs,
+                hostname=host,
+                username=username,
+                password=password,
+                max_workers=max_workers
+            )
+            for host in hostnames
+        ]
         
-        # Execute tests in parallel
-        self.logger.info(f"🏃‍♂️ Running {len(test_configs)} tests with {max_workers} workers")
-        results = await self.executor.execute_tests_parallel(
-            test_configs, hostname, username, password, max_workers
-        )
+        # Run all host tasks concurrently
+        all_results_by_host = await asyncio.gather(*host_tasks)
         
-        # Generate optimized summary
-        return self._generate_summary(results, hostname, time.time() - start_time)
-    
-    def _generate_summary(self, results: List[TestResult], hostname: str, total_time: float) -> Dict[str, Any]:
-        """Generate optimized result summary"""
-        passed = sum(1 for r in results if r.result)
-        failed = len(results) - passed
-        avg_execution_time = sum(r.execution_time for r in results) / len(results) if results else 0
-        total_memory_usage = sum(r.memory_usage for r in results)
+        # Flatten the list of results
+        all_results = [item for sublist in all_results_by_host for item in sublist]
+        
+        # Generate consolidated summary
+        return self._generate_consolidated_summary(all_results, hostnames, time.time() - start_time)
+
+    def _generate_consolidated_summary(self, results: List[TestResult], hostnames: List[str], total_time: float) -> Dict[str, Any]:
+        """Generate a single, consolidated result summary for all hosts."""
+        
+        passed_count = sum(1 for r in results if r.result)
+        failed_count = len(results) - passed_count
         
         return {
             "status": "completed",
             "environment": self.target_environment,
             "performance_metrics": {
                 "total_execution_time": f"{total_time:.2f}s",
-                "average_test_time": f"{avg_execution_time:.2f}s",
-                "total_memory_usage": f"{total_memory_usage:.2f}MB",
-                "tests_per_second": f"{len(results)/total_time:.2f}"
+                "total_memory_usage": f"{sum(r.memory_usage for r in results):.2f}MB",
+                "tests_per_second": f"{len(results)/total_time:.2f}" if total_time > 0 else "N/A"
             },
             "summary": {
-                "hostname": hostname,
-                "total_tests": len(results),
-                "passed": passed,
-                "failed": failed,
-                "success_rate": f"{(passed/len(results)*100):.1f}%" if results else "0%"
+                "hosts": hostnames,
+                "total_tests_executed": len(results),
+                "passed": passed_count,
+                "failed": failed_count,
+                "success_rate": f"{(passed_count/len(results)*100):.1f}%" if results else "0%"
             },
             "results": [
                 {
+                    "host": r.device,
                     "test": r.test_name,
                     "status": "PASS" if r.result else "FAIL",
                     "message": r.message,
                     "time": f"{r.execution_time:.2f}s",
-                    "memory": f"{r.memory_usage:.2f}MB"
+                    "memory": f"{r.memory_usage:.2f}MB",
+                    "details": r.details
                 } for r in results
             ],
             "timestamp": datetime.now().isoformat(),
@@ -639,7 +731,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="Optimized Environment-Aware JSNAPy Test Runner"
     )
-    parser.add_argument("--hostname", required=True, help="Target device hostname/IP")
+    # MODIFIED: Change to accept a comma-separated list of hostnames
+    parser.add_argument("--hostnames", required=True, help="Comma-separated list of target device hostnames/IPs")
     parser.add_argument("--username", help="SSH username (optional - will prompt if not provided)")
     parser.add_argument("--password", help="SSH password (optional - will prompt if not provided)")
     parser.add_argument("--tests", help="Comma-separated test names")
@@ -653,6 +746,8 @@ def main():
     parser.add_argument("--network_type", default="enterprise",
                        choices=["enterprise", "service_provider", "datacenter"],
                        help="Network type classification")
+    # NEW: Add quiet flag
+    parser.add_argument("--quiet", action="store_true", help="Suppress verbose logging and print statements")
     
     args = parser.parse_args()
     
@@ -661,8 +756,23 @@ def main():
     os.environ['TARGET_ENVIRONMENT'] = args.environment
     
     try:
-        # Initialize optimized runner
-        runner = OptimizedTestRunner(target_environment=args.environment)
+        # Initialize optimized runner with quiet flag
+        runner = OptimizedTestRunner(target_environment=args.environment, quiet=args.quiet)
+        
+        # Dynamically set logging level after JSNAPy's config has been loaded
+        if args.quiet:
+            log_level = logging.CRITICAL
+        else:
+            log_level = logging.INFO
+        
+        # Set log level for the root logger and other key loggers
+        logging.getLogger().setLevel(log_level)
+        logging.getLogger('__main__').setLevel(log_level)
+        logging.getLogger('ncclient').setLevel(log_level)
+        logging.getLogger('ncclient.transport.ssh').setLevel(log_level)
+        logging.getLogger('ncclient.operations.rpc').setLevel(log_level)
+        logging.getLogger('jnpr').setLevel(log_level)
+        logging.getLogger('jsnapy').setLevel(log_level)
         
         if args.list_tests:
             tests = runner.get_available_tests()
@@ -687,23 +797,40 @@ def main():
             }, indent=2))
             return
         
-        # Parse test names
+        # Parse hostnames and test names
+        hostnames = [h.strip() for h in args.hostnames.split(',') if h.strip()]
         test_names = None
         if args.tests:
             test_names = [name.strip() for name in args.tests.split(',') if name.strip()]
         
-        # Run tests asynchronously
-        print(f"🚀 Starting optimized {args.environment.upper()} tests for {args.hostname}")
+        # Commented out to suppress verbose output in quiet mode
+        # print(f"🚀 Starting optimized {args.environment.upper()} tests for {hostnames}")
         
-        # Run the async function
-        results = asyncio.run(runner.run_tests_async(
-            hostname=args.hostname,
+        # Run tests on all hosts asynchronously
+        results = asyncio.run(runner.run_tests_on_hosts_async(
+            hostnames=hostnames,
             username=args.username,
             password=args.password,
             test_names=test_names,
             max_workers=args.workers,
             override_environment_check=args.override_environment_check
         ))
+
+        # --- MODIFIED: Format and print a consolidated results table ---
+        if results.get('results'):
+            table_headers = ["Hostname", "Test Name", "Junos Version", "Status"]
+            table_rows = []
+            for test_result in results['results']:
+                hostname = test_result['host']
+                test_name = test_result['test']
+                junos_version = test_result['details'].get('junos_version', 'N/A')
+                status = test_result['status']
+                table_rows.append([hostname, test_name, junos_version, status])
+            
+            print("\n📊 Test Results Summary:")
+            print(tabulate(table_rows, headers=table_headers, tablefmt="grid"))
+            print("\n")
+        # --- END MODIFIED ---
         
         # --- MODIFIED: Write results to a file instead of printing to stdout ---
         output_file = LOGS_DIR / f'jsnapy_results_{int(time.time())}.json'
@@ -711,11 +838,14 @@ def main():
             json.dump(results, f, indent=2)
         
         # This print statement will go to stdout and confirms the file was written
-        print(f"✅ Results written to {output_file}. Please check this file for the output.")
+        # Commented out to suppress verbose output in quiet mode
+        # if not args.quiet:
+        #     print(f"✅ Full JSON results written to {output_file}. Please check this file for the output.")
         # --- END MODIFIED ---
         
     except KeyboardInterrupt:
-        print("\n⚠️ Test execution interrupted by user")
+        # Commented out to suppress verbose output in quiet mode
+        # print("\n⚠️ Test execution interrupted by user")
         sys.exit(1)
     except Exception as e:
         # --- MODIFIED: Ensure errors are also written to a file for debugging ---
@@ -728,7 +858,8 @@ def main():
         }
         with open(error_file, 'w') as f:
             json.dump(error_data, f, indent=2)
-        print(f"❌ An error occurred. Details written to {error_file}.")
+        # Commented out to suppress verbose output in quiet mode
+        # print(f"❌ An error occurred. Details written to {error_file}.")
         # --- END MODIFIED ---
         sys.exit(1)
 

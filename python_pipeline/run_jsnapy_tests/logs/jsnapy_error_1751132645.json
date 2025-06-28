@@ -1,6 +1,0 @@
-{
-  "status": "error",
-  "message": "Optimization error: 'OptimizedTestRunner' object has no attribute 'discovered_tests'",
-  "environment": "lab",
-  "timestamp": "2025-06-28T17:44:05.439433"
-}

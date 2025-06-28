@@ -30,7 +30,7 @@ export function useScriptExecution() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://10.177.102.200:3001/api/scripts/run", {
+      const response = await fetch("http://localhost:3001/api/scripts/run", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

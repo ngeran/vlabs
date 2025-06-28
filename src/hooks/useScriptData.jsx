@@ -6,23 +6,23 @@ import { useState, useEffect } from "react";
  */
 export function useScriptData() {
   // --- Script and inventory state management ---
-  const [availableScripts, setAvailableScripts] = useState([]);              // List of available scripts (from backend)
-  const [availableInventories, setAvailableInventories] = useState([]);      // List of available inventories (from backend)
-  const [fetchingScripts, setFetchingScripts] = useState(true);              // Loading state for scripts
-  const [fetchingInventories, setFetchingInventories] = useState(true);      // Loading state for inventories
-  const [error, setError] = useState("");                                    // Error state for scripts/inventories
+  const [availableScripts, setAvailableScripts] = useState([]); // List of available scripts (from backend)
+  const [availableInventories, setAvailableInventories] = useState([]); // List of available inventories (from backend)
+  const [fetchingScripts, setFetchingScripts] = useState(true); // Loading state for scripts
+  const [fetchingInventories, setFetchingInventories] = useState(true); // Loading state for inventories
+  const [error, setError] = useState(""); // Error state for scripts/inventories
 
   // --- NEW: State for dynamic JSNAPy test discovery ---
-  const [availableTests, setAvailableTests] = useState({});                  // Map: environment => {tests, metadata}
-  const [fetchingTests, setFetchingTests] = useState(false);                 // Loading state for test discovery
-  const [testDiscoveryError, setTestDiscoveryError] = useState("");          // Error state for test discovery
+  const [availableTests, setAvailableTests] = useState({}); // Map: environment => {tests, metadata}
+  const [fetchingTests, setFetchingTests] = useState(false); // Loading state for test discovery
+  const [testDiscoveryError, setTestDiscoveryError] = useState(""); // Error state for test discovery
 
   // --- Fetch available scripts from backend on mount ---
   useEffect(() => {
     const fetchScripts = async () => {
       try {
         // Query backend for script definitions
-        const response = await fetch("http://10.177.102.200:3001/api/scripts/list");
+        const response = await fetch("http://localhost:3001/api/scripts/list");
         if (!response.ok) {
           throw new Error("Failed to fetch script list from backend.");
         }
@@ -49,7 +49,7 @@ export function useScriptData() {
       try {
         // Query backend for inventory (host/group) files
         const response = await fetch(
-          "http://10.177.102.200:3001/api/inventories/list",
+          "http://localhost:3001/api/inventories/list",
         );
         if (!response.ok) {
           throw new Error("Failed to fetch inventory list from backend.");
@@ -79,51 +79,64 @@ export function useScriptData() {
    * @param {string} environment - The environment to query for test discovery (e.g. 'development')
    * @returns {Array} Array of test option objects with metadata
    */
-  const fetchAvailableTests = async (environment = 'development') => {
+  const fetchAvailableTests = async (environment = "development") => {
     setFetchingTests(true);
     setTestDiscoveryError("");
-    
+
     try {
-      console.log(`[FRONTEND] Discovering tests for environment: ${environment}`);
-      
+      console.log(
+        `[FRONTEND] Discovering tests for environment: ${environment}`,
+      );
+
       // POST to backend's test discovery endpoint
-      const response = await fetch("http://10.177.102.200:3001/api/scripts/discover-tests", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scriptId: 'run_jsnapy_tests',
-          environment: environment,
-          listTests: true
-        })
-      });
+      const response = await fetch(
+        "http://localhost:3001/api/scripts/discover-tests",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scriptId: "run_jsnapy_tests",
+            environment: environment,
+            listTests: true,
+          }),
+        },
+      );
 
       if (!response.ok) {
         throw new Error(`Test discovery failed: ${response.statusText}`);
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.discovered_tests) {
-        console.log(`[FRONTEND] Discovered ${Object.keys(data.discovered_tests).length} tests for ${environment}`);
-        
+        console.log(
+          `[FRONTEND] Discovered ${Object.keys(data.discovered_tests).length} tests for ${environment}`,
+        );
+
         // Transform discovered_tests into an array suitable for checkbox UI
-        const testOptions = Object.entries(data.discovered_tests).map(([testName, testConfig]) => ({
-          id: testName,
-          label: testName.replace('test_', '').replace(/_/g, ' ').toUpperCase(), // Human-friendly name
-          description: testConfig.description || `JSNAPy test: ${testName}`,
-          environment_classification: testConfig.environment_classification || 'development',
-          safety_level: testConfig.safety_level || 'safe',
-          production_approved: testConfig.production_approved || false,
-          max_impact_level: testConfig.max_impact_level || 'low'
-        }));
+        const testOptions = Object.entries(data.discovered_tests).map(
+          ([testName, testConfig]) => ({
+            id: testName,
+            label: testName
+              .replace("test_", "")
+              .replace(/_/g, " ")
+              .toUpperCase(), // Human-friendly name
+            description: testConfig.description || `JSNAPy test: ${testName}`,
+            environment_classification:
+              testConfig.environment_classification || "development",
+            safety_level: testConfig.safety_level || "safe",
+            production_approved: testConfig.production_approved || false,
+            max_impact_level: testConfig.max_impact_level || "low",
+          }),
+        );
 
         setAvailableTests({
           [environment]: {
             tests: testOptions,
             metadata: data.backend_metadata || {},
             discovery_time: new Date().toISOString(),
-            discovered_by: "nikos-geranios_vgi"
-          }
+            discovered_by: "nikos-geranios_vgi",
+          },
         });
 
         return testOptions;
@@ -143,13 +156,16 @@ export function useScriptData() {
   /**
    * @param {string} scriptId - The script for which to clear discovery cache (default: 'run_jsnapy_tests')
    */
-  const clearTestCache = async (scriptId = 'run_jsnapy_tests') => {
+  const clearTestCache = async (scriptId = "run_jsnapy_tests") => {
     try {
-      const response = await fetch("http://10.177.102.200:3001/api/scripts/clear-discovery-cache", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scriptId })
-      });
+      const response = await fetch(
+        "http://localhost:3001/api/scripts/clear-discovery-cache",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scriptId }),
+        },
+      );
 
       const data = await response.json();
       if (data.success) {
@@ -163,17 +179,18 @@ export function useScriptData() {
 
   // --- Return all state and utilities to consumers (e.g., your runner form) ---
   return {
-    availableScripts,         // List of all scripts for runner dropdown
-    availableInventories,     // List of all inventories for selection
-    fetchingScripts,          // Loading state for scripts
-    fetchingInventories,      // Loading state for inventories
-    error,                    // Any error in scripts/inventories
+    availableScripts, // List of all scripts for runner dropdown
+    availableInventories, // List of all inventories for selection
+    fetchingScripts, // Loading state for scripts
+    fetchingInventories, // Loading state for inventories
+    error, // Any error in scripts/inventories
 
     // --- NEW: Test discovery exports ---
-    availableTests,           // { [environment]: { tests, metadata, ...} }
-    fetchingTests,            // Loading state for discovery
-    testDiscoveryError,       // Error state for test discovery
-    fetchAvailableTests,      // Function to fetch tests for a given environment
-    clearTestCache            // Function to clear discovery cache
+    availableTests, // { [environment]: { tests, metadata, ...} }
+    fetchingTests, // Loading state for discovery
+    testDiscoveryError, // Error state for test discovery
+    fetchAvailableTests, // Function to fetch tests for a given environment
+    clearTestCache, // Function to clear discovery cache
   };
 }
+

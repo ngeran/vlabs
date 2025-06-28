@@ -34,7 +34,6 @@ from typing import Dict, List, Any, Optional, Union, Tuple
 from pathlib import Path
 from functools import lru_cache
 from contextlib import contextmanager
-from datetime import datetime
 
 # Third-party imports
 from jnpr.jsnapy import SnapAdmin
@@ -42,6 +41,7 @@ from jnpr.junos.exception import ConnectError
 
 # Performance monitoring
 import psutil
+from datetime import datetime
 
 # Constants
 SCRIPT_DIR = Path(__file__).parent
@@ -53,9 +53,6 @@ LOGS_DIR = SCRIPT_DIR / 'logs'
 CACHE_DIR = SCRIPT_DIR / 'cache'
 
 # Ensure directories exist
-# --- MODIFIED: Add a print statement for debugging
-print(f"[{datetime.now()}] Starting directory creation checks...")
-# --- END MODIFIED ---
 for directory in [TESTS_DIR, CONFIG_DIR, LOGS_DIR, CACHE_DIR]:
     directory.mkdir(exist_ok=True)
 
@@ -705,31 +702,18 @@ def main():
             override_environment_check=args.override_environment_check
         ))
         
-        # --- MODIFIED: Write results to a file instead of printing to stdout ---
-        output_file = LOGS_DIR / f'jsnapy_results_{int(time.time())}.json'
-        with open(output_file, 'w') as f:
-            json.dump(results, f, indent=2)
-        
-        # This print statement will go to stdout and confirms the file was written
-        print(f"✅ Results written to {output_file}. Please check this file for the output.")
-        # --- END MODIFIED ---
+        print(json.dumps(results, indent=2))
         
     except KeyboardInterrupt:
         print("\n⚠️ Test execution interrupted by user")
         sys.exit(1)
     except Exception as e:
-        # --- MODIFIED: Ensure errors are also written to a file for debugging ---
-        error_file = LOGS_DIR / f'jsnapy_error_{int(time.time())}.json'
-        error_data = {
+        print(json.dumps({
             "status": "error",
             "message": f"Optimization error: {str(e)}",
             "environment": args.environment,
             "timestamp": datetime.now().isoformat()
-        }
-        with open(error_file, 'w') as f:
-            json.dump(error_data, f, indent=2)
-        print(f"❌ An error occurred. Details written to {error_file}.")
-        # --- END MODIFIED ---
+        }, indent=2))
         sys.exit(1)
 
 if __name__ == "__main__":

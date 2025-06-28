@@ -16,7 +16,7 @@ const SiteNavigation = () => {
     const fetchMenu = async () => {
       try {
         const response = await fetch(
-          "http://10.177.102.200:3001/api/navigation/menu",
+          "http://localhost:3001/api/navigation/menu",
         );
         if (!response.ok) {
           throw new Error("Failed to fetch navigation menu.");

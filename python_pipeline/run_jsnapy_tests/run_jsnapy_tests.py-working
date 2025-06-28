@@ -34,7 +34,6 @@ from typing import Dict, List, Any, Optional, Union, Tuple
 from pathlib import Path
 from functools import lru_cache
 from contextlib import contextmanager
-from datetime import datetime
 
 # Third-party imports
 from jnpr.jsnapy import SnapAdmin
@@ -42,6 +41,7 @@ from jnpr.junos.exception import ConnectError
 
 # Performance monitoring
 import psutil
+from datetime import datetime
 
 # Constants
 SCRIPT_DIR = Path(__file__).parent
@@ -53,9 +53,6 @@ LOGS_DIR = SCRIPT_DIR / 'logs'
 CACHE_DIR = SCRIPT_DIR / 'cache'
 
 # Ensure directories exist
-# --- MODIFIED: Add a print statement for debugging
-print(f"[{datetime.now()}] Starting directory creation checks...")
-# --- END MODIFIED ---
 for directory in [TESTS_DIR, CONFIG_DIR, LOGS_DIR, CACHE_DIR]:
     directory.mkdir(exist_ok=True)
 

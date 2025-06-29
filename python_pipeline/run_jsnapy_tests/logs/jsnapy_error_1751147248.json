@@ -1,6 +1,0 @@
-{
-  "status": "error",
-  "message": "Optimization error: 'TestExecutor' object has no attribute '_execute_single_test'",
-  "environment": "lab",
-  "timestamp": "2025-06-28T21:47:28.358409"
-}

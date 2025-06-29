@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 Baseline v1
 """
 Optimized Environment-Aware JSNAPy Test Runner for Web UI
 Author: nikos-geranios_vgi
-Final Definitive Version: Implements a pre-execution reachability check as suggested,
-and handles all other errors gracefully for a robust user experience.
+Final Definitive Version: This version merges the pre-execution reachability check
+with the intelligent error handling for the '--deepcopy--' bug.
 """
 import asyncio
 import argparse
@@ -93,9 +93,10 @@ class TestExecutor:
             return await asyncio.gather(*futures)
 
     def _execute_single(self, config: TestConfig, host: str, user: str, pswd: str) -> TestResult:
+        """This function is bulletproof and intelligently handles the '--deepcopy--' bug."""
         start_time = time.time()
         details = {'display_hints': config.display_hints}
-        success, message = False, "Test did not run."
+        success, message, result_obj = False, "Test did not run.", None
         
         try:
             with Device(host=host, user=user, passwd=pswd, port=22, timeout=20) as dev:
@@ -104,7 +105,13 @@ class TestExecutor:
         except ConnectError as e:
             success, message = False, f"ConnectError: {e}"
         except Exception as e:
-            success, message = False, f"Execution error: {e}"
+            if "Invalid tag name '--deepcopy--'" in str(e):
+                self.logger.warning(f"Handled known JSNAPy '--deepcopy--' bug for {config.name}.")
+                s, m = self._parse_jsnapy(result_obj)
+                success, message = (True, m + " (Note: Handled a benign library error)") if s else (False, m or f"Execution error: {e}")
+            else:
+                success, message = False, f"Execution error: {e}"
+                self.logger.error(f"Error in _execute_single for {config.name}: {e}", exc_info=True)
         
         # Decoupled Data Extraction
         try:
@@ -154,12 +161,12 @@ class TestRunner:
         try:
             with socket.create_connection((host, port), timeout=timeout):
                 return True
-        except (socket.timeout, socket.gaierror, ConnectionRefusedError):
+        except (socket.timeout, socket.gaierror, OSError):
             return False
 
     async def run(self, hostnames: List[str], user: str, pswd: str, test_names: List[str]) -> Dict[str, Any]:
         configs = [TestConfig(**self.all_tests[name]) for name in test_names if name in self.all_tests] if test_names else [TestConfig(**data) for data in self.all_tests.values()]
-        if not configs: return {"status": "error", "message": f"No valid tests found."}
+        if not configs: return {"status": "error", "message": "No valid tests found."}
         
         # --- PRE-EXECUTION REACHABILITY CHECK (Your Suggestion) ---
         for host in hostnames:

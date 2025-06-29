@@ -75,7 +75,7 @@ function PythonScriptRunner() {
         }
       }
     }
-
+    //  ====================================================================
     const payload = {
       scriptId,
       parameters: {
@@ -84,8 +84,11 @@ function PythonScriptRunner() {
           scriptId === "run_jsnapy_tests" && Array.isArray(params.tests)
             ? params.tests.join(",")
             : params.tests,
+        // Ensure hostname is properly handled for comma-separated values
+        hostname: params.hostname?.trim() || "",
       },
     };
+    //  =====================================================================
     setRunningScripts(true);
     setError(null);
     setScriptOutputs({});

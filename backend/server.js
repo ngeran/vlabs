@@ -629,7 +629,8 @@ app.get("/api/navigation/menu", (req, res) => {
 });
 
 // GET endpoint to get a list of available Python scripts with full metadata.
-app.get("/api/scripts/list", (req, res) => {
+app.get("/api/scripts/list", async (req, res) => {
+  // Notice async here
   console.log(
     `[BACKEND] Attempting to read main scripts config from: ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}`,
   );
@@ -640,8 +641,19 @@ app.get("/api/scripts/list", (req, res) => {
     );
     const config = yaml.load(fileContents);
 
-    if (config && Array.isArray(config.scripts)) {
-      const scriptsWithFullMetadata = config.scripts.map((scriptEntry) => {
+    if (!config || !Array.isArray(config.scripts)) {
+      console.warn(
+        `[BACKEND] scripts.yaml found but 'scripts' array is missing or malformed.`,
+      );
+      return res
+        .status(500)
+        .json({ success: false, message: "Scripts configuration malformed." });
+    }
+
+    // --- THIS IS THE CRITICAL BLOCK THAT NEEDS TO BE REPLACED ---
+    // The new version uses Promise.all to handle the asynchronous discovery call.
+    const scriptsWithFullMetadata = await Promise.all(
+      config.scripts.map(async (scriptEntry) => {
         let individualMetadata = { parameters: [], resources: [] };
         if (scriptEntry.id && scriptEntry.metadataFile) {
           individualMetadata = getScriptIndividualMetadata(
@@ -649,33 +661,62 @@ app.get("/api/scripts/list", (req, res) => {
             scriptEntry.metadataFile,
           );
         }
-        return {
+
+        // Start building the final object for this script
+        const finalScriptEntry = {
           ...scriptEntry,
-          parameters: individualMetadata ? individualMetadata.parameters : [],
-          resources: individualMetadata ? individualMetadata.resources : [],
+          parameters: individualMetadata?.parameters || [],
+          resources: individualMetadata?.resources || [],
         };
-      });
-      res.json({ success: true, scripts: scriptsWithFullMetadata });
-    } else {
-      console.warn(
-        `[BACKEND] scripts.yaml found but 'scripts' array is missing or malformed.`,
-      );
-      res
-        .status(500)
-        .json({ success: false, message: "Scripts configuration malformed." });
-    }
-  } catch (e) {
-    console.error(
-      `[BACKEND] Error reading or parsing main scripts.yaml:`,
-      e.message,
+
+        // ✨ If this is the JSNAPy script, run discovery and attach the tests
+        if (scriptEntry.id === "run_jsnapy_tests") {
+          try {
+            console.log(
+              "[BACKEND] Found jsnapy script, triggering test discovery...",
+            );
+            // The 'executeTestDiscovery' function is async, so we must 'await' it.
+            const discoveryResult = await executeTestDiscovery(
+              scriptEntry.id,
+              "development",
+            );
+
+            // Extract just the test details we need for the form
+            const availableTests = Object.values(
+              discoveryResult.discovered_tests || {},
+            ).map((test) => ({
+              name: test.name,
+              description: test.description,
+              category: test.category || "General", // Ensure category always exists
+            }));
+
+            // Attach the clean list of tests to our script object
+            finalScriptEntry.available_tests = availableTests;
+          } catch (discoveryError) {
+            console.error(
+              `[BACKEND] In-line discovery failed for ${scriptEntry.id}:`,
+              discoveryError.message,
+            );
+            // If discovery fails, still return the script but with an empty test list
+            finalScriptEntry.available_tests = [];
+            finalScriptEntry.discovery_error = discoveryError.message;
+          }
+        }
+
+        return finalScriptEntry;
+      }),
     );
+    // --- END OF THE CRITICAL BLOCK ---
+
+    res.json({ success: true, scripts: scriptsWithFullMetadata });
+  } catch (e) {
+    console.error(`[BACKEND] Error in /api/scripts/list endpoint:`, e.message);
     res.status(500).json({
       success: false,
       message: `Failed to load script list: ${e.message}`,
     });
   }
 });
-
 // GET endpoint to list available inventory files from the 'data' directory.
 app.get("/api/inventories/list", async (req, res) => {
   const dataDir = path.join(__dirname, "..", "python_pipeline", "data");

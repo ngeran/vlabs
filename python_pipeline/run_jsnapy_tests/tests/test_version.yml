@@ -1,21 +1,24 @@
-# python_pipeline/jsnapy_tests/test_version.yml
+# run_jsnapy_tests/tests/test_version.yml
 
-tests:
-  - test_version_check:
-      rpc: get-software-information
-      item:
-        - /^software-information.*junos-version/:
-            info: "Checking Junos version"
-            # Replace 'your_expected_version' with an actual version string you expect,
-            # or a regex if you want to match a pattern.
-            # Example: "21.4R1.8" or ".*R1.*"
-            # For this simple test, we'll just check if the key exists, or you can add a value check.
-            # For a proper test, you'd specify a `value` or `contains` regex.
-            # Let's make it simple: just checking for presence for now.
-            # For actual validation, refer to JSNAPy documentation for 'value' or 'contains'
-            # value: "your_expected_version_string"
-            # For demonstration, we'll make it always pass by simply ensuring the key exists.
-            # This is a very basic test.
-            # A more robust test would assert specific version numbers.
-            # For now, let's just assert that the 'junos-version' string is not empty.
-            not-equal: "" # Ensures the junos-version string is not empty
+test_metadata:
+  description: "Checks the running Junos software version."
+  category: "System Information"
+  production_approved: true
+  safety_level: "safe"
+  # This test doesn't produce a table, so no display_hints are needed.
+
+tests_include:
+  - test_junos_version_is_present
+
+test_junos_version_is_present:
+  - rpc: get-software-information
+  # 'item' is a valid but older way. 'iterate' or simple xpath is more common.
+  # Let's use a simple 'exists' check which is cleaner for this purpose.
+  - xpath: /software-information/junos-version
+    tests:
+      - exists: true
+        err: "❌ Could not find Junos version in RPC output."
+        info: "✅ Found Junos version element."
+      - not-equal: "" # A simple check to ensure the version string isn't empty
+        err: "❌ Junos version string is empty!"
+        info: "✅ Junos version is: {{post}}." # 'post' refers to the value of the xpath element

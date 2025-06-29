@@ -1,73 +1,64 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 
-const API_BASE_URL = "http://localhost:3001";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
-export const useJsnapyTests = () => {
-  const [jsnapyTests, setJsnapyTests] = useState([]);
-  const [selectedTests, setSelectedTests] = useState({});
-  const [loading, setLoading] = useState(false);
+export function useJsnapyTests() {
+  const [categorizedTests, setCategorizedTests] = useState({});
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    async function fetchTests() {
-      setLoading(true);
-      setError(null);
+    async function fetchAndCategorizeTests() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/jsnapy/tests`);
+        setLoading(true);
+        setError(null);
+
+        console.log("[useJsnapyTests] Fetching from /api/scripts/list...");
+        const res = await fetch(`${API_BASE_URL}/api/scripts/list`);
+        if (!res.ok) throw new Error(`API responded with status ${res.status}`);
+
         const data = await res.json();
-        if (data.success && Array.isArray(data.tests)) {
-          setJsnapyTests(data.tests);
-          const initialSelected = {};
-          data.tests.forEach((t) => {
-            initialSelected[t] = false;
-          });
-          setSelectedTests(initialSelected);
-        } else {
-          setError(data.message || "Failed to fetch JSNAPy tests");
+        console.log("[useJsnapyTests] Received data from API:", data); // <-- DEBUG LINE 1
+
+        if (!data.success)
+          throw new Error(data.message || "API request failed");
+
+        const jsnapyScript = data.scripts.find(
+          (s) => s.id === "run_jsnapy_tests",
+        );
+        console.log(
+          "[useJsnapyTests] Found JSNAPy script object:",
+          jsnapyScript,
+        ); // <-- DEBUG LINE 2
+
+        if (!jsnapyScript || !jsnapyScript.available_tests) {
+          const errorMessage =
+            jsnapyScript?.discovery_error ||
+            "JSNAPy 'available_tests' list not found in API response.";
+          throw new Error(errorMessage);
         }
+
+        const categories = jsnapyScript.available_tests.reduce((acc, test) => {
+          const category = test.category || "General";
+          if (!acc[category]) {
+            acc[category] = [];
+          }
+          acc[category].push({ id: test.name, description: test.description });
+          return acc;
+        }, {});
+
+        console.log("[useJsnapyTests] Setting categorized tests:", categories); // <-- DEBUG LINE 3
+        setCategorizedTests(categories);
       } catch (err) {
-        setError(err.message || "Error fetching JSNAPy tests");
+        console.error("[useJsnapyTests] CATCH BLOCK ERROR:", err); // <-- DEBUG LINE 4
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     }
-    fetchTests();
+
+    fetchAndCategorizeTests();
   }, []);
 
-  const toggleTest = (testName) => {
-    setSelectedTests((prev) => ({
-      ...prev,
-      [testName]: !prev[testName],
-    }));
-  };
-
-  const selectAll = () => {
-    const allSelected = {};
-    jsnapyTests.forEach((t) => (allSelected[t] = true));
-    setSelectedTests(allSelected);
-  };
-
-  const clearAll = () => {
-    const noneSelected = {};
-    jsnapyTests.forEach((t) => (noneSelected[t] = false));
-    setSelectedTests(noneSelected);
-  };
-
-  const getSelectedTestsCSV = () => {
-    return Object.entries(selectedTests)
-      .filter(([_, checked]) => checked)
-      .map(([test]) => test)
-      .join(",");
-  };
-
-  return {
-    jsnapyTests,
-    selectedTests,
-    loading,
-    error,
-    toggleTest,
-    selectAll,
-    clearAll,
-    getSelectedTestsCSV,
-  };
-};
+  return { categorizedTests, loading, error };
+}

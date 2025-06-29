@@ -1,65 +1,145 @@
-// src/components/ScriptOutputDisplay.jsx
 import React from "react";
-import { Loader2 } from "lucide-react"; // For the loading spinner
 
-/**
- * @description Component for displaying the output, errors, and loading states of script execution.
- * @param {object} props - The component props.
- * @param {string} props.output - The successful output string from the script.
- * @param {string} props.error - The combined error message (data fetching or script execution).
- * @param {boolean} props.isLoading - True if a script execution is in progress.
- * @param {boolean} props.fetchingScripts - True if scripts data is being fetched.
- * @param {boolean} props.fetchingInventories - True if inventory data is being fetched.
- */
-function ScriptOutputDisplay({
-  output,
-  error,
-  isLoading,
-  fetchingScripts,
-  fetchingInventories,
-}) {
-  // Determine if there's any overall loading activity
-  const anyLoading = isLoading || fetchingScripts || fetchingInventories;
+// A helper to colorize common network statuses for table cells
+const ColorizedCell = ({ value }) => {
+  if (typeof value !== "string") return value;
+  const lowerStatus = value.toLowerCase();
+
+  if (lowerStatus === "up" || lowerStatus === "established") {
+    return <span className="font-semibold text-green-600">{value}</span>;
+  }
+  if (lowerStatus === "down") {
+    return <span className="font-semibold text-red-600">{value}</span>;
+  }
+  return value;
+};
+
+// A sub-component that renders a table if display_hints are provided
+function DynamicResultTable({ result }) {
+  // Destructure hints and the rest of the data from the details object
+  const { display_hints, ...data } = result.details;
+
+  // If there are no hints or the type isn't 'table', render nothing
+  if (!display_hints || display_hints.type !== "table") {
+    return null;
+  }
+
+  // Get the actual data array using the data_key from the hints
+  const tableData = data[display_hints.data_key];
+
+  if (!tableData || !Array.isArray(tableData) || tableData.length === 0) {
+    return (
+      <p className="text-sm text-gray-500 mt-2 italic">
+        No detailed data available for this check.
+      </p>
+    );
+  }
+
+  const columns = display_hints.columns;
 
   return (
-    <div className="mt-8 pt-6 border-t border-gray-200">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">
-        Script Output:
-      </h2>
-      {error && (
-        <pre className="bg-red-50 text-red-700 p-4 rounded-md text-sm border border-red-200 whitespace-pre-wrap break-all overflow-x-auto">
-          <span className="font-bold">ERROR:</span> {error}
-        </pre>
-      )}
-      {output && (
-        <pre className="bg-gray-100 p-4 rounded-md text-gray-800 text-sm border border-gray-200 whitespace-pre-wrap break-all overflow-x-auto">
-          {output}
-        </pre>
-      )}
-      {!output && !error && !anyLoading && (
-        <p className="text-gray-600 text-sm">
-          Run a script to see output here.
-        </p>
-      )}
-      {isLoading && (
-        <p className="text-blue-600 text-sm flex items-center">
-          <Loader2 className="animate-spin h-4 w-4 mr-2" /> Running Script...
-        </p>
-      )}
-      {fetchingScripts && ( // Redundant if anyLoading is true, but good for specific messages
-        <p className="text-blue-600 text-sm flex items-center">
-          <Loader2 className="animate-spin h-4 w-4 mr-2" /> Loading Scripts
-          Data...
-        </p>
-      )}
-      {fetchingInventories && ( // Redundant if anyLoading is true, but good for specific messages
-        <p className="text-blue-600 text-sm flex items-center">
-          <Loader2 className="animate-spin h-4 w-4 mr-2" /> Loading Inventory
-          Data...
-        </p>
-      )}
+    <div className="mt-4 overflow-x-auto border rounded-lg shadow-sm">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            {columns.map((col) => (
+              <th
+                key={col.accessor}
+                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                {col.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {tableData.map((row, rowIndex) => (
+            <tr key={rowIndex} className="hover:bg-gray-50">
+              {columns.map((col) => (
+                <td
+                  key={col.accessor}
+                  className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono"
+                >
+                  <ColorizedCell value={row[col.accessor]} />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-export default ScriptOutputDisplay;
+// The main display component that you will use in PythonScriptRunner.jsx
+export default function ScriptOutputDisplay({ output, error }) {
+  // --- ADD THE LOGGING BLOCK ---
+  console.log("--- ScriptOutputDisplay Render ---");
+  console.log("Received error prop:", error);
+  console.log("Received output prop (type):", typeof output);
+  console.log("Received output prop (value):", output);
+  // -----------------------------
+  if (error) {
+    return (
+      <div className="bg-red-100 text-red-800 p-4 rounded-md">
+        <h4 className="font-bold">Execution Error</h4>
+        <pre className="whitespace-pre-wrap font-mono text-sm">{error}</pre>
+      </div>
+    );
+  }
+  if (!output) return null;
+
+  let parsedOutput;
+  try {
+    parsedOutput = JSON.parse(output);
+    // --- ADD THIS LOG ---
+    console.log("Successfully parsed JSON:", parsedOutput);
+  } catch (e) {
+    // Fallback for non-JSON or malformed output (e.g., from other scripts)
+    return (
+      <pre className="bg-gray-900 text-gray-200 p-4 rounded-md whitespace-pre-wrap font-mono text-sm">
+        {output}
+      </pre>
+    );
+  }
+
+  const { results, summary, status, message } = parsedOutput;
+  // --- ADD THIS CRITICAL LOG ---
+  console.log("Destructured 'results' variable:", results);
+
+  if (status === "error") {
+    return (
+      <div className="bg-red-100 text-red-800 p-4 rounded-md font-semibold">
+        {message}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* You can add an overall summary box here if you want */}
+
+      {/* Map over each test result */}
+      {results &&
+        results.map((result, index) => (
+          <div key={index} className="p-4 border rounded-md bg-white shadow-sm">
+            <div className="flex justify-between items-center">
+              <h4 className="font-bold text-gray-800">
+                Test: <span className="font-mono">{result.test}</span> on{" "}
+                <span className="font-mono">{result.host}</span>
+              </h4>
+              <span
+                className={`px-3 py-1 text-xs font-bold rounded-full ${result.status === "PASS" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+              >
+                {result.status}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 mt-1">{result.message}</p>
+
+            {/* This is where the magic happens! */}
+            <DynamicResultTable result={result} />
+          </div>
+        ))}
+    </div>
+  );
+}

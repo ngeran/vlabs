@@ -1,86 +1,38 @@
-# vlabs/python_pipeline/run_jsnapy_tests/tests/test_interfaces.yml
-# Environment-Aware Interface Testing
-# Created by: nikos-geranios_vgi  
-# Date: 2025-06-26 18:25:38 UTC
+# run_jsnapy_tests/tests/test_interfaces.yml
 
-# ✨ NEW: Test Environment Classification
 test_metadata:
-  environment_classification: "development"    # development, staging, production
-  safety_level: "safe"                        # safe, monitoring_only, potentially_disruptive
-  production_approved: false                  # Explicit production approval flag
-  requires_change_control: false              # Change management requirement
-  max_impact_level: "low"                    # low, medium, high, critical
-  created_by: "nikos-geranios_vgi"
-  created_at: "2025-06-26 18:25:38 UTC"
-  approved_for_environments:
-    - "development"
-    - "lab"
-    - "staging"
-  restricted_environments:
-    - "production"    # Requires explicit approval
-  test_category: "monitoring"                 # monitoring, configuration, diagnostic, stress
+  description: "Checks physical interface admin and operational status."
+  category: "Interface & Port Health" # For grouping in the UI
+  production_approved: true
+  safety_level: "safe"
+  display_hints:
+    type: "table"
+    # This key MUST match the key used in the Python script's details dictionary
+    data_key: "extracted_data"
+    columns:
+      - header: "Interface"
+        accessor: "name"
+      - header: "Admin Status"
+        accessor: "admin-status"
+      - header: "Oper Status"
+        accessor: "oper-status"
+      - header: "MTU"
+        accessor: "mtu"
+      - header: "Description"
+        accessor: "description"
 
 tests_include:
-  - test_interfaces_development
-  - test_interfaces_production
+  - test_interface_status
 
-# Development/Lab Version - More verbose, educational
-test_interfaces_development:
-  - description: "Development/Lab Interface Analysis - Comprehensive monitoring with detailed explanations"
-  - environment_target: "development"
-  - safety_level: "safe"
+test_interface_status:
   - rpc: get-interface-information
-  - kwargs:
-      dev_timeout: 120
-      terse: false
+    args:
+      media: true
+    # This XPath excludes management/internal interfaces
   - iterate:
-      xpath: '/interface-information/physical-interface'
-      id: 'name'
-      tests:
-        - no-diff: admin-status
-          err: "🔧 DEV ALERT: Interface <{{pre['name']}}> admin-status changed from <{{pre['admin-status']}}> to <{{post['admin-status']}}> - Safe to investigate in development"
-          info: "✅ DEV OK: Interface <{{pre['name']}}> admin-status stable at <{{pre['admin-status']}}> - Good for development testing"
-        
-        - no-diff: oper-status  
-          err: "🔧 DEV ALERT: Interface <{{pre['name']}}> oper-status changed from <{{pre['oper-status']}}> to <{{post['oper-status']}}> - Normal in lab environment"
-          info: "✅ DEV OK: Interface <{{pre['name']}}> oper-status stable at <{{pre['oper-status']}}> - Development environment healthy"
-
-# Production Version - Concise, alert-focused
-test_interfaces_production:
-  - description: "Production Interface Monitoring - Critical status validation"
-  - environment_target: "production"
-  - safety_level: "monitoring_only"
-  - production_approved: true
-  - requires_change_control: false
-  - rpc: get-interface-information
-  - kwargs:
-      dev_timeout: 60
-      terse: true
-  - iterate:
-      xpath: '/interface-information/physical-interface[starts-with(name, "ge-") or starts-with(name, "xe-")]'
+      xpath: './/physical-interface[not(starts-with(name, "fxp")) and not(starts-with(name, "em"))]'
       id: 'name'
       tests:
         - is-equal: oper-status, up
-          err: "🚨 PROD CRITICAL: Interface <{{post['name']}}> DOWN - Immediate attention required!"
-          info: "✅ PROD OK: Interface <{{post['name']}}> operational"
-        
-        - is-equal: admin-status, up
-          err: "🚨 PROD CRITICAL: Interface <{{post['name']}}> administratively disabled!"
-          info: "✅ PROD OK: Interface <{{post['name']}}> enabled"
-
-# Staging Version - Balance of detail and efficiency
-test_interfaces_staging:
-  - description: "Staging Interface Validation - Pre-production verification"
-  - environment_target: "staging"
-  - safety_level: "safe"
-  - production_approved: false
-  - rpc: get-interface-information
-  - kwargs:
-      dev_timeout: 90
-  - iterate:
-      xpath: '/interface-information/physical-interface'
-      id: 'name'
-      tests:
-        - no-diff: admin-status
-          err: "⚠️ STAGING: Interface <{{pre['name']}}> admin-status changed - Verify before production"
-          info: "✅ STAGING: Interface <{{pre['name']}}> admin-status consistent"
+          err: "Interface {{post['name']}} is operationally DOWN"
+          info: "Interface {{post['name']}} is UP"

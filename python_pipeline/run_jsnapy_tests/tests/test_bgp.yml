@@ -1,8 +1,31 @@
-# vlabs/python_pipeline/run_jsnapy_tests/tests/test_bgp.yml
+# run_jsnapy_tests/tests/test_bgp.yml
+
+test_metadata:
+  description: "Monitors BGP neighbor state and health."
+  category: "Routing & BGP"
+  production_approved: true
+  safety_level: "safe"
+  display_hints:
+    type: "table"
+    # This key must match what we'll add to the Python script
+    data_key: "bgp_peers"
+    columns:
+      - header: "Peer Address"
+        accessor: "peer_address"
+      - header: "Peer State"
+        accessor: "peer_state"
+      - header: "ASN"
+        accessor: "peer_asn"
+      - header: "Input Msgs"
+        accessor: "input_messages"
+      - header: "Output Msgs"
+        accessor: "output_messages"
+
 tests_include:
   - test_bgp_neighbors
 
 test_bgp_neighbors:
+  # The 'description' here is for JSNAPy's own reporting, separate from the metadata.
   - description: "BGP neighbor state monitoring"
   - rpc: get-bgp-neighbor-information
   - kwargs:
@@ -14,7 +37,7 @@ test_bgp_neighbors:
         - is-equal: peer-state, Established
           err: "❌ BGP DOWN: Neighbor <{{post['peer-address']}}> is in state <{{post['peer-state']}}>"
           info: "✅ BGP UP: Neighbor <{{post['peer-address']}}> is Established"
-        
+
         - is-gt: active-holdtime, 0
           err: "❌ BGP HOLD TIME: Neighbor <{{post['peer-address']}}> hold time is <{{post['active-holdtime']}}>"
           info: "✅ BGP HEALTHY: Neighbor <{{post['peer-address']}}> hold time is <{{post['active-holdtime']}}> seconds"

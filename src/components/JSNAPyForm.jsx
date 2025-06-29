@@ -2,88 +2,102 @@ import React from "react";
 import { useJsnapyTests } from "../hooks/useJsnapyTests";
 
 export default function JSNAPyForm({ parameters, setParameters }) {
-  const { jsnapyTests, loading, error } = useJsnapyTests();
+  // Use the refactored hook to get categorized test data
+  const { categorizedTests, loading, error } = useJsnapyTests();
 
-  // Handle checkbox toggle directly
+  // This function now uses the 'parameters' prop for current state
   const handleTestToggle = (testName) => {
     const currentTests = parameters.tests || [];
     const newTests = currentTests.includes(testName)
       ? currentTests.filter((name) => name !== testName)
       : [...currentTests, testName];
 
-    setParameters({
-      ...parameters,
-      tests: newTests,
-    });
+    // Updates the parent state via the 'setParameters' prop
+    setParameters({ ...parameters, tests: newTests });
   };
 
+  // This function also lives here now
   const handleSelectAll = () => {
-    setParameters({
-      ...parameters,
-      tests: [...jsnapyTests],
-    });
+    const allTestNames = Object.values(categorizedTests)
+      .flat()
+      .map((t) => t.id);
+    setParameters({ ...parameters, tests: allTestNames });
   };
 
   const handleClearAll = () => {
-    setParameters({
-      ...parameters,
-      tests: [],
-    });
+    setParameters({ ...parameters, tests: [] });
   };
 
+  // This handler for other inputs is unchanged
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setParameters({
-      ...parameters,
-      [name]: value,
-    });
+    setParameters({ ...parameters, [name]: value });
   };
 
   return (
     <div className="space-y-6">
-      {error && <p className="text-red-600">Error: {error}</p>}
-      {loading && <p>Loading JSNAPy tests...</p>}
+      {/* Test Selection Section */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Select JSNAPy Tests
+        </label>
+        {loading && (
+          <p className="text-sm text-gray-500">Loading available tests...</p>
+        )}
+        {error && <p className="text-sm text-red-600">Error: {error}</p>}
 
-      {!loading && jsnapyTests.length > 0 && (
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select JSNAPy Tests
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-            {jsnapyTests.map((testName) => (
-              <label key={testName} className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="tests"
-                  value={testName}
-                  checked={(parameters.tests || []).includes(testName)}
-                  onChange={() => handleTestToggle(testName)}
-                  className="form-checkbox h-4 w-4 text-blue-600"
-                />
-                <span className="ml-2 text-sm">{testName}</span>
-              </label>
+        {!loading && Object.keys(categorizedTests).length > 0 && (
+          <div className="space-y-3 border p-4 rounded-md bg-gray-50/50">
+            {Object.entries(categorizedTests).map(([category, tests]) => (
+              <details
+                key={category}
+                className="border rounded-md bg-white shadow-sm"
+                open
+              >
+                <summary className="cursor-pointer font-semibold p-3 hover:bg-gray-100 list-none flex justify-between items-center">
+                  {category}
+                  {/* You can add a chevron icon here for better UX */}
+                </summary>
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-2 border-t">
+                  {tests.map((test) => (
+                    <label
+                      key={test.id}
+                      className="flex items-center"
+                      title={test.description}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={(parameters.tests || []).includes(test.id)} // Reads from props
+                        onChange={() => handleTestToggle(test.id)} // Calls local handler
+                        className="form-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="ml-2 text-sm font-mono">{test.id}</span>
+                    </label>
+                  ))}
+                </div>
+              </details>
             ))}
+            <div className="mt-4 flex gap-4">
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="text-blue-600 hover:underline text-sm font-medium"
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="text-blue-600 hover:underline text-sm font-medium"
+              >
+                Clear All
+              </button>
+            </div>
           </div>
-          <div className="mt-2 flex gap-4">
-            <button
-              type="button"
-              onClick={handleSelectAll}
-              className="text-blue-600 hover:underline text-sm"
-            >
-              Select All
-            </button>
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="text-blue-600 hover:underline text-sm"
-            >
-              Clear All
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Credential fields */}
+      {/* Credential and other fields (logic unchanged) */}
       {[
         { name: "hostname", label: "Target Hostname or IP" },
         { name: "username", label: "Username" },
@@ -103,8 +117,6 @@ export default function JSNAPyForm({ parameters, setParameters }) {
           />
         </div>
       ))}
-
-      {/* NEW: Environment and Network Type fields */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Target Environment
@@ -115,10 +127,10 @@ export default function JSNAPyForm({ parameters, setParameters }) {
           onChange={handleChange}
           className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="development">Development Environment</option>
-          <option value="lab">Lab Environment</option>
-          <option value="staging">Staging Environment</option>
-          <option value="production">Production Environment</option>
+          <option value="development">Development</option>
+          <option value="lab">Lab</option>
+          <option value="staging">Staging</option>
+          <option value="production">Production</option>
         </select>
       </div>
       <div>
@@ -131,9 +143,9 @@ export default function JSNAPyForm({ parameters, setParameters }) {
           onChange={handleChange}
           className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="enterprise">Enterprise Network</option>
-          <option value="service_provider">Service Provider Network</option>
-          <option value="datacenter">Data Center Network</option>
+          <option value="enterprise">Enterprise</option>
+          <option value="service_provider">Service Provider</option>
+          <option value="datacenter">Data Center</option>
         </select>
       </div>
     </div>

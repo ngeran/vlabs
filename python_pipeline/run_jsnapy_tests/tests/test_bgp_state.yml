@@ -1,0 +1,20 @@
+test_metadata:
+  description: "Checks if BGP neighbors are in the 'Established' state."
+  category: "Routing & BGP"
+  display_hints:
+    type: "table"
+    data_key: "bgp_peers"
+    columns:
+      - header: "Peer Address"
+        accessor: "peer-address"
+      - header: "State"
+        accessor: "peer-state"
+
+check_bgp_state:
+  - rpc: get-bgp-neighbor-information
+  - iterate:
+      xpath: '//bgp-peer'
+      tests:
+        - is-equal: peer-state, Established
+          err: "BGP peer {{post['peer-address']}} is NOT Established"
+          info: "BGP peer {{post['peer-address']}} is Established"

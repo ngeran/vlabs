@@ -1,0 +1,20 @@
+test_metadata:
+  description: "Checks if BGP neighbors have a low flap count."
+  category: "Routing & BGP"
+  display_hints:
+    type: "table"
+    data_key: "bgp_peers"
+    columns:
+      - header: "Peer Address"
+        accessor: "peer-address"
+      - header: "Flaps"
+        accessor: "flap-count"
+
+check_bgp_flaps:
+  - rpc: get-bgp-neighbor-information
+  - iterate:
+      xpath: '//bgp-peer'
+      tests:
+        - is-lte: flap-count, 5
+          err: "BGP peer {{post['peer-address']}} is UNSTABLE (flaps: {{post['flap-count']}})"
+          info: "BGP peer {{post['peer-address']}} is STABLE (flaps: {{post['flap-count']}})"

@@ -10,24 +10,22 @@ scripts:
       - utility
     scriptFile: "hello_world.py"
 
-  - id: get_device_facts
-    displayName: "Get Device Facts (Junos)"
-    description: "Connects to Juniper devices from inventory and retrieves device facts or version."
-    category: Network Automation
+  # JSNAPy From The Beginning
+  - id: jsnapy_runner # The new, clean ID
+    displayName: "JSNAPy"
+    description: "Runs standardized JSNAPy tests against network devices."
+    category: "Network Automation"
     tags:
-      - featured
-      - device_management
+      - network_validation
       - Junos
-    scriptFile: "get_device_facts.py" 
-    metadataFile: "get_device_facts.yml"
-    factOptions:
-      - id: interfaces
-        label: Interfaces
-        description: Retrieve summary of all physical and logical interfaces.
+      - featured
+    scriptFile: "run.py" # The new, consistent script name
+    # The parameters the UI should create a form for
+    metadataFile: "metadata.yml" 
 
-  # ✨ INDUSTRY STANDARD: Enhanced JSNAPy script with professional directory structure
+  # JSNAPy script with professional directory structure
   - id: run_jsnapy_tests
-    displayName: "Network Tests"
+    displayName: "Juniper JSNAPy Tests"
     description: "Professional network device testing "
     category: Network Automation
     tags:

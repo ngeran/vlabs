@@ -125,10 +125,20 @@ function PythonScriptRunner() {
               ))}
             </select>
 
-            {selectedSingleScriptId === "run_jsnapy_tests" ? (
+            {/* Script-specific form */}
+            {/* --- THIS IS THE CORRECTED CONDITION --- */}
+            {selectedSingleScriptId === "run_jsnapy_tests" ||
+            selectedSingleScriptId === "jsnapy_runner" ? (
               <JSNAPyForm
-                parameters={scriptParameters["run_jsnapy_tests"] || {}}
-                setParameters={updateJsnapyParameters}
+                // Also update this to use the currently selected script's ID dynamically
+                parameters={scriptParameters[selectedSingleScriptId] || {}}
+                setParameters={(newParams) => {
+                  // This callback now also uses the dynamic ID
+                  setScriptParameters((prev) => ({
+                    ...prev,
+                    [selectedSingleScriptId]: newParams,
+                  }));
+                }}
               />
             ) : (
               <p className="text-sm text-gray-500">

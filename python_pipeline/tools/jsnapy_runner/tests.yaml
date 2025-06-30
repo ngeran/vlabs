@@ -3,6 +3,7 @@
 
 test_bgp_summary:
   title: "BGP Neighbor Summary"
+  category: "Routing & BGP"
   rpc: "get-bgp-summary-information"
   xpath: ".//bgp-peer"
   fields:
@@ -14,6 +15,7 @@ test_bgp_summary:
 
 test_interfaces:
   title: "Interface Status Summary"
+  category: "Interfaces"
   rpc: "get-interface-information"
   # We can pass arguments to the RPC call
   rpc_args:

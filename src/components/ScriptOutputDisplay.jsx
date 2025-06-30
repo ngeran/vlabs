@@ -1,89 +1,60 @@
 import React from "react";
 
-// A helper to colorize common network statuses for table cells
-const ColorizedCell = ({ value }) => {
-  if (typeof value !== "string") return value;
-  const lowerStatus = value.toLowerCase();
-
-  if (lowerStatus === "up" || lowerStatus === "established") {
-    return <span className="font-semibold text-green-600">{value}</span>;
-  }
-  if (lowerStatus === "down") {
-    return <span className="font-semibold text-red-600">{value}</span>;
-  }
-  return value;
-};
-
-// A sub-component that renders a table if display_hints are provided
-function DynamicResultTable({ result }) {
-  // Destructure hints and the rest of the data from the details object
-  const { display_hints, ...data } = result.details;
-
-  // If there are no hints or the type isn't 'table', render nothing
-  if (!display_hints || display_hints.type !== "table") {
-    return null;
-  }
-
-  // Get the actual data array using the data_key from the hints
-  const tableData = data[display_hints.data_key];
-
-  if (!tableData || !Array.isArray(tableData) || tableData.length === 0) {
+// This is a simple table component
+function SimpleTable({ title, headers, data }) {
+  if (!data || data.length === 0) {
     return (
-      <p className="text-sm text-gray-500 mt-2 italic">
-        No detailed data available for this check.
-      </p>
+      <div className="mt-2">
+        <h4 className="font-semibold text-gray-700">{title}</h4>
+        <p className="text-sm text-gray-500 italic">
+          No data returned for this check.
+        </p>
+      </div>
     );
   }
-
-  const columns = display_hints.columns;
-
   return (
-    <div className="mt-4 overflow-x-auto border rounded-lg shadow-sm">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            {columns.map((col) => (
-              <th
-                key={col.accessor}
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {tableData.map((row, rowIndex) => (
-            <tr key={rowIndex} className="hover:bg-gray-50">
-              {columns.map((col) => (
-                <td
-                  key={col.accessor}
-                  className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono"
+    <div className="mt-4 overflow-x-auto">
+      <h4 className="font-semibold text-gray-700 mb-2">{title}</h4>
+      <div className="border rounded-lg shadow-sm">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              {headers.map((header) => (
+                <th
+                  key={header}
+                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  <ColorizedCell value={row[col.accessor]} />
-                </td>
+                  {header}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {data.map((row, rowIndex) => (
+              <tr key={rowIndex} className="hover:bg-gray-50">
+                {headers.map((header) => (
+                  <td
+                    key={header}
+                    className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-mono"
+                  >
+                    {row[header]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-// The main display component that you will use in PythonScriptRunner.jsx
+// The main display component
 export default function ScriptOutputDisplay({ output, error }) {
-  // --- ADD THE LOGGING BLOCK ---
-  console.log("--- ScriptOutputDisplay Render ---");
-  console.log("Received error prop:", error);
-  console.log("Received output prop (type):", typeof output);
-  console.log("Received output prop (value):", output);
-  // -----------------------------
   if (error) {
     return (
-      <div className="bg-red-100 text-red-800 p-4 rounded-md">
-        <h4 className="font-bold">Execution Error</h4>
-        <pre className="whitespace-pre-wrap font-mono text-sm">{error}</pre>
+      <div className="bg-red-100 text-red-700 p-4 rounded-md font-bold">
+        ERROR: {error}
       </div>
     );
   }
@@ -92,52 +63,51 @@ export default function ScriptOutputDisplay({ output, error }) {
   let parsedOutput;
   try {
     parsedOutput = JSON.parse(output);
-    // --- ADD THIS LOG ---
-    console.log("Successfully parsed JSON:", parsedOutput);
   } catch (e) {
-    // Fallback for non-JSON or malformed output (e.g., from other scripts)
+    // This handles the case where the output is plain text (like from your BGP reporter)
     return (
-      <pre className="bg-gray-900 text-gray-200 p-4 rounded-md whitespace-pre-wrap font-mono text-sm">
+      <pre className="bg-gray-800 text-gray-200 p-4 rounded-md whitespace-pre-wrap font-mono text-sm">
         {output}
       </pre>
     );
   }
 
-  const { results, summary, status, message } = parsedOutput;
-  // --- ADD THIS CRITICAL LOG ---
-  console.log("Destructured 'results' variable:", results);
-
-  if (status === "error") {
+  // Handle top-level errors from the Python script
+  if (parsedOutput.status === "error") {
     return (
-      <div className="bg-red-100 text-red-800 p-4 rounded-md font-semibold">
-        {message}
+      <div className="bg-red-100 text-red-700 p-4 rounded-md font-bold">
+        ERROR: {parsedOutput.message}
       </div>
     );
   }
 
+  // Render the results for each host
   return (
     <div className="space-y-6">
-      {/* You can add an overall summary box here if you want */}
-
-      {/* Map over each test result */}
-      {results &&
-        results.map((result, index) => (
+      {parsedOutput.results_by_host &&
+        parsedOutput.results_by_host.map((hostResult, index) => (
           <div key={index} className="p-4 border rounded-md bg-white shadow-sm">
-            <div className="flex justify-between items-center">
-              <h4 className="font-bold text-gray-800">
-                Test: <span className="font-mono">{result.test}</span> on{" "}
-                <span className="font-mono">{result.host}</span>
-              </h4>
-              <span
-                className={`px-3 py-1 text-xs font-bold rounded-full ${result.status === "PASS" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-              >
-                {result.status}
-              </span>
-            </div>
-            <p className="text-sm text-gray-600 mt-1">{result.message}</p>
-
-            {/* This is where the magic happens! */}
-            <DynamicResultTable result={result} />
+            <h3 className="text-lg font-bold text-gray-800">
+              Results for:{" "}
+              <span className="font-mono">{hostResult.hostname}</span>
+            </h3>
+            {hostResult.status === "error" ? (
+              <p className="text-red-600 mt-2">{hostResult.message}</p>
+            ) : (
+              hostResult.test_results.map((testResult, testIndex) => (
+                <div key={testIndex} className="mt-2">
+                  {testResult.error ? (
+                    <p className="text-yellow-600">{testResult.error}</p>
+                  ) : (
+                    <SimpleTable
+                      title={testResult.title}
+                      headers={testResult.headers}
+                      data={testResult.data}
+                    />
+                  )}
+                </div>
+              ))
+            )}
           </div>
         ))}
     </div>

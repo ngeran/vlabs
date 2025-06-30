@@ -629,8 +629,7 @@ app.get("/api/navigation/menu", (req, res) => {
 });
 
 // GET endpoint to get a list of available Python scripts with full metadata.
-app.get("/api/scripts/list", async (req, res) => {
-  // Notice async here
+app.get("/api/scripts/list", (req, res) => {
   console.log(
     `[BACKEND] Attempting to read main scripts config from: ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}`,
   );
@@ -641,19 +640,8 @@ app.get("/api/scripts/list", async (req, res) => {
     );
     const config = yaml.load(fileContents);
 
-    if (!config || !Array.isArray(config.scripts)) {
-      console.warn(
-        `[BACKEND] scripts.yaml found but 'scripts' array is missing or malformed.`,
-      );
-      return res
-        .status(500)
-        .json({ success: false, message: "Scripts configuration malformed." });
-    }
-
-    // --- THIS IS THE CRITICAL BLOCK THAT NEEDS TO BE REPLACED ---
-    // The new version uses Promise.all to handle the asynchronous discovery call.
-    const scriptsWithFullMetadata = await Promise.all(
-      config.scripts.map(async (scriptEntry) => {
+    if (config && Array.isArray(config.scripts)) {
+      const scriptsWithFullMetadata = config.scripts.map((scriptEntry) => {
         let individualMetadata = { parameters: [], resources: [] };
         if (scriptEntry.id && scriptEntry.metadataFile) {
           individualMetadata = getScriptIndividualMetadata(
@@ -661,62 +649,33 @@ app.get("/api/scripts/list", async (req, res) => {
             scriptEntry.metadataFile,
           );
         }
-
-        // Start building the final object for this script
-        const finalScriptEntry = {
+        return {
           ...scriptEntry,
-          parameters: individualMetadata?.parameters || [],
-          resources: individualMetadata?.resources || [],
+          parameters: individualMetadata ? individualMetadata.parameters : [],
+          resources: individualMetadata ? individualMetadata.resources : [],
         };
-
-        // ✨ If this is the JSNAPy script, run discovery and attach the tests
-        if (scriptEntry.id === "run_jsnapy_tests") {
-          try {
-            console.log(
-              "[BACKEND] Found jsnapy script, triggering test discovery...",
-            );
-            // The 'executeTestDiscovery' function is async, so we must 'await' it.
-            const discoveryResult = await executeTestDiscovery(
-              scriptEntry.id,
-              "development",
-            );
-
-            // Extract just the test details we need for the form
-            const availableTests = Object.values(
-              discoveryResult.discovered_tests || {},
-            ).map((test) => ({
-              name: test.name,
-              description: test.description,
-              category: test.category || "General", // Ensure category always exists
-            }));
-
-            // Attach the clean list of tests to our script object
-            finalScriptEntry.available_tests = availableTests;
-          } catch (discoveryError) {
-            console.error(
-              `[BACKEND] In-line discovery failed for ${scriptEntry.id}:`,
-              discoveryError.message,
-            );
-            // If discovery fails, still return the script but with an empty test list
-            finalScriptEntry.available_tests = [];
-            finalScriptEntry.discovery_error = discoveryError.message;
-          }
-        }
-
-        return finalScriptEntry;
-      }),
-    );
-    // --- END OF THE CRITICAL BLOCK ---
-
-    res.json({ success: true, scripts: scriptsWithFullMetadata });
+      });
+      res.json({ success: true, scripts: scriptsWithFullMetadata });
+    } else {
+      console.warn(
+        `[BACKEND] scripts.yaml found but 'scripts' array is missing or malformed.`,
+      );
+      res
+        .status(500)
+        .json({ success: false, message: "Scripts configuration malformed." });
+    }
   } catch (e) {
-    console.error(`[BACKEND] Error in /api/scripts/list endpoint:`, e.message);
+    console.error(
+      `[BACKEND] Error reading or parsing main scripts.yaml:`,
+      e.message,
+    );
     res.status(500).json({
       success: false,
       message: `Failed to load script list: ${e.message}`,
     });
   }
 });
+
 // GET endpoint to list available inventory files from the 'data' directory.
 app.get("/api/inventories/list", async (req, res) => {
   const dataDir = path.join(__dirname, "..", "python_pipeline", "data");
@@ -802,8 +761,6 @@ app.post("/api/scripts/run", (req, res) => {
     `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
     "vlabs-python-runner",
     "python",
-    // ✨ MODIFIED: Insert '-u' flag to force unbuffered output
-    "-u",
     scriptInternalPath,
   ];
 
@@ -820,14 +777,12 @@ app.post("/api/scripts/run", (req, res) => {
   }
 
   const command = `docker ${dockerCommandArgs.join(" ")}`;
-  // ✨ MODIFIED: Append '2>&1' to redirect stderr to stdout for comprehensive capture
-  const finalCommand = `${command} 2>&1`;
-  console.log(`[BACKEND] Executing Docker command: ${finalCommand}`);
+  console.log(`[BACKEND] Executing Docker command: ${command}`);
 
   // ✨ ENHANCED: Longer timeout for test discovery operations
   const timeout = parameters && parameters.list_tests ? 60000 : 30000;
 
-  exec(finalCommand, { timeout }, (error, stdout, stderr) => {
+  exec(command, { timeout }, (error, stdout, stderr) => {
     if (error) {
       console.error(
         `[BACKEND] Error running script ${scriptId}:`,

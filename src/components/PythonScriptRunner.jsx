@@ -1,400 +1,419 @@
-// src/components/PythonScriptRunner.jsx
+// src/components/PythonScriptRunner.js
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Loader2, Zap } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Label } from 'recharts';
+import React, { useEffect, useState, useMemo } from "react";
+import { Tag, FileCode, PlayCircle, Layers } from "lucide-react";
 
-function PythonScriptRunner() {
-  const [availableScripts, setAvailableScripts] = useState([]);
-  const [selectedScriptConfig, setSelectedScriptConfig] = useState(null);
-  const [currentArgs, setCurrentArgs] = useState({});
+// === EXTERNAL COMPONENT DEPENDENCIES (Ensure these files exist) ===
+import DeviceAuthFields from "./DeviceAuthFields"; // For the main input form
+import ScriptOutputDisplay from "./ScriptOutputDisplay"; // For showing results
+import ErrorBoundary from "./ErrorBoundary"; // For safety
+import TestSelector from "./TestSelector"; // For rendering the test checklist in the sidebar
 
-  const [output, setOutput] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [fetchingScripts, setFetchingScripts] = useState(true);
+// === EXTERNAL HOOK DEPENDENCY ===
+import { useTestDiscovery } from "../hooks/useTestDiscovery"; // For fetching script-specific tests
 
-  // --- useEffect to Fetch Script List on Component Mount ---
-  useEffect(() => {
-    const fetchScripts = async () => {
-      try {
-        const response = await fetch('http://localhost:3001/api/scripts/list');
-        if (!response.ok) {
-          throw new Error('Failed to fetch script list from backend.');
-        }
-        const data = await response.json();
-        if (data.success && Array.isArray(data.scripts)) {
-          setAvailableScripts(data.scripts);
-          if (data.scripts.length > 0) {
-            // Automatically select the first script, or perhaps the first featured one
-            setSelectedScriptConfig(data.scripts[0]);
-            const initialArgs = {};
-            data.scripts[0].arguments.forEach(arg => {
-              initialArgs[arg.name] = arg.default || '';
-            });
-            setCurrentArgs(initialArgs);
-          }
-        } else {
-          setError(data.message || 'Malformed script list received.');
-        }
-      } catch (err) {
-        console.error("Error fetching script list:", err);
-        setError(`Failed to load scripts: ${err.message}`);
-      } finally {
-        setFetchingScripts(false);
-      }
+const API_BASE_URL = "http://localhost:3001";
+
+// ====================================================================================
+// === INTERNAL COMPONENTS (Defined here for a single-file solution) ================
+// ====================================================================================
+
+/**
+ * @description Renders the UI for selecting a script's discoverable tests in the sidebar.
+ * This is a "smart" component that uses the useTestDiscovery hook to fetch its own data.
+ * @param {object} props - Component props.
+ * @param {object} props.script - The currently selected script object.
+ * @param {object} props.parameters - The current state of parameters for this script.
+ * @param {function} props.setParameters - The function to update the parent's state.
+ */
+function DiscoverableTestOptions({ script, parameters, setParameters }) {
+  const { categorizedTests, loading, error } = useTestDiscovery(
+    script.id,
+    parameters.environment,
+  );
+
+  const handleTestToggle = (testId) => {
+    const currentTests = parameters.tests || [];
+    const newSelection = currentTests.includes(testId)
+      ? currentTests.filter((id) => id !== testId)
+      : [...currentTests, testId];
+    setParameters({ ...parameters, tests: newSelection });
+  };
+
+  if (loading)
+    return (
+      <p className="text-xs text-slate-500 italic">Discovering tests...</p>
+    );
+  if (error)
+    return <p className="text-xs font-semibold text-red-600">Error: {error}</p>;
+
+  return (
+    <TestSelector
+      categorizedTests={categorizedTests}
+      selectedTests={parameters.tests || []}
+      onTestToggle={handleTestToggle}
+    />
+  );
+}
+
+/**
+ * @description The "brain" that decides which options UI to render in the sidebar.
+ * It acts as a switchboard, checking the selected script's metadata for capabilities.
+ * @param {object} props - Component props.
+ * @param {object} props.script - The currently selected script object.
+ * @param {object} props.parameters - The current state of parameters for this script.
+ * @param {function} props.setParameters - The function to update the parent's state.
+ */
+function ScriptOptionsRenderer({ script, parameters, setParameters }) {
+  if (!script) return null;
+
+  // Check the metadata for a capability flag. This is a highly scalable pattern.
+  if (script.capabilities?.dynamicDiscovery) {
+    return (
+      <DiscoverableTestOptions
+        script={script}
+        parameters={parameters}
+        setParameters={setParameters}
+      />
+    );
+  }
+
+  // Add other `if (script.capabilities?.someOtherFeature)` checks here in the future.
+
+  return (
+    <p className="text-xs text-slate-500 italic">
+      This script has no additional sidebar options.
+    </p>
+  );
+}
+
+/**
+ * @description The static sidebar component for desktop view. It contains the category
+ * filters and the area for script-specific options.
+ * @param {object} props - Component props passed from the main PythonScriptRunner.
+ */
+function ScriptFilterSidebar({
+  allScripts,
+  selectedCategories,
+  onCategoryChange,
+  selectedScript,
+  scriptParameters,
+  setParameters,
+}) {
+  const { uniqueCategories, scriptCounts } = useMemo(() => {
+    const counts = {};
+    allScripts.forEach((script) => {
+      if (script.category)
+        counts[script.category] = (counts[script.category] || 0) + 1;
+    });
+    return {
+      uniqueCategories: Object.keys(counts).sort(),
+      scriptCounts: counts,
     };
+  }, [allScripts]);
 
+  const handleCheckboxChange = (category) => {
+    const newSelection = new Set(selectedCategories);
+    newSelection.has(category)
+      ? newSelection.delete(category)
+      : newSelection.add(category);
+    onCategoryChange(Array.from(newSelection));
+  };
+
+  return (
+    <aside className="w-full md:w-64 lg:w-72 flex-shrink-0">
+      <div className="sticky top-24 space-y-8">
+        {/* Category Filter Section */}
+        <div>
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2 flex items-center">
+            <Tag size={18} className="mr-2 text-slate-500" /> Filter by Category
+          </h3>
+          <div className="space-y-1">
+            {uniqueCategories.map((category) => (
+              <label
+                key={category}
+                className="flex items-center justify-between text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md p-2 cursor-pointer transition-colors duration-150"
+              >
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedCategories.includes(category)}
+                    onChange={() => handleCheckboxChange(category)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="ml-3">{category}</span>
+                </div>
+                <span className="bg-slate-200 text-slate-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                  {scriptCounts[category]}
+                </span>
+              </label>
+            ))}
+            {selectedCategories.length > 0 && (
+              <button
+                onClick={() => onCategoryChange([])}
+                className="text-sm text-blue-600 hover:underline mt-4 p-2 font-medium"
+              >
+                Clear All Filters
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Script-Specific Options Section */}
+        {selectedScript && (
+          <div>
+            <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2 flex items-center">
+              <Layers size={18} className="mr-2 text-slate-500" /> Script
+              Options
+            </h3>
+            <ScriptOptionsRenderer
+              script={selectedScript}
+              parameters={scriptParameters}
+              setParameters={setParameters}
+            />
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+// ====================================================================================
+// === MAIN PAGE COMPONENT ============================================================
+// ====================================================================================
+
+/**
+ * @description The main page component that orchestrates the entire script runner UI.
+ * It manages all state, fetches data, and coordinates the sidebar and main content areas.
+ */
+function PythonScriptRunner() {
+  const [allScripts, setAllScripts] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedScriptId, setSelectedScriptId] = useState("");
+  const [scriptParameters, setScriptParameters] = useState({});
+  const [scriptOutputs, setScriptOutputs] = useState({});
+  const [error, setError] = useState(null);
+  const [loadingScripts, setLoadingScripts] = useState(true);
+  const [runningScripts, setRunningScripts] = useState(false);
+
+  // Effect to fetch the master list of all scripts on initial component mount.
+  useEffect(() => {
+    async function fetchScripts() {
+      setLoadingScripts(true);
+      setError(null);
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/scripts/list`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        setAllScripts(data.scripts || []);
+      } catch (err) {
+        setError(`Error loading scripts: ${err.message}`);
+      } finally {
+        setLoadingScripts(false);
+      }
+    }
     fetchScripts();
   }, []);
 
-  // --- useEffect to Update Arguments when Selected Script Changes ---
-  useEffect(() => {
-    if (selectedScriptConfig) {
-      const newArgs = {};
-      selectedScriptConfig.arguments.forEach(arg => {
-        newArgs[arg.name] = arg.default || '';
-      });
-      setCurrentArgs(newArgs);
-      setOutput('');
-      setError('');
-    }
-  }, [selectedScriptConfig]);
+  // Memoized value to calculate the list of scripts to show based on category filters.
+  const filteredScripts = useMemo(() => {
+    if (selectedCategories.length === 0) return allScripts;
+    return allScripts.filter((script) =>
+      selectedCategories.includes(script.category),
+    );
+  }, [allScripts, selectedCategories]);
 
-  // Handler for script selection change
-  const handleScriptSelectChange = (e) => {
-    const selectedName = e.target.value;
-    const config = availableScripts.find(script => script.name === selectedName);
-    setSelectedScriptConfig(config);
+  // Memoized value to get the full object for the currently selected script.
+  const selectedScript = useMemo(
+    () => allScripts.find((s) => s.id === selectedScriptId),
+    [allScripts, selectedScriptId],
+  );
+
+  // Handler for when the user changes category selections in the sidebar.
+  const handleCategoryChange = (newCategories) => {
+    setSelectedCategories(newCategories);
+    const isStillVisible = allScripts.some(
+      (s) =>
+        s.id === selectedScriptId &&
+        (newCategories.length === 0 || newCategories.includes(s.category)),
+    );
+    if (!isStillVisible) {
+      setSelectedScriptId(""); // Deselect script if it's no longer in the filtered list.
+    }
   };
 
-  // Handler for dynamic argument input changes
-  const handleArgChange = (argName, value) => {
-    setCurrentArgs(prevArgs => ({
-      ...prevArgs,
-      [argName]: value
-    }));
+  // Handler for when the user selects a different script from the dropdown.
+  const handleScriptChange = (scriptId) => {
+    setSelectedScriptId(scriptId);
+    setScriptOutputs({}); // Clear old output
+    setError(null);
   };
 
-  // Function to handle running the script
-  const handleRunScript = async () => {
-    if (!selectedScriptConfig) {
-      setError('No script selected.');
-      return;
-    }
+  // The single callback function passed to child components to update the parameter state.
+  const updateCurrentScriptParameters = (newParams) => {
+    if (!selectedScriptId) return;
+    setScriptParameters((prev) => ({ ...prev, [selectedScriptId]: newParams }));
+  };
 
-    setOutput('');
-    setError('');
-    setIsLoading(true);
+  // Handler for the main "Run Script" button.
+  const runSingleScript = async () => {
+    if (!selectedScriptId) return alert("Please select a script.");
+    const params = scriptParameters[selectedScriptId] || {};
 
-    const argsToSend = selectedScriptConfig.arguments.map(argDef => {
-      const value = currentArgs[argDef.name] || '';
-      if (argDef.required && value === '') {
-          setError(`Required argument "${argDef.name}" is missing.`);
-          setIsLoading(false);
-          return null;
-      }
-      return value;
-    }).filter(arg => arg !== null);
+    // Prepare the payload for the backend, cleaning up parameters.
+    const payload = {
+      scriptId: selectedScriptId,
+      parameters: {
+        ...params,
+        // Convert multi-line hostnames to a comma-separated string for the Python script
+        hostname: params.hostname
+          ? params.hostname.split("\n").filter(Boolean).join(",")
+          : undefined,
+        // Convert tests array to a comma-separated string
+        tests: Array.isArray(params.tests)
+          ? params.tests.join(",")
+          : params.tests,
+      },
+    };
 
-    if (argsToSend.some(arg => arg === null)) {
-        return;
-    }
-
+    setRunningScripts(true);
+    setError(null);
+    setScriptOutputs({});
     try {
-      const response = await fetch('http://localhost:3001/api/scripts/run', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          scriptName: selectedScriptConfig.name,
-          args: argsToSend,
-        }),
+      const res = await fetch(`${API_BASE_URL}/api/scripts/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to run script on backend.');
-      }
-
-      const data = await response.json();
-      if (data.success) {
-        setOutput(data.output);
-        setError(data.error);
-      } else {
-        setError(data.message || 'Script execution failed.');
-        setOutput(data.output);
-      }
+      const data = await res.json();
+      if (!res.ok || !data.success)
+        throw new Error(
+          data.message || `Request failed with status ${res.status}`,
+        );
+      setScriptOutputs({
+        [selectedScriptId]: { output: data.output, error: data.error || null },
+      });
     } catch (err) {
-      console.error("Error calling backend:", err);
-      setError(`Network or backend error: ${err.message}`);
+      console.error("Script execution fetch error:", err);
+      setError(`Script error: ${err.message}`);
     } finally {
-      setIsLoading(false);
+      setRunningScripts(false);
     }
   };
-
-  // --- Memoized featured scripts (only 'featured' category) ---
-  const featuredScripts = useMemo(() => {
-    return availableScripts.filter(script => script.tags && script.tags.includes('featured'));
-  }, [availableScripts]);
-
-  // --- Memoized data for the Donut Chart by Category ---
-  const scriptsByCategoryData = useMemo(() => {
-    const categoryCounts = availableScripts.reduce((acc, script) => {
-      const category = script.category || 'Uncategorized'; // Default category if not specified
-      acc[category] = (acc[category] || 0) + 1;
-      return acc;
-    }, {});
-
-    return Object.keys(categoryCounts).map(category => ({
-      name: category,
-      value: categoryCounts[category]
-    }));
-  }, [availableScripts]);
-
-  // Define shades of green for the donut chart segments and legend dots
-  const COLORS = ['#6BBD45', '#8BC34A', '#A1D36F', '#B3E594', '#C5F7B9', '#D9FAE7', '#A0DEB7', '#76C6A0']; // Added more shades
-
-  // Handle clicking a featured script in the table
-  const handleFeaturedScriptClick = (scriptName) => {
-    const config = availableScripts.find(script => script.name === scriptName);
-    if (config) {
-      setSelectedScriptConfig(config);
-      // Scroll to the run script section for better UX
-      document.getElementById('run-script-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-
-  // --- Loading State for initial script fetch ---
-  if (fetchingScripts) {
-    return (
-      // Main container, adjusted for full width and no top padding
-      <div className="w-full bg-white shadow-sm border-b border-gray-200 py-12 sm:py-16 lg:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Loader2 className="animate-spin h-10 w-10 text-blue-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Loading Scripts...</h1>
-          <p className="text-gray-600">Please wait while scripts are being fetched from the backend.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // --- Prominent Error Display for initial script fetch failure ---
-  if (error && !output && !fetchingScripts) {
-    return (
-      // Main container, adjusted for full width and no top padding
-      <div className="w-full bg-red-50 shadow-sm border-b border-red-200 py-12 sm:py-16 lg:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-red-700">
-          <h1 className="text-2xl font-bold text-red-800 mb-3">Error Loading Scripts</h1>
-          <p className="mb-2">There was an issue loading the list of Python scripts:</p>
-          <pre className="whitespace-pre-wrap break-all font-mono bg-red-100 p-3 rounded-md text-red-800 text-sm overflow-x-auto">{error}</pre>
-          <p className="mt-4 text-red-600">Please ensure your backend is running and `public/scripts.yaml` is correctly configured, and includes the `tags` array for scripts you want featured.</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    // Outer container to match HomePage's top section styling
-    <div className="bg-white shadow-sm border-b border-gray-200 py-12 sm:py-16 lg:py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="bg-slate-50 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 mb-10 text-center">
+          Python Script Runner
+        </h1>
 
-        {/* Central main title for the page */}
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">Python Script Runner</h1>
+        <div className="flex flex-col md:flex-row gap-x-10 gap-y-12">
+          <ScriptFilterSidebar
+            allScripts={allScripts}
+            selectedCategories={selectedCategories}
+            onCategoryChange={handleCategoryChange}
+            selectedScript={selectedScript}
+            scriptParameters={scriptParameters[selectedScriptId] || {}}
+            setParameters={updateCurrentScriptParameters}
+          />
 
-        {/* New Two-Column Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          {/* Left Column: Featured Scripts Table */}
-          <div className="md:col-span-2 bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center mb-4">
-              <Zap size={20} className="mr-2 text-blue-500" />
-              Featured Scripts
-            </h2>
-            {featuredScripts.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Script Name
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Category
-                      </th>
-                      <th scope="col" className="relative px-6 py-3">
-                        <span className="sr-only">Select</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {featuredScripts.map((script) => (
-                      <tr key={script.name}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {script.name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {script.category}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => handleFeaturedScriptClick(script.name)}
-                            className="text-blue-600 hover:text-blue-900 px-3 py-1 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors duration-200"
-                          >
-                            Select
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <main className="flex-1">
+            {loadingScripts && (
+              <div className="text-center p-8">
+                <p className="text-slate-500">Loading available scripts...</p>
               </div>
-            ) : (
-              <p className="text-gray-600 text-center py-4">No featured scripts available. Add 'featured' tag in scripts.yaml.</p>
             )}
-          </div>
 
-          {/* Right Column: Script Statistics (Donut Chart & Legend) */}
-          <div className="md:col-span-1 bg-white rounded-lg shadow-md p-6 flex flex-col items-center justify-center text-center">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Script Statistics</h2>
-            {availableScripts.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={scriptsByCategoryData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {scriptsByCategoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                      <Label
-                        value={availableScripts.length}
-                        position="center"
-                        fill="#000"
-                        className="font-bold text-3xl"
-                      />
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                {/* Category Legend */}
-                <div className="mt-4 w-full text-left">
-                  {scriptsByCategoryData.map((entry, index) => (
-                    <div key={entry.name} className="flex items-center justify-between text-gray-700 text-sm mb-1">
-                      <div className="flex items-center">
-                        <span
-                          className="inline-block w-3 h-3 rounded-full mr-2"
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                        ></span>
-                        {entry.name}
-                      </div>
-                      <span className="inline-block border border-gray-400 rounded px-2 py-0.5 text-xs font-semibold">
-                        {entry.value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="text-gray-600">No scripts to display statistics.</p>
+            {error && !runningScripts && (
+              <div className="bg-red-100 border border-red-200 text-red-800 p-4 rounded-lg mb-6">
+                <strong>Error:</strong> {error}
+              </div>
             )}
-          </div>
-        </div>
 
-        {/* Main Script Runner Form (now identified by an ID for scrolling) */}
-        <div id="run-script-section" className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Run a Script</h2>
-
-          {/* Script Selection */}
-          <div className="mb-6">
-            <label htmlFor="script-select" className="block text-sm font-medium text-gray-700 mb-1">Select Script:</label>
-            <select
-              id="script-select"
-              value={selectedScriptConfig ? selectedScriptConfig.name : ''}
-              onChange={handleScriptSelectChange}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm"
-              disabled={availableScripts.length === 0}
-            >
-              {availableScripts.length === 0 ? (
-                <option value="">No scripts available</option>
-              ) : (
-                availableScripts.map((script) => (
-                  <option key={script.name} value={script.name}>
-                    {script.name} - {script.description} ({script.category})
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-
-          {/* Dynamic Arguments Input */}
-          {selectedScriptConfig && selectedScriptConfig.arguments.length > 0 && (
-            <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Script Arguments:</h3>
-              {selectedScriptConfig.arguments.map((arg) => (
-                <div key={arg.name} className="mb-4">
-                  <label htmlFor={`arg-${arg.name}`} className="block text-sm font-medium text-gray-700 mb-1">
-                    {arg.name} {arg.required && <span className="text-red-500">*</span>}:
-                    {arg.description && <span className="font-normal text-xs text-gray-500 ml-1"> ({arg.description})</span>}
+            {!loadingScripts && allScripts.length > 0 && (
+              <div className="mb-8 border border-slate-200 rounded-lg p-6 lg:p-8 shadow-md bg-white">
+                <div className="mb-6">
+                  <label
+                    htmlFor="script-select"
+                    className="block text-sm font-medium text-slate-700 mb-2"
+                  >
+                    Select Script
                   </label>
-                  <input
-                    type={arg.type === 'number' ? 'number' : 'text'}
-                    id={`arg-${arg.name}`}
-                    value={currentArgs[arg.name] || ''}
-                    onChange={(e) => handleArgChange(arg.name, e.target.value)}
-                    placeholder={arg.placeholder || `Enter ${arg.name}`}
-                    required={arg.required}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
+                  <select
+                    id="script-select"
+                    value={selectedScriptId}
+                    onChange={(e) => handleScriptChange(e.target.value)}
+                    disabled={runningScripts || filteredScripts.length === 0}
+                    className="block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
+                  >
+                    <option value="">
+                      {filteredScripts.length > 0
+                        ? `--- Choose from ${filteredScripts.length} script(s) ---`
+                        : "No scripts match filter"}
+                    </option>
+                    {filteredScripts.map((script) => (
+                      <option key={script.id} value={script.id}>
+                        {script.displayName}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              ))}
-            </div>
-          )}
 
-          {/* Run Button */}
-          <button
-            onClick={handleRunScript}
-            disabled={isLoading || !selectedScriptConfig}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="animate-spin h-5 w-5 mr-3" /> Running Script...
-              </>
-            ) : (
-              'Run Script'
-            )}
-          </button>
+                {selectedScriptId && (
+                  <div className="border-t border-slate-200 pt-6 mt-6">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                      Device & Authentication
+                    </h3>
+                    <DeviceAuthFields
+                      parameters={scriptParameters[selectedScriptId] || {}}
+                      onParamChange={updateCurrentScriptParameters}
+                    />
+                  </div>
+                )}
 
-          {/* Output Display */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Script Output:</h2>
-            {error && (
-              <pre className="bg-red-50 text-red-700 p-4 rounded-md text-sm border border-red-200 whitespace-pre-wrap break-all overflow-x-auto">
-                <span className="font-bold">ERROR:</span> {error}
-              </pre>
+                <button
+                  type="button"
+                  onClick={runSingleScript}
+                  disabled={!selectedScriptId || runningScripts}
+                  className={`mt-8 w-full flex items-center justify-center px-4 py-3 rounded-md text-white text-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${!selectedScriptId || runningScripts ? "bg-slate-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+                >
+                  {runningScripts ? (
+                    "Running..."
+                  ) : (
+                    <>
+                      <PlayCircle size={22} className="mr-2" />
+                      Run Script
+                    </>
+                  )}
+                </button>
+              </div>
             )}
-            {output && (
-              <pre className="bg-gray-100 p-4 rounded-md text-gray-800 text-sm border border-gray-200 whitespace-pre-wrap break-all overflow-x-auto">
-                {output}
-              </pre>
+
+            {(Object.keys(scriptOutputs).length > 0 ||
+              (error && runningScripts)) && (
+              <div className="mt-10 border border-slate-200 rounded-lg p-6 lg:p-8 bg-white shadow-md">
+                <h3 className="text-xl font-semibold mb-4 text-slate-800 flex items-center">
+                  <FileCode size={20} className="mr-2 text-slate-500" />
+                  Script Output
+                </h3>
+                <ErrorBoundary>
+                  {Object.entries(scriptOutputs).map(
+                    ([scriptId, { output, error: scriptError }]) => (
+                      <ScriptOutputDisplay
+                        key={scriptId}
+                        output={output}
+                        error={scriptError || error}
+                      />
+                    ),
+                  )}
+                  {error && Object.keys(scriptOutputs).length === 0 && (
+                    <ScriptOutputDisplay error={error} />
+                  )}
+                </ErrorBoundary>
+              </div>
             )}
-            {!output && !error && !isLoading && !fetchingScripts && (
-              <p className="text-gray-600 text-sm">Run a script to see output here.</p>
-            )}
-            {isLoading && (
-                <p className="text-blue-600 text-sm flex items-center">
-                    <Loader2 className="animate-spin h-4 w-4 mr-2" /> Loading...
-                </p>
-            )}
-          </div>
+          </main>
         </div>
       </div>
     </div>

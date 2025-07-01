@@ -1,0 +1,8 @@
+# This is the simplest possible test to prove the core library works.
+debug_minimal_test:
+  - command: "show version" # Use a simple CLI command, not an RPC.
+  - tests:
+      # The most basic test: does the output contain the word "Junos"?
+      - contains: "Junos"
+        info: "✅ SUCCESS: Device responded and is running Junos."
+        err: "❌ FAIL: The words 'Junos' was not in the output of 'show version'."

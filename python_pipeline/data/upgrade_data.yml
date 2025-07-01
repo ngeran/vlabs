@@ -1,0 +1,35 @@
+products:
+  - vendor-name: JUNIPER
+    switches:
+      - product: EX4600
+        releases:
+          - release: 21.4R3-S10
+            os: jinstall-host-ex-4600-21.4R3-S10.13-signed.tgz
+      - product: EX4400
+        releases:
+          - release: 23.4R2-S4
+            os: junos-install-ex-x86-64-23.4R2-S4.11.tgz
+    firewalls:
+      - product: SRX320
+        releases:
+          - release: 23.4R2-S3
+            os: junos-srxsme-23.4R2-S3.9.tgz
+          - release: 23.4R2-S4
+            os: junos-srxsme-23.4R2-S4.9.tgz
+          - release: 24.2R1-S2
+            os: junos-srxsme-24.2R1-S2.5.tgz
+      - product: SRX210H
+        releases:
+          - release: 12.1X46-D86
+            os: junos-srxsme-12.1X46-D86-domestic.tgz
+    routers:
+      - product: MX-SERIES
+        releases:
+          - release: 23.4R2-S3
+            os: junos-srxsme-23.4R2-S3.9.tgz
+          - release: 24.2R1-S2
+            os: junos-srxsme-24.2R1-S2.5.tgz
+      - product: ACX
+        releases:
+          - release: 12.1X46-D86
+            os: junos-srxsme-12.1X46-D86-domestic.tgz

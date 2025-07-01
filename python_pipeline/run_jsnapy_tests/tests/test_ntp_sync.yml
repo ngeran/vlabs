@@ -1,0 +1,30 @@
+test_metadata:
+  description: "Verifies NTP is synchronized with a valid peer."
+  category: "Device Health"
+  production_approved: true
+  display_hints:
+    type: "table"
+    data_key: "ntp_peers"
+    columns:
+      - header: "Remote"
+        accessor: "remote"
+      - header: "Status"
+        accessor: "status"
+      - header: "Offset (ms)"
+        accessor: "offset"
+
+tests_include:
+  - check_ntp_sync
+
+check_ntp_sync:
+  - rpc: get-ntp-associations
+  - iterate:
+      # We only care about peers that are actually selected for sync
+      xpath: '//ntp-status[starts-with(status, "*")]'
+      id: 'remote'
+      tests:
+        - is-in:
+          - "* master"
+          - "* sys.peer"
+          info: "✅ NTP SYNCED: Device is synchronized to peer {{post['remote']}}"
+          err: "❌ NTP NOT SYNCED: Device status for peer {{post['remote']}} is '{{post['status']}}'"

@@ -1,0 +1,52 @@
+# vlabs/python_pipeline/scripts.yaml (Industry Standard Implementation)
+
+scripts:
+  - id: hello_world
+    displayName: "Hello World Example"
+    description: "A simple script to greet with a message."
+    category: Basic
+    tags:
+      - featured
+      - utility
+    scriptFile: "hello_world.py"
+    metadataFile: "metadata.yml"
+
+  # JSNAPy From The Beginning
+  - id: tools/jsnapy_runner # The new, clean ID
+    displayName: "Junos JSNAPy"
+    description: "Runs standardized JSNAPy tests against network devices."
+    category: "Network Automation"
+    tags:
+      - network_validation
+      - Junos
+      - featured
+      - industry_standard
+      - professional
+      - dynamic_discovery
+      - pipeline_integrated
+    scriptFile: "run.py"
+    metadataFile: "config/metadata.yml"
+    version: "2.0.0"
+    author: "nikos-geranios_vgi"
+    lastUpdated: "2025-06-26 17:22:25 UTC"
+    standard: "Testing Framework Industry Standard v1.0.0"
+    features:
+      - "Industry standard directory structure (tests/ | config/ | logs/)"
+      - "Dynamic test discovery with professional organization"
+      - "Auto-migration to standard structure"
+      - "Environment-aware configuration"
+      - "JSNAPy + RPC fallback with enhanced logging"
+      - "Pipeline integration with proper separation of concerns"
+    capabilities:
+      industryStandard: true
+      directoryStructure: "tests/ | config/ | logs/"
+      dynamicDiscovery: true
+      environmentAware: true
+      pipelineIntegrated: true
+      autoMigration: true
+      professionalLogging: true
+    compliance:
+      standard: "Testing Framework Industry Standard"
+      version: "1.0.0"
+      implemented_by: "nikos-geranios_vgi"
+      compliance_date: "2025-06-26 17:22:25 UTC"

@@ -1,0 +1,29 @@
+test_metadata:
+  description: "Verifies that all OSPF neighbors are in a 'Full' state."
+  category: "Routing & OSPF"
+  production_approved: true
+  display_hints:
+    type: "table"
+    data_key: "ospf_neighbors"
+    columns:
+      - header: "Neighbor Address"
+        accessor: "neighbor-address"
+      - header: "Interface"
+        accessor: "interface-name"
+      - header: "State"
+        accessor: "ospf-neighbor-state"
+      - header: "Area"
+        accessor: "ospf-area"
+
+tests_include:
+  - check_ospf_neighbors
+
+check_ospf_neighbors:
+  - rpc: get-ospf-neighbor-information
+  - iterate:
+      xpath: './/ospf-neighbor'
+      id: 'neighbor-address'
+      tests:
+        - is-equal: ospf-neighbor-state, Full
+          err: "❌ OSPF DOWN: Neighbor {{post['neighbor-address']}} on interface {{post['interface-name']}} is {{post['ospf-neighbor-state']}}"
+          info: "✅ OSPF UP: Neighbor {{post['neighbor-address']}} is Full"

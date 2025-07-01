@@ -1,0 +1,34 @@
+interfaces {
+{% for interface in interfaces %}
+    {{ interface.name }} {
+        {% if interface.description %}
+        description "{{ interface.description }}";
+        {% endif %}
+        {% if interface.vlans %}
+            {% for vlan in interface.vlans %}
+                {% if vlan.vlan_id %}
+                    flexible-vlan-tagging;
+                    unit {{ vlan.unit | default(loop.index0) }} {
+                        vlan-id {{ vlan.vlan_id }};
+                        family inet {
+                            address {{ vlan.ip_address }};
+                        }
+                    }
+                {% else %}
+                    unit {{ vlan.unit | default(0) }} {
+                        family inet {
+                            address {{ vlan.ip_address }};
+                        }
+                    }
+                {% endif %}
+            {% endfor %}
+        {% elif interface.ip_address %}
+            unit 0 {
+                family inet {
+                    address {{ interface.ip_address }};
+                }
+            }
+        {% endif %}
+    }
+{% endfor %}
+}

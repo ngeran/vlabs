@@ -1,0 +1,38 @@
+# run_jsnapy_tests/tests/test_interfaces.yml
+
+test_metadata:
+  description: "Checks physical interface admin and operational status."
+  category: "Interface & Port Health" # For grouping in the UI
+  production_approved: true
+  safety_level: "safe"
+  display_hints:
+    type: "table"
+    # This key MUST match the key used in the Python script's details dictionary
+    data_key: "extracted_data"
+    columns:
+      - header: "Interface"
+        accessor: "name"
+      - header: "Admin Status"
+        accessor: "admin-status"
+      - header: "Oper Status"
+        accessor: "oper-status"
+      - header: "MTU"
+        accessor: "mtu"
+      - header: "Description"
+        accessor: "description"
+
+tests_include:
+  - test_interface_status
+
+test_interface_status:
+  - rpc: get-interface-information
+    args:
+      media: true
+    # This XPath excludes management/internal interfaces
+  - iterate:
+      xpath: './/physical-interface[not(starts-with(name, "fxp")) and not(starts-with(name, "em"))]'
+      id: 'name'
+      tests:
+        - is-equal: oper-status, up
+          err: "Interface {{post['name']}} is operationally DOWN"
+          info: "Interface {{post['name']}} is UP"

@@ -1,0 +1,40 @@
+test_metadata:
+  description: "Checks CPU, Memory, and Temperature of routing engines."
+  category: "Device Health"
+  production_approved: true
+  display_hints:
+    type: "table"
+    data_key: "routing_engines"
+    columns:
+      - header: "Slot"
+        accessor: "slot"
+      - header: "CPU Idle"
+        accessor: "cpu-idle"
+      - header: "Memory Util %"
+        accessor: "memory-buffer-utilization"
+      - header: "Temperature (°C)"
+        accessor: "temperature"
+
+tests_include:
+  - check_routing_engine_health
+
+check_routing_engine_health:
+  - rpc: get-route-engine-information
+  - iterate:
+      xpath: '//route-engine'
+      id: 'slot'
+      tests:
+        # Check that CPU is not overloaded (idle > 10%)
+        - is-gt: cpu-idle, 10
+          err: "❌ HIGH CPU: RE{{post['slot']}} CPU idle is only {{post['cpu-idle']}}%"
+          info: "✅ CPU OK: RE{{post['slot']}} CPU idle is {{post['cpu-idle']}}%"
+
+        # Check that memory utilization is not excessive (< 85%)
+        - is-lt: memory-buffer-utilization, 85
+          err: "❌ HIGH MEMORY: RE{{post['slot']}} memory utilization is {{post['memory-buffer-utilization']}}%"
+          info: "✅ MEMORY OK: RE{{post['slot']}} memory utilization is {{post['memory-buffer-utilization']}}%"
+        
+        # Check that temperature is within a safe range (< 60°C)
+        - is-lt: temperature/value, 60
+          err: "❌ HIGH TEMP: RE{{post['slot']}} temperature is {{post['temperature/value']}}°C"
+          info: "✅ TEMP OK: RE{{post['slot']}} temperature is {{post['temperature/value']}}°C"

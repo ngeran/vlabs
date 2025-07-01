@@ -1,0 +1,17 @@
+# python_pipeline/get_device_facts/get_facts_playbook.yml
+---
+- name: Get Network Device Facts
+  hosts: all
+  gather_facts: false 
+  connection: network_cli
+
+  tasks:
+    - name: Gather network facts for {{ ansible_host }}
+      ansible.netcommon.gather_facts:
+        gather_subset:
+          - '!config' 
+          - '!interfaces'
+
+    - name: Display gathered facts
+      debug:
+        var: ansible_facts

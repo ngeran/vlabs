@@ -12,23 +12,10 @@ scripts:
     metadataFile: "metadata.yml"
 
   # JSNAPy From The Beginning
-  - id: jsnapy_runner # The new, clean ID
-    displayName: "JSNAPy"
+  - id: tools/jsnapy_runner # The new, clean ID
+    displayName: "Junos JSNAPy"
     description: "Runs standardized JSNAPy tests against network devices."
     category: "Network Automation"
-    tags:
-      - network_validation
-      - Junos
-      - featured
-    scriptFile: "run.py" # The new, consistent script name
-    # The parameters the UI should create a form for
-    metadataFile: "metadata.yml" 
-
-  # JSNAPy script with professional directory structure
-  - id: run_jsnapy_tests
-    displayName: "Juniper JSNAPy Tests"
-    description: "Professional network device testing "
-    category: Network Automation
     tags:
       - network_validation
       - Junos
@@ -37,7 +24,7 @@ scripts:
       - professional
       - dynamic_discovery
       - pipeline_integrated
-    scriptFile: "run_jsnapy_tests.py"
+    scriptFile: "run.py"
     metadataFile: "config/metadata.yml"
     version: "2.0.0"
     author: "nikos-geranios_vgi"

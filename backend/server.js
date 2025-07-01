@@ -1,15 +1,11 @@
 // backend/server.js
 
 /**
- * @file Enhanced Express.js server for the vLabs backend with Test Discovery API.
- * Enhanced by: nikos-geranios_vgi
- * Date: 2025-06-27 12:55:09 UTC
- *
- * New Features:
- * - Dynamic test discovery API for JSNAPy tests
- * - Environment-aware test filtering
- * - Safety validation for production environments
- * - Interactive test selection support
+ * @file Enhanced Express.js server for the vLabs backend.
+ * @description This server manages Docker-based labs, dynamic script listing,
+ *              metadata-driven script execution, and advanced test discovery for capable scripts.
+ * @author nikos-geranios_vgi
+ * @date 2025-06-27 12:55:09 UTC
  */
 
 const express = require("express");
@@ -17,7 +13,7 @@ const cors = require("cors");
 const { exec } = require("child_process");
 const path = require("path");
 const fs = require("fs");
-const yaml = require("js-yaml"); // Import js-yaml for YAML parsing
+const yaml = require("js-yaml");
 
 const app = express();
 const port = 3001;
@@ -26,7 +22,7 @@ const port = 3001;
 app.use(cors());
 app.use(express.json());
 
-// --- Docker Container Paths and Configuration ---
+// --- Configuration Constants ---
 const LABS_BASE_PATH_IN_CONTAINER = "/public";
 const PYTHON_PIPELINE_PATH_ON_HOST = process.env.HOST_PROJECT_ROOT
   ? path.join(process.env.HOST_PROJECT_ROOT, "python_pipeline")
@@ -39,22 +35,22 @@ const NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER = "/public/navigation.yaml";
 // --- In-Memory State ---
 const labStatuses = {};
 const scriptRuns = {};
-
-// ✨ NEW: Test discovery cache to improve performance
-const testDiscoveryCache = new Map(); // Cache test discovery results
+const testDiscoveryCache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
+// ====================================================================================
+// === HELPER FUNCTIONS ===============================================================
+// ====================================================================================
+
 /**
- * Helper function to get the real-time status of a Docker Compose lab
+ * @description Gets the real-time status of a Docker Compose lab by executing `docker compose ps`.
+ * @param {string} labPath - The relative path to the lab directory (e.g., "routing/ospf-single-area").
+ * @returns {Promise<object>} A promise that resolves with a status object.
  */
 const getDockerComposeStatus = (labPath) => {
   return new Promise((resolve) => {
     const labDirectory = path.join(LABS_BASE_PATH_IN_CONTAINER, labPath);
     const dockerComposeFilePath = path.join(labDirectory, "docker-compose.yml");
-
-    console.log(
-      `[BACKEND] Checking status for lab: ${labPath} in directory: ${labDirectory}`,
-    );
 
     if (!fs.existsSync(dockerComposeFilePath)) {
       console.warn(
@@ -67,8 +63,6 @@ const getDockerComposeStatus = (labPath) => {
     }
 
     const command = `docker compose -f "${dockerComposeFilePath}" ps --format json`;
-    console.log(`[BACKEND] Executing status check command: ${command}`);
-
     exec(command, { cwd: labDirectory }, (error, stdout, stderr) => {
       if (error) {
         console.error(
@@ -80,14 +74,12 @@ const getDockerComposeStatus = (labPath) => {
           message: `Docker Compose command failed: ${error.message}`,
         });
       }
-
       if (!stdout.trim()) {
         return resolve({
           status: "stopped",
           message: "No active containers found for this lab.",
         });
       }
-
       let services = stdout
         .trim()
         .split("\n")
@@ -100,99 +92,83 @@ const getDockerComposeStatus = (labPath) => {
           }
         })
         .filter(Boolean);
-
-      const allRunning = services.every(
-        (service) => service.State === "running",
-      );
-      const anyExited = services.some((service) => service.State === "exited");
-      const anyStarting = services.some(
-        (service) => service.State === "starting",
-      );
-      const anyDegraded = services.some(
-        (service) => service.State === "degraded",
-      );
-
-      if (allRunning) {
-        resolve({
+      const allRunning = services.every((s) => s.State === "running");
+      if (allRunning)
+        return resolve({
           status: "running",
           message: "All lab containers are running.",
         });
-      } else if (anyExited || anyDegraded) {
-        resolve({
+      if (services.some((s) => s.State === "exited" || s.State === "degraded"))
+        return resolve({
           status: "failed",
           message: "Some lab containers have exited or are unhealthy.",
         });
-      } else if (anyStarting) {
-        resolve({
+      if (services.some((s) => s.State === "starting"))
+        return resolve({
           status: "starting",
           message: "Lab containers are still starting.",
         });
-      } else {
-        resolve({ status: "unknown", message: "Lab status is indeterminate." });
-      }
+      resolve({ status: "unknown", message: "Lab status is indeterminate." });
     });
   });
 };
 
 /**
- * Helper function to load metadata for a single script from its YAML file.
+ * @description Loads and parses the individual metadata.yml file for a single script.
+ * @param {string} scriptId - The ID of the script (used as the directory name).
+ * @param {string} metadataFileName - The name of the metadata file (e.g., "metadata.yml").
+ * @returns {object | null} The parsed metadata object, or null if an error occurs.
  */
 const getScriptIndividualMetadata = (scriptId, metadataFileName) => {
-  const metadataPathInContainer = path.join(
-    PYTHON_PIPELINE_BASE_PATH_IN_CONTAINER,
-    scriptId,
-    metadataFileName,
-  );
+  if (!scriptId || !metadataFileName) return null;
+  let metadataPathInContainer;
   try {
+    metadataPathInContainer = path.join(
+      PYTHON_PIPELINE_BASE_PATH_IN_CONTAINER,
+      scriptId,
+      metadataFileName,
+    );
     const fileContents = fs.readFileSync(metadataPathInContainer, "utf8");
     return yaml.load(fileContents);
   } catch (e) {
     console.error(
-      `[BACKEND] Error reading or parsing script metadata file at ${metadataPathInContainer}:`,
-      e.message,
+      `[BACKEND] Error processing metadata for script "${scriptId}". Path: ${metadataPathInContainer}. Error: ${e.message}`,
     );
     return null;
   }
 };
 
-// ✨ NEW: Helper function to execute test discovery
+/**
+ * @description Executes a Python script in a Docker container to discover its available tests.
+ * @param {string} scriptId - The ID of the script to run discovery for.
+ * @param {string} [environment='development'] - The target environment for discovery.
+ * @returns {Promise<object>} A promise that resolves with the test discovery results.
+ */
 const executeTestDiscovery = (scriptId, environment = "development") => {
   return new Promise((resolve, reject) => {
-    // Check cache first
     const cacheKey = `${scriptId}-${environment}`;
     const cached = testDiscoveryCache.get(cacheKey);
-
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       console.log(`[BACKEND] Using cached test discovery for ${cacheKey}`);
       return resolve(cached.data);
     }
 
-    console.log(
-      `[BACKEND] Executing test discovery for script: ${scriptId}, environment: ${environment}`,
-    );
-
-    // Look up the script definition
     const allScriptsConfig = yaml.load(
       fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
     );
     const scriptDefinition = allScriptsConfig.scripts.find(
       (s) => s.id === scriptId,
     );
-
-    if (!scriptDefinition) {
+    if (!scriptDefinition)
       return reject(
         new Error(`Script definition not found for ID: ${scriptId}`),
       );
-    }
 
-    // Construct the script path
     const scriptInternalPath = path.join(
       SCRIPT_MOUNT_POINT_IN_CONTAINER,
       scriptDefinition.id,
       scriptDefinition.scriptFile,
     );
-
-    // Build Docker command for test discovery
     const dockerCommandArgs = [
       "run",
       "--rm",
@@ -204,20 +180,18 @@ const executeTestDiscovery = (scriptId, environment = "development") => {
       "python",
       scriptInternalPath,
       "--hostname",
-      "discovery-mode", // Dummy hostname for discovery
+      "discovery-mode",
       "--username",
-      "discovery-mode", // Dummy username for discovery
+      "discovery-mode",
       "--password",
-      "discovery-mode", // Dummy password for discovery
+      "discovery-mode",
       "--environment",
       environment,
       "--list_tests",
     ];
-
     const command = `docker ${dockerCommandArgs.join(" ")}`;
     console.log(`[BACKEND] Executing test discovery command: ${command}`);
 
-    // Execute with longer timeout for discovery
     exec(command, { timeout: 60000 }, (error, stdout, stderr) => {
       if (error) {
         console.error(
@@ -229,12 +203,8 @@ const executeTestDiscovery = (scriptId, environment = "development") => {
           new Error(`Test discovery failed: ${stderr || error.message}`),
         );
       }
-
       try {
-        // Parse the JSON output from the script
         const discoveryResult = JSON.parse(stdout);
-
-        // Add backend metadata
         const enhancedResult = {
           ...discoveryResult,
           backend_metadata: {
@@ -243,16 +213,12 @@ const executeTestDiscovery = (scriptId, environment = "development") => {
             script_id: scriptId,
             target_environment: environment,
             discovered_by: "nikos-geranios_vgi",
-            backend_version: "2025-06-27 12:55:09",
           },
         };
-
-        // Cache the result
         testDiscoveryCache.set(cacheKey, {
           data: enhancedResult,
           timestamp: Date.now(),
         });
-
         console.log(
           `[BACKEND] Test discovery successful for ${scriptId}. Found ${Object.keys(discoveryResult.discovered_tests || {}).length} tests`,
         );
@@ -273,61 +239,120 @@ const executeTestDiscovery = (scriptId, environment = "development") => {
   });
 };
 
-// ✨ NEW: API endpoint for dynamic test discovery
+// ====================================================================================
+// === API ENDPOINTS ==================================================================
+// ====================================================================================
+
+// In server.js, add this somewhere in the API ENDPOINTS section
+
+/**
+ * @description Creates a dedicated directory for script outputs if it doesn't exist.
+ * @returns {string} The absolute path to the output directory.
+ */
+function ensureOutputDirectory() {
+  // Note: This path is relative to the *host* machine, not the container,
+  // because that's where the python_pipeline is mounted from.
+  const outputDir = path.join(PYTHON_PIPELINE_PATH_ON_HOST, "output");
+  if (!fs.existsSync(outputDir)) {
+    console.log(`[BACKEND] Creating output directory at: ${outputDir}`);
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+  return outputDir;
+}
+
+/**
+ * @description API endpoint to save text content to a file in the output directory.
+ * @route POST /api/output/save
+ * @body {{filename: string, content: string}} The desired filename and the text content to save.
+ */
+app.post("/api/output/save", async (req, res) => {
+  const { filename, content } = req.body;
+
+  if (!filename || !content) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Filename and content are required." });
+  }
+
+  // --- Security Check ---
+  // Sanitize filename to prevent directory traversal attacks (e.g., '..', '/')
+  const safeFilename = path.basename(filename);
+  if (safeFilename !== filename) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid filename." });
+  }
+
+  try {
+    const outputDir = ensureOutputDirectory();
+    const filePath = path.join(outputDir, safeFilename);
+
+    await fs.promises.writeFile(filePath, content, "utf8");
+
+    console.log(`[BACKEND] Successfully saved output to ${filePath}`);
+    res.json({
+      success: true,
+      message: `Output saved successfully to ${safeFilename}`,
+    });
+  } catch (error) {
+    console.error(`[BACKEND] Error saving output file:`, error);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to save output file." });
+  }
+});
+
+/**
+ * @description API endpoint to dynamically discover tests for a script.
+ * @route POST /api/scripts/discover-tests
+ * @body {{scriptId: string, environment?: string}} The request body.
+ */
 app.post("/api/scripts/discover-tests", async (req, res) => {
   try {
-    const {
-      scriptId,
-      environment = "development",
-      listTests = true,
-    } = req.body;
-
+    const { scriptId, environment = "development" } = req.body;
     console.log(
-      `[BACKEND] Test discovery request received for script: ${scriptId}, environment: ${environment}`,
+      `[BACKEND] Test discovery request received for script: ${scriptId}`,
     );
 
-    // Validate request
     if (!scriptId) {
-      return res.status(400).json({
+      return res
+        .status(400)
+        .json({ success: false, message: "scriptId is required" });
+    }
+
+    const allScriptsConfig = yaml.load(
+      fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
+    );
+    const scriptEntry = allScriptsConfig.scripts.find((s) => s.id === scriptId);
+    if (!scriptEntry) {
+      return res.status(404).json({
         success: false,
-        message: "scriptId is required for test discovery",
-        timestamp: new Date().toISOString(),
-        requested_by: "nikos-geranios_vgi",
+        message: `Script with ID "${scriptId}" not found.`,
       });
     }
 
-    // Only support discovery for JSNAPy tests script
-    if (scriptId !== "run_jsnapy_tests") {
+    const individualMetadata = getScriptIndividualMetadata(
+      scriptEntry.id,
+      scriptEntry.metadataFile,
+    );
+    const scriptDefinition = { ...scriptEntry, ...individualMetadata };
+
+    if (!scriptDefinition.capabilities?.dynamicDiscovery) {
       return res.status(400).json({
         success: false,
-        message: `Test discovery not supported for script: ${scriptId}`,
-        supported_scripts: ["run_jsnapy_tests"],
-        timestamp: new Date().toISOString(),
+        message: `Test discovery not supported for script: ${scriptId}.`,
       });
     }
 
-    if (!listTests) {
-      return res.status(400).json({
-        success: false,
-        message: "listTests parameter must be true for discovery",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Validate environment
     const validEnvironments = ["development", "lab", "staging", "production"];
     if (!validEnvironments.includes(environment)) {
       return res.status(400).json({
         success: false,
-        message: `Invalid environment: ${environment}. Valid options: ${validEnvironments.join(", ")}`,
-        timestamp: new Date().toISOString(),
+        message: `Invalid environment: ${environment}`,
       });
     }
 
-    // Execute test discovery
     const discoveryResult = await executeTestDiscovery(scriptId, environment);
-
-    // Return enhanced discovery result
     res.json({
       success: true,
       ...discoveryResult,
@@ -337,40 +362,31 @@ app.post("/api/scripts/discover-tests", async (req, res) => {
         script_id: scriptId,
         environment: environment,
         cache_used: testDiscoveryCache.has(`${scriptId}-${environment}`),
-        enhanced_by: "nikos-geranios_vgi",
       },
     });
   } catch (error) {
     console.error(`[BACKEND] Test discovery API error:`, error.message);
-
     res.status(500).json({
       success: false,
       message: `Test discovery failed: ${error.message}`,
-      error_details: {
-        error_type: error.constructor.name,
-        timestamp: new Date().toISOString(),
-        endpoint: "/api/scripts/discover-tests",
-      },
     });
   }
 });
 
-// ✨ NEW: API endpoint to clear test discovery cache
+/**
+ * @description API endpoint to clear the test discovery cache, either for a specific script or entirely.
+ * @route POST /api/scripts/clear-discovery-cache
+ * @body {{scriptId?: string}} Optional scriptId to clear a specific cache.
+ */
 app.post("/api/scripts/clear-discovery-cache", (req, res) => {
   try {
     const { scriptId } = req.body;
-
     if (scriptId) {
-      // Clear cache for specific script
       const keysToDelete = [];
       for (const key of testDiscoveryCache.keys()) {
-        if (key.startsWith(`${scriptId}-`)) {
-          keysToDelete.push(key);
-        }
+        if (key.startsWith(`${scriptId}-`)) keysToDelete.push(key);
       }
-
       keysToDelete.forEach((key) => testDiscoveryCache.delete(key));
-
       console.log(
         `[BACKEND] Cleared test discovery cache for script: ${scriptId}`,
       );
@@ -381,10 +397,8 @@ app.post("/api/scripts/clear-discovery-cache", (req, res) => {
         timestamp: new Date().toISOString(),
       });
     } else {
-      // Clear entire cache
       const cacheSize = testDiscoveryCache.size;
       testDiscoveryCache.clear();
-
       console.log(`[BACKEND] Cleared entire test discovery cache`);
       res.json({
         success: true,
@@ -398,71 +412,56 @@ app.post("/api/scripts/clear-discovery-cache", (req, res) => {
     res.status(500).json({
       success: false,
       message: `Failed to clear cache: ${error.message}`,
-      timestamp: new Date().toISOString(),
     });
   }
 });
 
-// ✨ NEW: API endpoint to get cache statistics
+/**
+ * @description API endpoint to get statistics about the test discovery cache.
+ * @route GET /api/scripts/discovery-cache-stats
+ */
 app.get("/api/scripts/discovery-cache-stats", (req, res) => {
   try {
     const stats = {
       total_entries: testDiscoveryCache.size,
       entries: [],
-      cache_duration_minutes: CACHE_DURATION / (60 * 1000),
+      cache_duration_minutes: CACHE_DURATION / 60000,
       current_time: new Date().toISOString(),
     };
-
-    // Get details for each cache entry
     for (const [key, value] of testDiscoveryCache.entries()) {
       const age = Date.now() - value.timestamp;
-      const isExpired = age > CACHE_DURATION;
-
       stats.entries.push({
         cache_key: key,
         age_seconds: Math.round(age / 1000),
-        is_expired: isExpired,
+        is_expired: age > CACHE_DURATION,
         test_count: Object.keys(value.data.discovered_tests || {}).length,
         cached_at: new Date(value.timestamp).toISOString(),
       });
     }
-
-    res.json({
-      success: true,
-      cache_statistics: stats,
-      enhanced_by: "nikos-geranios_vgi",
-    });
+    res.json({ success: true, cache_statistics: stats });
   } catch (error) {
     console.error(`[BACKEND] Cache stats error:`, error.message);
     res.status(500).json({
       success: false,
       message: `Failed to get cache stats: ${error.message}`,
-      timestamp: new Date().toISOString(),
     });
   }
 });
 
-// --- Existing API Endpoints (unchanged) ---
-
-// POST endpoint to launch a Docker Compose lab.
+/**
+ * @description API endpoint to launch a Docker Compose lab.
+ * @route POST /api/labs/launch
+ * @body {{labPath: string}} The path to the lab to launch.
+ */
 app.post("/api/labs/launch", async (req, res) => {
   const { labPath } = req.body;
-  console.log(`[BACKEND] Received launch request for: ${labPath}`);
-
-  if (!labPath) {
+  if (!labPath)
     return res
       .status(400)
       .json({ success: false, message: "labPath is required." });
-  }
 
   const labDirectory = path.join(LABS_BASE_PATH_IN_CONTAINER, labPath);
-  const dockerComposeFilePath = path.join(labDirectory, "docker-compose.yml");
-
-  if (!fs.existsSync(dockerComposeFilePath)) {
-    labStatuses[labPath] = {
-      status: "failed",
-      message: "Lab definition file not found.",
-    };
+  if (!fs.existsSync(path.join(labDirectory, "docker-compose.yml"))) {
     return res
       .status(404)
       .json({ success: false, message: "Lab definition file not found." });
@@ -472,11 +471,9 @@ app.post("/api/labs/launch", async (req, res) => {
     status: "starting",
     message: "Initiating lab launch...",
   };
-
-  const command = `docker compose -f "${dockerComposeFilePath}" up -d`;
-  exec(command, { cwd: labDirectory }, (error, stdout, stderr) => {
+  const command = `docker compose -f "${path.join(labDirectory, "docker-compose.yml")}" up -d`;
+  exec(command, { cwd: labDirectory }, (error) => {
     if (error) {
-      console.error(`[BACKEND] Docker Compose up error:`, error.message);
       labStatuses[labPath] = {
         status: "failed",
         message: `Launch failed: ${error.message}`,
@@ -486,10 +483,6 @@ app.post("/api/labs/launch", async (req, res) => {
         message: `Failed to launch lab: ${error.message}`,
       });
     }
-
-    console.log(
-      `[BACKEND] Lab launch command initiated successfully for: ${labPath}`,
-    );
     res.json({
       success: true,
       message: "Lab launch command sent. Polling for status...",
@@ -497,23 +490,20 @@ app.post("/api/labs/launch", async (req, res) => {
   });
 });
 
-// POST endpoint to stop a Docker Compose lab.
+/**
+ * @description API endpoint to stop a Docker Compose lab.
+ * @route POST /api/labs/stop
+ * @body {{labPath: string}} The path to the lab to stop.
+ */
 app.post("/api/labs/stop", (req, res) => {
   const { labPath } = req.body;
-  if (!labPath) {
+  if (!labPath)
     return res
       .status(400)
       .json({ success: false, message: "labPath is required." });
-  }
 
   const labDirectory = path.join(LABS_BASE_PATH_IN_CONTAINER, labPath);
-  const dockerComposeFilePath = path.join(labDirectory, "docker-compose.yml");
-
-  if (!fs.existsSync(dockerComposeFilePath)) {
-    labStatuses[labPath] = {
-      status: "stopped",
-      message: "Lab definition file not found for stopping.",
-    };
+  if (!fs.existsSync(path.join(labDirectory, "docker-compose.yml"))) {
     return res
       .status(404)
       .json({ success: false, message: "Lab definition file not found." });
@@ -523,11 +513,9 @@ app.post("/api/labs/stop", (req, res) => {
     status: "stopping",
     message: "Initiating lab stop...",
   };
-
-  const command = `docker compose -f "${dockerComposeFilePath}" down`;
+  const command = `docker compose -f "${path.join(labDirectory, "docker-compose.yml")}" down`;
   exec(command, { cwd: labDirectory }, (error) => {
     if (error) {
-      console.error(`[BACKEND] Docker Compose down error:`, error.message);
       labStatuses[labPath] = {
         status: "failed",
         message: `Stop failed: ${error.message}`,
@@ -537,38 +525,33 @@ app.post("/api/labs/stop", (req, res) => {
         message: `Failed to stop lab: ${error.message}`,
       });
     }
-
-    console.log(`[BACKEND] Lab stopped successfully for: ${labPath}`);
     labStatuses[labPath] = { status: "stopped", message: "Lab stopped." };
     res.json({ success: true, message: "Lab stopped successfully." });
   });
 });
 
-// GET endpoint to retrieve the status of a single lab.
+/**
+ * @description API endpoint to get the status of a single lab.
+ * @route GET /api/labs/status-by-path
+ * @query {string} labPath - The path to the lab.
+ */
 app.get("/api/labs/status-by-path", async (req, res) => {
   const { labPath } = req.query;
-  if (!labPath) {
+  if (!labPath)
     return res
       .status(400)
       .json({ success: false, message: "labPath is required." });
-  }
 
   let currentStatus = labStatuses[labPath] || {
     status: "stopped",
     message: "Not launched yet.",
   };
-
-  if (
-    currentStatus.status === "starting" ||
-    currentStatus.status === "running" ||
-    currentStatus.status === "unknown"
-  ) {
+  if (["starting", "running", "unknown"].includes(currentStatus.status)) {
     try {
       const realStatus = await getDockerComposeStatus(labPath);
       currentStatus = realStatus;
       labStatuses[labPath] = realStatus;
     } catch (error) {
-      console.error(`[BACKEND] Error getting real-time status:`, error);
       currentStatus = {
         status: "failed",
         message: "Error checking real-time status.",
@@ -579,11 +562,13 @@ app.get("/api/labs/status-by-path", async (req, res) => {
   res.json(currentStatus);
 });
 
-// GET endpoint to retrieve statuses for all defined labs.
+/**
+ * @description API endpoint to retrieve statuses for all defined labs.
+ * @route GET /api/labs/all-statuses
+ */
 app.get("/api/labs/all-statuses", async (req, res) => {
   console.log("[BACKEND] Received request for all lab statuses.");
-  const allLabPaths = ["routing/ospf-single-area"];
-
+  const allLabPaths = ["routing/ospf-single-area"]; // This could be made dynamic
   const statuses = {};
   for (const labPath of allLabPaths) {
     const status = await getDockerComposeStatus(labPath);
@@ -593,34 +578,26 @@ app.get("/api/labs/all-statuses", async (req, res) => {
   res.json(statuses);
 });
 
-// GET endpoint to load the navigation menu from a YAML file.
+/**
+ * @description API endpoint to load the navigation menu from a YAML file.
+ * @route GET /api/navigation/menu
+ */
 app.get("/api/navigation/menu", (req, res) => {
-  console.log(
-    `[BACKEND] Attempting to read navigation config from: ${NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER}`,
-  );
   try {
     const fileContents = fs.readFileSync(
       NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER,
       "utf8",
     );
     const config = yaml.load(fileContents);
-
     if (config && Array.isArray(config.menu)) {
       res.json({ success: true, menu: config.menu });
     } else {
-      console.warn(
-        `[BACKEND] navigation.yaml found but 'menu' array is missing or malformed.`,
-      );
       res.status(500).json({
         success: false,
         message: "Navigation configuration malformed.",
       });
     }
   } catch (e) {
-    console.error(
-      `[BACKEND] Error reading or parsing navigation.yaml:`,
-      e.message,
-    );
     res.status(500).json({
       success: false,
       message: `Failed to load navigation menu: ${e.message}`,
@@ -628,47 +605,33 @@ app.get("/api/navigation/menu", (req, res) => {
   }
 });
 
-// GET endpoint to get a list of available Python scripts with full metadata.
+/**
+ * @description API endpoint to list all available Python scripts with their full metadata.
+ * @route GET /api/scripts/list
+ */
 app.get("/api/scripts/list", (req, res) => {
-  console.log(
-    `[BACKEND] Attempting to read main scripts config from: ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}`,
-  );
+  console.log(`[BACKEND] Reading main scripts config`);
   try {
     const fileContents = fs.readFileSync(
       SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER,
       "utf8",
     );
     const config = yaml.load(fileContents);
-
     if (config && Array.isArray(config.scripts)) {
       const scriptsWithFullMetadata = config.scripts.map((scriptEntry) => {
-        let individualMetadata = { parameters: [], resources: [] };
-        if (scriptEntry.id && scriptEntry.metadataFile) {
-          individualMetadata = getScriptIndividualMetadata(
-            scriptEntry.id,
-            scriptEntry.metadataFile,
-          );
-        }
-        return {
-          ...scriptEntry,
-          parameters: individualMetadata ? individualMetadata.parameters : [],
-          resources: individualMetadata ? individualMetadata.resources : [],
-        };
+        const individualMetadata = getScriptIndividualMetadata(
+          scriptEntry.id,
+          scriptEntry.metadataFile,
+        );
+        return { ...scriptEntry, ...individualMetadata };
       });
       res.json({ success: true, scripts: scriptsWithFullMetadata });
     } else {
-      console.warn(
-        `[BACKEND] scripts.yaml found but 'scripts' array is missing or malformed.`,
-      );
       res
         .status(500)
         .json({ success: false, message: "Scripts configuration malformed." });
     }
   } catch (e) {
-    console.error(
-      `[BACKEND] Error reading or parsing main scripts.yaml:`,
-      e.message,
-    );
     res.status(500).json({
       success: false,
       message: `Failed to load script list: ${e.message}`,
@@ -676,27 +639,24 @@ app.get("/api/scripts/list", (req, res) => {
   }
 });
 
-// GET endpoint to list available inventory files from the 'data' directory.
+/**
+ * @description API endpoint to list available inventory files from the data directory.
+ * @route GET /api/inventories/list
+ */
 app.get("/api/inventories/list", async (req, res) => {
   const dataDir = path.join(__dirname, "..", "python_pipeline", "data");
   try {
     if (!fs.existsSync(dataDir)) {
-      console.warn(`Inventory data directory not found: ${dataDir}`);
       return res.status(200).json({
         success: true,
         inventories: [],
         message: "Inventory directory not found.",
       });
     }
-
     const files = await fs.promises.readdir(dataDir);
-    const inventoryFiles = files.filter((file) => {
-      const ext = path.extname(file).toLowerCase();
-      return ext === ".yml" || ext === ".yaml" || ext === ".ini";
-    });
+    const inventoryFiles = files.filter((file) => /\.(ya?ml|ini)$/i.test(file));
     res.json({ success: true, inventories: inventoryFiles });
   } catch (error) {
-    console.error("Error listing inventory files:", error);
     res.status(500).json({
       success: false,
       message: "Failed to list inventory files",
@@ -705,30 +665,24 @@ app.get("/api/inventories/list", async (req, res) => {
   }
 });
 
-// ✨ ENHANCED: Script execution endpoint with test discovery support
+/**
+ * @description API endpoint to execute a Python script.
+ * @route POST /api/scripts/run
+ * @body {{scriptId: string, parameters: object}} The script to run and its parameters.
+ */
 app.post("/api/scripts/run", (req, res) => {
   const { scriptId, parameters } = req.body;
   const runId =
     Date.now().toString() + Math.random().toString(36).substring(2, 9);
-
   console.log(
-    `[BACKEND] Received request to run script: ${scriptId} (ID: ${runId}) with parameters:`,
+    `[BACKEND] Running script: ${scriptId} (ID: ${runId}) with params:`,
     JSON.stringify(parameters),
   );
 
-  // ✨ NEW: Special handling for test discovery requests
-  if (parameters && parameters.list_tests) {
-    console.log(
-      `[BACKEND] Detected test discovery request for script: ${scriptId}`,
-    );
-    // For discovery, we'll still use the normal execution path but with special logging
-  }
-
-  if (!scriptId) {
+  if (!scriptId)
     return res
       .status(400)
       .json({ success: false, message: "scriptId is required." });
-  }
 
   const allScriptsConfig = yaml.load(
     fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
@@ -736,22 +690,17 @@ app.post("/api/scripts/run", (req, res) => {
   const scriptDefinition = allScriptsConfig.scripts.find(
     (s) => s.id === scriptId,
   );
-
-  if (!scriptDefinition) {
-    console.error(`[BACKEND] Script definition not found for ID: ${scriptId}`);
+  if (!scriptDefinition)
     return res
       .status(404)
       .json({ success: false, message: "Script definition not found." });
-  }
 
   const scriptInternalPath = path.join(
     SCRIPT_MOUNT_POINT_IN_CONTAINER,
     scriptDefinition.id,
     scriptDefinition.scriptFile,
   );
-
   scriptRuns[runId] = { status: "running", output: "", error: "" };
-
   const dockerCommandArgs = [
     "run",
     "--rm",
@@ -763,7 +712,6 @@ app.post("/api/scripts/run", (req, res) => {
     "python",
     scriptInternalPath,
   ];
-
   if (parameters) {
     for (const key in parameters) {
       if (Object.prototype.hasOwnProperty.call(parameters, key)) {
@@ -775,20 +723,12 @@ app.post("/api/scripts/run", (req, res) => {
       }
     }
   }
-
   const command = `docker ${dockerCommandArgs.join(" ")}`;
   console.log(`[BACKEND] Executing Docker command: ${command}`);
 
-  // ✨ ENHANCED: Longer timeout for test discovery operations
-  const timeout = parameters && parameters.list_tests ? 60000 : 30000;
-
+  const timeout = parameters?.list_tests ? 60000 : 30000;
   exec(command, { timeout }, (error, stdout, stderr) => {
     if (error) {
-      console.error(
-        `[BACKEND] Error running script ${scriptId}:`,
-        error.message,
-      );
-      console.error(`[BACKEND] Script Stderr:`, stderr);
       scriptRuns[runId] = {
         status: "failed",
         output: stdout,
@@ -801,15 +741,7 @@ app.post("/api/scripts/run", (req, res) => {
         error: stderr || error.message,
       });
     }
-
-    console.log(`[BACKEND] Script ${scriptId} completed successfully`);
-    if (stderr) {
-      console.warn(`[BACKEND] Script ${scriptId} stderr:\n${stderr}`);
-    }
-
     scriptRuns[runId] = { status: "completed", output: stdout, error: stderr };
-
-    // ✨ NEW: Enhanced response for test discovery
     const response = {
       success: true,
       output: stdout,
@@ -817,27 +749,25 @@ app.post("/api/scripts/run", (req, res) => {
       run_id: runId,
       script_id: scriptId,
     };
-
-    // Add special metadata for test discovery requests
-    if (parameters && parameters.list_tests) {
+    if (parameters?.list_tests) {
       try {
         const discoveryData = JSON.parse(stdout);
         response.discovery_metadata = {
           test_count: Object.keys(discoveryData.discovered_tests || {}).length,
           environment: parameters.environment || "development",
-          discovery_successful: true,
-          enhanced_by: "nikos-geranios_vgi",
         };
       } catch (parseError) {
         console.warn(`[BACKEND] Could not parse discovery output as JSON`);
       }
     }
-
     res.json(response);
   });
 });
 
-// ✨ NEW: Health check endpoint for the enhanced API
+/**
+ * @description API endpoint for a simple health check of the server.
+ * @route GET /api/health
+ */
 app.get("/api/health", (req, res) => {
   res.json({
     status: "healthy",
@@ -854,36 +784,26 @@ app.get("/api/health", (req, res) => {
     },
   });
 });
-// API TO READ THE JSNAPY TESTS
-app.get("/api/jsnapy/tests", (req, res) => {
-  const testsDir = path.join(
-    PYTHON_PIPELINE_BASE_PATH_IN_CONTAINER,
-    "run_jsnapy_tests",
-    "tests",
-  );
 
+// --- DEPRECATED ENDPOINT ---
+// The /api/jsnapy/tests endpoint is no longer needed because /api/scripts/discover-tests
+// is more powerful and generic. It is safe to remove this block.
+/*
+app.get("/api/jsnapy/tests", (req, res) => {
+  const testsDir = path.join(PYTHON_PIPELINE_BASE_PATH_IN_CONTAINER, "run_jsnapy_tests", "tests");
   try {
-    console.log(`[BACKEND] Checking if tests directory exists: ${testsDir}`);
-    console.log(`[BACKEND] Directory exists?`, fs.existsSync(testsDir));
     const testFiles = fs.readdirSync(testsDir);
     const testNames = testFiles
-      .filter((file) => file.endsWith(".yml") || file.endsWith(".yaml"))
-      .map((file) => path.basename(file, path.extname(file))); // strip extension
-
-    res.json({
-      success: true,
-      tests: testNames, // e.g., ['test_bgp', 'test_interfaces']
-    });
+      .filter((file) => /\.(ya?ml)$/i.test(file))
+      .map((file) => path.basename(file, path.extname(file)));
+    res.json({ success: true, tests: testNames });
   } catch (error) {
-    console.error("[BACKEND] Failed to list JSNAPy tests:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Unable to list JSNAPy test files",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: "Unable to list JSNAPy test files", error: error.message });
   }
 });
-// Start the Express server
+*/
+
+// --- Server Start ---
 app.listen(port, () => {
   console.log(
     `[BACKEND] Enhanced Server listening at http://localhost:${port}`,
@@ -892,7 +812,7 @@ app.listen(port, () => {
     `[BACKEND] Enhanced by: nikos-geranios_vgi at 2025-06-27 12:55:09`,
   );
   console.log(
-    `[BACKEND] New Features: Test Discovery API, Environment Awareness, Caching`,
+    `[BACKEND] Features: Test Discovery, Environment Awareness, Caching`,
   );
   console.log(
     `[BACKEND] Scripts config: ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}`,
@@ -903,17 +823,7 @@ app.listen(port, () => {
   console.log(
     `[BACKEND] Navigation config: ${NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER}`,
   );
-
-  // ✨ NEW: Log new API endpoints
-  console.log(`[BACKEND] New API Endpoints:`);
   console.log(
-    `[BACKEND]   POST /api/scripts/discover-tests - Dynamic test discovery`,
+    `[BACKEND] New API Endpoints: POST /api/scripts/discover-tests, POST /api/scripts/clear-discovery-cache, GET /api/scripts/discovery-cache-stats, GET /api/health`,
   );
-  console.log(
-    `[BACKEND]   POST /api/scripts/clear-discovery-cache - Clear test cache`,
-  );
-  console.log(
-    `[BACKEND]   GET  /api/scripts/discovery-cache-stats - Cache statistics`,
-  );
-  console.log(`[BACKEND]   GET  /api/health - Enhanced health check`);
 });

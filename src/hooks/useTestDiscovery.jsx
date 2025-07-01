@@ -3,19 +3,14 @@ import { useState, useEffect } from "react";
 
 const API_BASE_URL = "http://localhost:3001";
 
-/**
- * A generic, reusable hook to fetch discoverable tests for ANY script ID.
- * @param {string} scriptId The ID of the script for which to discover tests.
- * @param {string} [environment='development'] The target environment.
- * @returns {{categorizedTests: object, loading: boolean, error: string|null}}
- */
+// A generic hook to fetch discoverable tests for ANY script.
 export function useTestDiscovery(scriptId, environment = "development") {
   const [categorizedTests, setCategorizedTests] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Don't try to fetch if there's no scriptId.
+    // Don't fetch if there's no scriptId
     if (!scriptId) {
       setCategorizedTests({});
       return;
@@ -24,11 +19,7 @@ export function useTestDiscovery(scriptId, environment = "development") {
     const fetchTests = async () => {
       setLoading(true);
       setError(null);
-      console.log(
-        `[useTestDiscovery] Discovering tests for script: ${scriptId}`,
-      );
       try {
-        // Call the correct, modern API endpoint
         const response = await fetch(
           `${API_BASE_URL}/api/scripts/discover-tests`,
           {
@@ -40,19 +31,14 @@ export function useTestDiscovery(scriptId, environment = "development") {
         const data = await response.json();
 
         if (!data.success) {
-          throw new Error(data.message || "Failed to discover tests via API.");
+          throw new Error(data.message || "Failed to discover tests.");
         }
 
-        console.log(
-          `[useTestDiscovery] Successfully discovered tests for ${scriptId}:`,
-          data.discovered_tests,
-        );
+        // The API returns tests in a flat structure, we can categorize them here if needed,
+        // or assume the backend provides a categorized structure. For now, let's use the backend's structure.
         setCategorizedTests(data.discovered_tests || {});
       } catch (err) {
-        console.error(
-          `[useTestDiscovery] CATCH BLOCK ERROR for ${scriptId}:`,
-          err,
-        );
+        console.error(`Error discovering tests for ${scriptId}:`, err);
         setError(err.message);
         setCategorizedTests({});
       } finally {
@@ -61,7 +47,7 @@ export function useTestDiscovery(scriptId, environment = "development") {
     };
 
     fetchTests();
-    // This effect re-runs whenever the user selects a different script or environment
+    // Re-run this effect if the scriptId or environment changes
   }, [scriptId, environment]);
 
   return { categorizedTests, loading, error };

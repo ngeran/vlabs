@@ -1,31 +1,115 @@
-// src/components/PythonScriptRunner.jsx
+// src/components/PythonScriptRunner.js
 
 import React, { useEffect, useState, useMemo } from "react";
-import { Tag, FileCode, PlayCircle } from "lucide-react";
+import { Tag, FileCode, PlayCircle, Layers } from "lucide-react";
 
-// Import all necessary components
-import JSNAPyForm from "./JSNAPyForm";
-import DeviceAuthFields from "./DeviceAuthFields";
-import ScriptOutputDisplay from "./ScriptOutputDisplay";
-import ErrorBoundary from "./ErrorBoundary";
+// === EXTERNAL COMPONENT DEPENDENCIES (Ensure these files exist) ===
+import DeviceAuthFields from "./DeviceAuthFields"; // For the main input form
+import ScriptOutputDisplay from "./ScriptOutputDisplay"; // For showing results
+import ErrorBoundary from "./ErrorBoundary"; // For safety
+import TestSelector from "./TestSelector"; // For rendering the test checklist in the sidebar
+
+// === EXTERNAL HOOK DEPENDENCY ===
+import { useTestDiscovery } from "../hooks/useTestDiscovery"; // For fetching script-specific tests
 
 const API_BASE_URL = "http://localhost:3001";
 
-// --- Internal Component: ScriptFilterSidebar ---
+// ====================================================================================
+// === INTERNAL COMPONENTS (Defined here for a single-file solution) ================
+// ====================================================================================
+
+/**
+ * @description Renders the UI for selecting a script's discoverable tests in the sidebar.
+ * This is a "smart" component that uses the useTestDiscovery hook to fetch its own data.
+ * @param {object} props - Component props.
+ * @param {object} props.script - The currently selected script object.
+ * @param {object} props.parameters - The current state of parameters for this script.
+ * @param {function} props.setParameters - The function to update the parent's state.
+ */
+function DiscoverableTestOptions({ script, parameters, setParameters }) {
+  const { categorizedTests, loading, error } = useTestDiscovery(
+    script.id,
+    parameters.environment,
+  );
+
+  const handleTestToggle = (testId) => {
+    const currentTests = parameters.tests || [];
+    const newSelection = currentTests.includes(testId)
+      ? currentTests.filter((id) => id !== testId)
+      : [...currentTests, testId];
+    setParameters({ ...parameters, tests: newSelection });
+  };
+
+  if (loading)
+    return (
+      <p className="text-xs text-slate-500 italic">Discovering tests...</p>
+    );
+  if (error)
+    return <p className="text-xs font-semibold text-red-600">Error: {error}</p>;
+
+  return (
+    <TestSelector
+      categorizedTests={categorizedTests}
+      selectedTests={parameters.tests || []}
+      onTestToggle={handleTestToggle}
+    />
+  );
+}
+
+/**
+ * @description The "brain" that decides which options UI to render in the sidebar.
+ * It acts as a switchboard, checking the selected script's metadata for capabilities.
+ * @param {object} props - Component props.
+ * @param {object} props.script - The currently selected script object.
+ * @param {object} props.parameters - The current state of parameters for this script.
+ * @param {function} props.setParameters - The function to update the parent's state.
+ */
+function ScriptOptionsRenderer({ script, parameters, setParameters }) {
+  if (!script) return null;
+
+  // Check the metadata for a capability flag. This is a highly scalable pattern.
+  if (script.capabilities?.dynamicDiscovery) {
+    return (
+      <DiscoverableTestOptions
+        script={script}
+        parameters={parameters}
+        setParameters={setParameters}
+      />
+    );
+  }
+
+  // Add other `if (script.capabilities?.someOtherFeature)` checks here in the future.
+
+  return (
+    <p className="text-xs text-slate-500 italic">
+      This script has no additional sidebar options.
+    </p>
+  );
+}
+
+/**
+ * @description The static sidebar component for desktop view. It contains the category
+ * filters and the area for script-specific options.
+ * @param {object} props - Component props passed from the main PythonScriptRunner.
+ */
 function ScriptFilterSidebar({
   allScripts,
   selectedCategories,
   onCategoryChange,
+  selectedScript,
+  scriptParameters,
+  setParameters,
 }) {
   const { uniqueCategories, scriptCounts } = useMemo(() => {
     const counts = {};
     allScripts.forEach((script) => {
-      if (script.category) {
+      if (script.category)
         counts[script.category] = (counts[script.category] || 0) + 1;
-      }
     });
-    const categories = Object.keys(counts).sort();
-    return { uniqueCategories: categories, scriptCounts: counts };
+    return {
+      uniqueCategories: Object.keys(counts).sort(),
+      scriptCounts: counts,
+    };
   }, [allScripts]);
 
   const handleCheckboxChange = (category) => {
@@ -38,83 +122,70 @@ function ScriptFilterSidebar({
 
   return (
     <aside className="w-full md:w-64 lg:w-72 flex-shrink-0">
-      <div className="sticky top-24">
-        <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2 flex items-center">
-          <Tag size={18} className="mr-2 text-slate-500" />
-          Filter by Category
-        </h3>
-        <div className="space-y-1">
-          {uniqueCategories.map((category) => (
-            <label
-              key={category}
-              className="flex items-center justify-between text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md p-2 cursor-pointer transition-colors duration-150"
-            >
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={selectedCategories.includes(category)}
-                  onChange={() => handleCheckboxChange(category)}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="ml-3">{category}</span>
-              </div>
-              <span className="bg-slate-200 text-slate-600 text-xs font-semibold px-2 py-0.5 rounded-full">
-                {scriptCounts[category]}
-              </span>
-            </label>
-          ))}
-          {selectedCategories.length > 0 && (
-            <button
-              onClick={() => onCategoryChange([])}
-              className="text-sm text-blue-600 hover:underline mt-4 p-2 font-medium"
-            >
-              Clear All Filters
-            </button>
-          )}
+      <div className="sticky top-24 space-y-8">
+        {/* Category Filter Section */}
+        <div>
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2 flex items-center">
+            <Tag size={18} className="mr-2 text-slate-500" /> Filter by Category
+          </h3>
+          <div className="space-y-1">
+            {uniqueCategories.map((category) => (
+              <label
+                key={category}
+                className="flex items-center justify-between text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md p-2 cursor-pointer transition-colors duration-150"
+              >
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedCategories.includes(category)}
+                    onChange={() => handleCheckboxChange(category)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="ml-3">{category}</span>
+                </div>
+                <span className="bg-slate-200 text-slate-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                  {scriptCounts[category]}
+                </span>
+              </label>
+            ))}
+            {selectedCategories.length > 0 && (
+              <button
+                onClick={() => onCategoryChange([])}
+                className="text-sm text-blue-600 hover:underline mt-4 p-2 font-medium"
+              >
+                Clear All Filters
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Script-Specific Options Section */}
+        {selectedScript && (
+          <div>
+            <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2 flex items-center">
+              <Layers size={18} className="mr-2 text-slate-500" /> Script
+              Options
+            </h3>
+            <ScriptOptionsRenderer
+              script={selectedScript}
+              parameters={scriptParameters}
+              setParameters={setParameters}
+            />
+          </div>
+        )}
       </div>
     </aside>
   );
 }
 
-// --- Internal Component: ScriptSelector ---
-function ScriptSelector({
-  scripts,
-  selectedScriptId,
-  onScriptChange,
-  disabled,
-}) {
-  return (
-    <div className="mb-6">
-      <label
-        htmlFor="script-select"
-        className="block text-sm font-medium text-slate-700 mb-2"
-      >
-        Select Script
-      </label>
-      <select
-        id="script-select"
-        value={selectedScriptId}
-        onChange={(e) => onScriptChange(e.target.value)}
-        disabled={disabled || scripts.length === 0}
-        className="block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 transition-colors"
-      >
-        <option value="">
-          {scripts.length > 0
-            ? `--- Choose from ${scripts.length} available script(s) ---`
-            : "No scripts match filter"}
-        </option>
-        {scripts.map((script) => (
-          <option key={script.id} value={script.id}>
-            {script.displayName}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
+// ====================================================================================
+// === MAIN PAGE COMPONENT ============================================================
+// ====================================================================================
 
-// --- Main Page Component ---
+/**
+ * @description The main page component that orchestrates the entire script runner UI.
+ * It manages all state, fetches data, and coordinates the sidebar and main content areas.
+ */
 function PythonScriptRunner() {
   const [allScripts, setAllScripts] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -125,6 +196,7 @@ function PythonScriptRunner() {
   const [loadingScripts, setLoadingScripts] = useState(true);
   const [runningScripts, setRunningScripts] = useState(false);
 
+  // Effect to fetch the master list of all scripts on initial component mount.
   useEffect(() => {
     async function fetchScripts() {
       setLoadingScripts(true);
@@ -143,6 +215,7 @@ function PythonScriptRunner() {
     fetchScripts();
   }, []);
 
+  // Memoized value to calculate the list of scripts to show based on category filters.
   const filteredScripts = useMemo(() => {
     if (selectedCategories.length === 0) return allScripts;
     return allScripts.filter((script) =>
@@ -150,48 +223,59 @@ function PythonScriptRunner() {
     );
   }, [allScripts, selectedCategories]);
 
-  const selectedScript = useMemo(() => {
-    return allScripts.find((script) => script.id === selectedScriptId);
-  }, [allScripts, selectedScriptId]);
+  // Memoized value to get the full object for the currently selected script.
+  const selectedScript = useMemo(
+    () => allScripts.find((s) => s.id === selectedScriptId),
+    [allScripts, selectedScriptId],
+  );
 
+  // Handler for when the user changes category selections in the sidebar.
   const handleCategoryChange = (newCategories) => {
     setSelectedCategories(newCategories);
     const isStillVisible = allScripts.some(
-      (script) =>
-        script.id === selectedScriptId &&
-        (newCategories.length === 0 || newCategories.includes(script.category)),
+      (s) =>
+        s.id === selectedScriptId &&
+        (newCategories.length === 0 || newCategories.includes(s.category)),
     );
     if (!isStillVisible) {
-      setSelectedScriptId("");
+      setSelectedScriptId(""); // Deselect script if it's no longer in the filtered list.
     }
   };
 
+  // Handler for when the user selects a different script from the dropdown.
   const handleScriptChange = (scriptId) => {
     setSelectedScriptId(scriptId);
-    setScriptOutputs({});
+    setScriptOutputs({}); // Clear old output
     setError(null);
   };
 
+  // The single callback function passed to child components to update the parameter state.
   const updateCurrentScriptParameters = (newParams) => {
     if (!selectedScriptId) return;
     setScriptParameters((prev) => ({ ...prev, [selectedScriptId]: newParams }));
   };
 
+  // Handler for the main "Run Script" button.
   const runSingleScript = async () => {
     if (!selectedScriptId) return alert("Please select a script.");
     const params = scriptParameters[selectedScriptId] || {};
+
+    // Prepare the payload for the backend, cleaning up parameters.
     const payload = {
       scriptId: selectedScriptId,
       parameters: {
         ...params,
+        // Convert multi-line hostnames to a comma-separated string for the Python script
+        hostname: params.hostname
+          ? params.hostname.split("\n").filter(Boolean).join(",")
+          : undefined,
+        // Convert tests array to a comma-separated string
         tests: Array.isArray(params.tests)
           ? params.tests.join(",")
           : params.tests,
-        hostname: params.hostname
-          ? params.hostname.split("\n").join(",")
-          : undefined,
       },
     };
+
     setRunningScripts(true);
     setError(null);
     setScriptOutputs({});
@@ -229,46 +313,62 @@ function PythonScriptRunner() {
             allScripts={allScripts}
             selectedCategories={selectedCategories}
             onCategoryChange={handleCategoryChange}
+            selectedScript={selectedScript}
+            scriptParameters={scriptParameters[selectedScriptId] || {}}
+            setParameters={updateCurrentScriptParameters}
           />
 
           <main className="flex-1">
             {loadingScripts && (
-              <p className="text-center text-slate-500">
-                Loading available scripts...
-              </p>
+              <div className="text-center p-8">
+                <p className="text-slate-500">Loading available scripts...</p>
+              </div>
             )}
+
             {error && !runningScripts && (
               <div className="bg-red-100 border border-red-200 text-red-800 p-4 rounded-lg mb-6">
                 <strong>Error:</strong> {error}
               </div>
             )}
 
-            {!loadingScripts && allScripts.length > 0 ? (
+            {!loadingScripts && allScripts.length > 0 && (
               <div className="mb-8 border border-slate-200 rounded-lg p-6 lg:p-8 shadow-md bg-white">
-                <ScriptSelector
-                  scripts={filteredScripts}
-                  selectedScriptId={selectedScriptId}
-                  onScriptChange={handleScriptChange}
-                  disabled={runningScripts}
-                />
+                <div className="mb-6">
+                  <label
+                    htmlFor="script-select"
+                    className="block text-sm font-medium text-slate-700 mb-2"
+                  >
+                    Select Script
+                  </label>
+                  <select
+                    id="script-select"
+                    value={selectedScriptId}
+                    onChange={(e) => handleScriptChange(e.target.value)}
+                    disabled={runningScripts || filteredScripts.length === 0}
+                    className="block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
+                  >
+                    <option value="">
+                      {filteredScripts.length > 0
+                        ? `--- Choose from ${filteredScripts.length} script(s) ---`
+                        : "No scripts match filter"}
+                    </option>
+                    {filteredScripts.map((script) => (
+                      <option key={script.id} value={script.id}>
+                        {script.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 {selectedScriptId && (
                   <div className="border-t border-slate-200 pt-6 mt-6">
                     <h3 className="text-lg font-semibold text-slate-800 mb-4">
-                      Script Inputs
+                      Device & Authentication
                     </h3>
-                    {selectedScript.id === "run_jsnapy_tests" ||
-                    selectedScript.id === "jsnapy_runner" ? (
-                      <JSNAPyForm
-                        parameters={scriptParameters[selectedScriptId] || {}}
-                        setParameters={updateCurrentScriptParameters}
-                      />
-                    ) : (
-                      <DeviceAuthFields
-                        parameters={scriptParameters[selectedScriptId] || {}}
-                        setParameters={updateCurrentScriptParameters}
-                      />
-                    )}
+                    <DeviceAuthFields
+                      parameters={scriptParameters[selectedScriptId] || {}}
+                      onParamChange={updateCurrentScriptParameters}
+                    />
                   </div>
                 )}
 
@@ -288,12 +388,6 @@ function PythonScriptRunner() {
                   )}
                 </button>
               </div>
-            ) : (
-              !loadingScripts && (
-                <div className="text-center p-8 border-2 border-dashed border-slate-300 rounded-lg">
-                  <p className="text-slate-500">No scripts found.</p>
-                </div>
-              )
             )}
 
             {(Object.keys(scriptOutputs).length > 0 ||

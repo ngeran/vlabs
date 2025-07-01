@@ -9,6 +9,7 @@ scripts:
       - featured
       - utility
     scriptFile: "hello_world.py"
+    metadataFile: "metadata.yml"
 
   # JSNAPy From The Beginning
   - id: jsnapy_runner # The new, clean ID

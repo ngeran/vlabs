@@ -1,186 +1,133 @@
 // src/components/SiteNavigation.jsx
-import React, { useState, useEffect, useRef } from "react";
+
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { ChevronDown, Code, HardHat } from "lucide-react";
-import SiteLogo from "./SiteLogo"; // Adjusted import: now importing SiteLogo.jsx
+import { Code, HardHat } from "lucide-react";
+import SiteLogo from "./SiteLogo";
+
+// An Icon Registry is a clean, scalable way to manage icons.
+const iconRegistry = {
+  python: (
+    <Code
+      size={16}
+      className="text-slate-500 group-hover:text-blue-600 transition-colors"
+    />
+  ),
+  docker: (
+    <img
+      src="https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png"
+      alt="Docker"
+      className="h-5 w-auto"
+    />
+  ),
+};
 
 const SiteNavigation = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
 
-  // Fetch navigation menu from backend
+  // Fetch navigation data from the backend
   useEffect(() => {
     const fetchMenu = async () => {
+      setIsLoading(true);
       try {
         const response = await fetch(
           "http://localhost:3001/api/navigation/menu",
         );
-        if (!response.ok) {
-          throw new Error("Failed to fetch navigation menu.");
-        }
+        if (!response.ok) throw new Error("Network response was not ok");
         const data = await response.json();
         if (data.success && Array.isArray(data.menu)) {
           setMenuItems(data.menu);
         } else {
-          setError(data.message || "Malformed navigation data received.");
+          throw new Error(data.message || "Malformed navigation data");
         }
       } catch (err) {
         console.error("Error fetching navigation menu:", err);
-        setError(`Failed to load navigation: ${err.message}`);
+        setError(err.message);
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchMenu();
   }, []);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
+  // Flatten the menu hierarchy to create a single list of links
+  const flatNavLinks = useMemo(() => {
+    return menuItems.flatMap((item) =>
+      item.type === "dropdown" ? item.items : [item],
+    );
+  }, [menuItems]);
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  // Helper to get icon based on title (can be expanded)
-  const getIcon = (title) => {
-    switch (title) {
-      case "Labs":
-        return <HardHat size={18} />;
-      // Docker logo size adjusted for better proportion with the larger SiteLogo
-      case "Docker Labs Dashboard":
-        return (
-          <img
-            src="https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png"
-            alt="Docker"
-            className="h-6 w-auto inline-block mr-1"
-          />
-        );
-      case "Python Script Runner":
-        return <Code size={18} />;
-      default:
-        return null;
-    }
+  // Helper to get the correct icon for a link
+  const getIconForLink = (link) => {
+    if (link.title.includes("Docker")) return iconRegistry.docker;
+    if (link.title.includes("Python")) return iconRegistry.python;
+    return null;
   };
 
-  // Base navigation styling, blending with page background
-  const baseNavClasses = "w-full py-3 bg-[#E9E9E9]";
-  const contentContainerClasses =
-    "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center space-x-6";
+  // --- Styling Constants ---
+  const navClasses =
+    "sticky top-0 w-full bg-white/95 backdrop-blur-sm border-b border-slate-200 z-30";
+  const containerClasses = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8";
 
-  // Define your SiteLogo component usage with desired size
-  const siteLogoComponent = <SiteLogo size={32} className="h-8 w-auto" />;
+  // --- ✨ THE LAYOUT CHANGE IS HERE ✨ ---
+  const flexContainerClasses = "flex items-center h-16 space-x-8"; // Changed to space-x-8
 
-  if (isLoading) {
+  // --- Loading and Error States ---
+  if (isLoading || error) {
     return (
-      <nav className={baseNavClasses}>
-        <div className={contentContainerClasses}>
-          {siteLogoComponent} {/* Using the SiteLogo component */}
-          <span className="text-sm text-gray-500">Loading Navigation...</span>
+      <nav className={navClasses}>
+        <div className={containerClasses}>
+          <div className="flex items-center justify-between h-16">
+            {" "}
+            {/* Keep this centered for loading/error */}
+            <Link to="/" className="flex-shrink-0">
+              <SiteLogo size={32} />
+            </Link>
+            <span
+              className={`text-sm ${error ? "text-red-600" : "text-slate-500"}`}
+            >
+              {isLoading ? "Loading Navigation..." : `Error: ${error}`}
+            </span>
+          </div>
         </div>
       </nav>
     );
   }
 
-  if (error) {
-    return (
-      <nav className="w-full py-3 bg-red-100 text-red-700">
-        <div className={contentContainerClasses}>
-          {siteLogoComponent} {/* Using the SiteLogo component */}
-          <span className="text-sm">Error loading navigation: {error}</span>
-        </div>
-      </nav>
-    );
-  }
-
+  // --- Main Horizontal Navigation Component (Left-Aligned) ---
   return (
-    <nav className={baseNavClasses}>
-      <div className={contentContainerClasses}>
-        {/* Logo on the left side of the centered content area */}
-        <Link
-          to="/"
-          className="flex items-center font-bold text-gray-900 hover:text-blue-600 transition-colors duration-200"
-        >
-          {siteLogoComponent} {/* Using the SiteLogo component here */}
-        </Link>
+    <nav className={navClasses}>
+      <div className={containerClasses}>
+        <div className={flexContainerClasses}>
+          {/* Logo - The first item in the flex container */}
+          <div className="flex-shrink-0">
+            <Link to="/">
+              <SiteLogo size={32} />
+            </Link>
+          </div>
 
-        {/* Navigation items */}
-        <ul className="flex items-center">
-          {menuItems.map((item) => (
-            <li key={item.title} className="relative group">
-              {item.type === "link" && (
-                <NavLink
-                  to={item.path}
-                  className={({ isActive }) =>
-                    `flex items-center px-3 py-2 rounded-md text-sm font-medium ${
-                      isActive
-                        ? "bg-blue-600 text-white"
-                        : "text-gray-700 hover:bg-gray-200 hover:text-gray-900"
-                    } transition-colors duration-200`
-                  }
-                >
-                  {getIcon(item.title)}
-                  <span className="ml-2">{item.title}</span>
-                </NavLink>
-              )}
-              {item.type === "dropdown" && (
-                <div ref={dropdownRef}>
-                  <button
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-blue-500 transition-colors duration-200"
-                  >
-                    {getIcon(item.title)}
-                    <span className="ml-2">{item.title}</span>
-                    <ChevronDown
-                      className={`ml-2 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
-                      size={16}
-                    />
-                  </button>
-                  {isDropdownOpen && (
-                    <div className="absolute left-0 mt-2 w-60 rounded-md shadow-lg bg-gray-100 ring-1 ring-black ring-opacity-5 z-50">
-                      <div
-                        className="py-1"
-                        role="menu"
-                        aria-orientation="vertical"
-                        aria-labelledby="options-menu"
-                      >
-                        {item.items.map((subItem) => (
-                          <Link
-                            key={subItem.path}
-                            to={subItem.path}
-                            onClick={() => setIsDropdownOpen(false)}
-                            className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-200 hover:text-gray-900"
-                            role="menuitem"
-                          >
-                            <div className="flex items-center">
-                              {getIcon(subItem.title)}
-                              <span className="ml-2">{subItem.title}</span>
-                            </div>
-                            {subItem.description && (
-                              <p className="text-xs text-gray-500 mt-0.5">
-                                {subItem.description}
-                              </p>
-                            )}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+          {/* Horizontal Navigation Links - The second item, spaced by the parent */}
+          <div className="flex items-center space-x-2">
+            {flatNavLinks.map((link) => (
+              <NavLink
+                key={link.path}
+                to={link.path}
+                className={({ isActive }) =>
+                  `group inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive
+                      ? "text-blue-600 bg-blue-50"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`
+                }
+              >
+                {getIconForLink(link)}
+                <span>{link.title}</span>
+              </NavLink>
+            ))}
+          </div>
+        </div>
       </div>
     </nav>
   );

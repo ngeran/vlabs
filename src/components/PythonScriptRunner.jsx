@@ -1,10 +1,20 @@
 // src/components/PythonScriptRunner.jsx
 
 import React, { useEffect, useState, useMemo } from "react";
-import { Tag, FileCode, PlayCircle, Layers } from "lucide-react";
-import PulseLoader from "react-spinners/PulseLoader"; // Import the spinner
+import {
+  Tag,
+  FileCode,
+  PlayCircle,
+  Layers,
+  History,
+  Clock,
+  ServerCrash,
+  CheckCircle,
+  X,
+} from "lucide-react";
+import PulseLoader from "react-spinners/PulseLoader";
 
-// === EXTERNAL COMPONENT DEPENDENCIES ===
+// === EXTERNAL COMPONENT DEPENDENCIES (Ensure these files exist) ===
 import DeviceAuthFields from "./DeviceAuthFields";
 import ScriptOutputDisplay from "./ScriptOutputDisplay";
 import ErrorBoundary from "./ErrorBoundary";
@@ -22,18 +32,13 @@ const API_BASE_URL = "http://localhost:3001";
 
 /**
  * @description Renders the UI for selecting a script's discoverable tests in the sidebar.
- * This is a "smart" component that uses the useTestDiscovery hook to fetch its own data.
  * @param {object} props - Component props.
- * @param {object} props.script - The currently selected script object.
- * @param {object} props.parameters - The current state of parameters for this script.
- * @param {function} props.setParameters - The function to update the parent's state.
  */
 function DiscoverableTestOptions({ script, parameters, setParameters }) {
   const { categorizedTests, loading, error } = useTestDiscovery(
     script.id,
     parameters.environment,
   );
-
   const handleTestToggle = (testId) => {
     const currentTests = parameters.tests || [];
     const newSelection = currentTests.includes(testId)
@@ -41,14 +46,12 @@ function DiscoverableTestOptions({ script, parameters, setParameters }) {
       : [...currentTests, testId];
     setParameters({ ...parameters, tests: newSelection });
   };
-
   if (loading)
     return (
-      <p className="text-xs text-slate-500 italic">Discovering tests...</p>
+      <p className="text-sm text-slate-500 italic">Discovering tests...</p>
     );
   if (error)
-    return <p className="text-xs font-semibold text-red-600">Error: {error}</p>;
-
+    return <p className="text-sm font-semibold text-red-600">Error: {error}</p>;
   return (
     <TestSelector
       categorizedTests={categorizedTests}
@@ -60,15 +63,10 @@ function DiscoverableTestOptions({ script, parameters, setParameters }) {
 
 /**
  * @description The "brain" that decides which options UI to render in the sidebar.
- * It acts as a switchboard, checking the selected script's metadata for capabilities.
  * @param {object} props - Component props.
- * @param {object} props.script - The currently selected script object.
- * @param {object} props.parameters - The current state of parameters for this script.
- * @param {function} props.setParameters - The function to update the parent's state.
  */
 function ScriptOptionsRenderer({ script, parameters, setParameters }) {
   if (!script) return null;
-
   if (script.capabilities?.dynamicDiscovery) {
     return (
       <DiscoverableTestOptions
@@ -78,7 +76,6 @@ function ScriptOptionsRenderer({ script, parameters, setParameters }) {
       />
     );
   }
-
   return (
     <p className="text-xs text-slate-500 italic">
       This script has no additional sidebar options.
@@ -87,9 +84,8 @@ function ScriptOptionsRenderer({ script, parameters, setParameters }) {
 }
 
 /**
- * @description The static sidebar component for desktop view. It contains the category
- * filters and the area for script-specific options.
- * @param {object} props - Component props passed from the main PythonScriptRunner.
+ * @description The static sidebar component for filtering scripts and displaying script options.
+ * @param {object} props - Component props.
  */
 function ScriptFilterSidebar({
   allScripts,
@@ -130,7 +126,7 @@ function ScriptFilterSidebar({
             {uniqueCategories.map((category) => (
               <label
                 key={category}
-                className="flex items-center justify-between text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md p-2 cursor-pointer transition-colors duration-150"
+                className="flex items-center justify-between text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md p-2 cursor-pointer transition-colors"
               >
                 <div className="flex items-center">
                   <input
@@ -175,14 +171,95 @@ function ScriptFilterSidebar({
   );
 }
 
+/**
+ * @description A slide-in drawer component for displaying script run history.
+ * @param {object} props - Component props.
+ */
+function HistoryDrawer({
+  isOpen,
+  onClose,
+  history,
+  isLoading,
+  onSelectHistoryItem,
+  selectedHistoryId,
+}) {
+  useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.keyCode === 27) onClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  return (
+    <>
+      <div
+        className={`fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        onClick={onClose}
+      />
+      <div
+        className={`fixed top-0 right-0 bottom-0 w-80 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+      >
+        <div className="p-4 h-full flex flex-col">
+          <header className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+            <h3 className="text-lg font-semibold text-slate-800 flex items-center">
+              <History size={18} className="mr-2 text-slate-500" /> Run History
+            </h3>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-full text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </header>
+          <div className="overflow-y-auto flex-1 pr-2">
+            {isLoading ? (
+              <p className="text-sm text-slate-500 p-2">Loading history...</p>
+            ) : history.length === 0 ? (
+              <p className="text-sm text-slate-500 italic p-2">
+                No recent runs found.
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {history.map((run) => (
+                  <li key={run.runId}>
+                    <button
+                      onClick={() => {
+                        onSelectHistoryItem(run.runId);
+                        onClose();
+                      }}
+                      className={`w-full text-left p-2 rounded-md hover:bg-slate-100 transition-colors ${selectedHistoryId === run.runId ? "bg-blue-50" : ""}`}
+                    >
+                      <div className="flex items-center justify-between font-medium text-sm text-slate-800">
+                        <span className="truncate">{run.scriptId}</span>
+                        {run.isSuccess ? (
+                          <CheckCircle size={16} className="text-green-500" />
+                        ) : (
+                          <ServerCrash size={16} className="text-red-500" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
+                        <Clock size={12} />
+                        <span>
+                          {new Date(run.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ====================================================================================
 // === MAIN PAGE COMPONENT ============================================================
 // ====================================================================================
 
-/**
- * @description The main page component that orchestrates the entire script runner UI.
- * It manages all state, fetches data, and coordinates the sidebar and main content areas.
- */
 function PythonScriptRunner() {
   const [allScripts, setAllScripts] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -192,12 +269,14 @@ function PythonScriptRunner() {
   const [error, setError] = useState(null);
   const [loadingScripts, setLoadingScripts] = useState(true);
   const [runningScripts, setRunningScripts] = useState(false);
+  const [historyItems, setHistoryItems] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
 
-  // Effect to fetch the master list of all scripts on initial component mount.
   useEffect(() => {
     async function fetchScripts() {
       setLoadingScripts(true);
-      setError(null);
       try {
         const res = await fetch(`${API_BASE_URL}/api/scripts/list`);
         const data = await res.json();
@@ -212,21 +291,49 @@ function PythonScriptRunner() {
     fetchScripts();
   }, []);
 
-  // Memoized value to calculate the list of scripts to show based on category filters.
+  useEffect(() => {
+    async function fetchHistory() {
+      setLoadingHistory(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/history/list`);
+        const data = await res.json();
+        if (data.success) setHistoryItems(data.history || []);
+      } catch (err) {
+        console.error("Failed to fetch initial history:", err);
+      } finally {
+        setLoadingHistory(false);
+      }
+    }
+    fetchHistory();
+  }, []);
+
   const filteredScripts = useMemo(() => {
     if (selectedCategories.length === 0) return allScripts;
-    return allScripts.filter((script) =>
-      selectedCategories.includes(script.category),
-    );
+    return allScripts.filter((s) => selectedCategories.includes(s.category));
   }, [allScripts, selectedCategories]);
 
-  // Memoized value to get the full object for the currently selected script.
   const selectedScript = useMemo(
     () => allScripts.find((s) => s.id === selectedScriptId),
     [allScripts, selectedScriptId],
   );
 
-  // Handler for when the user changes category selections in the sidebar.
+  const liveScriptParameters = useMemo(() => {
+    if (!selectedScriptId) return {};
+    return scriptParameters[selectedScriptId] || {};
+  }, [selectedScriptId, scriptParameters]);
+
+  const displayedOutput = useMemo(() => {
+    if (selectedHistoryId) {
+      const historicRun = historyItems.find(
+        (h) => h.runId === selectedHistoryId,
+      );
+      return historicRun
+        ? { output: historicRun.output, error: historicRun.error }
+        : {};
+    }
+    return scriptOutputs[selectedScriptId] || {};
+  }, [selectedHistoryId, historyItems, scriptOutputs, selectedScriptId]);
+
   const handleCategoryChange = (newCategories) => {
     setSelectedCategories(newCategories);
     const isStillVisible = allScripts.some(
@@ -234,29 +341,31 @@ function PythonScriptRunner() {
         s.id === selectedScriptId &&
         (newCategories.length === 0 || newCategories.includes(s.category)),
     );
-    if (!isStillVisible) {
-      setSelectedScriptId("");
-    }
+    if (!isStillVisible) setSelectedScriptId("");
   };
 
-  // Handler for when the user selects a different script from the dropdown.
   const handleScriptChange = (scriptId) => {
     setSelectedScriptId(scriptId);
+    setSelectedHistoryId(null);
     setScriptOutputs({});
     setError(null);
   };
 
-  // The single callback function passed to child components to update the parameter state.
   const updateCurrentScriptParameters = (newParams) => {
     if (!selectedScriptId) return;
     setScriptParameters((prev) => ({ ...prev, [selectedScriptId]: newParams }));
   };
 
-  // Handler for the main "Run Script" button.
+  const handleSelectHistoryItem = (runId) => {
+    setSelectedHistoryId(runId);
+    setSelectedScriptId("");
+    setScriptOutputs({});
+    setError(null);
+  };
+
   const runSingleScript = async () => {
     if (!selectedScriptId) return alert("Please select a script.");
     const params = scriptParameters[selectedScriptId] || {};
-
     const payload = {
       scriptId: selectedScriptId,
       parameters: {
@@ -271,6 +380,7 @@ function PythonScriptRunner() {
     setRunningScripts(true);
     setError(null);
     setScriptOutputs({});
+
     try {
       const res = await fetch(`${API_BASE_URL}/api/scripts/run`, {
         method: "POST",
@@ -278,18 +388,19 @@ function PythonScriptRunner() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(
-          data.error ||
-            data.message ||
-            `Request failed with status ${res.status}`,
-        );
-      }
+      if (!res.ok || !data.success)
+        throw new Error(data.error || data.message || `Request failed`);
       setScriptOutputs({
         [selectedScriptId]: { output: data.output, error: data.error || null },
       });
+
+      const historyRes = await fetch(`${API_BASE_URL}/api/history/list`);
+      const historyData = await historyRes.json();
+      if (historyData.success) {
+        setHistoryItems(historyData.history);
+        setSelectedHistoryId(historyData.history[0]?.runId);
+      }
     } catch (err) {
-      console.error("Script execution fetch error:", err);
       setError(`Script error: ${err.message}`);
     } finally {
       setRunningScripts(false);
@@ -297,13 +408,36 @@ function PythonScriptRunner() {
   };
 
   return (
-    <div className="bg-slate-50 min-h-screen rounded-xl">
+    <div className="bg-slate-100 min-h-screen rounded-xl">
+      <HistoryDrawer
+        isOpen={isHistoryDrawerOpen}
+        onClose={() => setIsHistoryDrawerOpen(false)}
+        history={historyItems}
+        isLoading={loadingHistory}
+        onSelectHistoryItem={handleSelectHistoryItem}
+        selectedHistoryId={selectedHistoryId}
+      />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center gap-4 mb-10">
-          <ScriptRunnerIcon className="h-10 w-10" />
-          <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">
-            Script Runner
-          </h1>
+        <div className="flex justify-between items-center mb-10">
+          <div className="flex items-center gap-4">
+            <ScriptRunnerIcon className="h-10 w-10" />
+            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">
+              Script Runner
+            </h1>
+          </div>
+          <button
+            onClick={() => setIsHistoryDrawerOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <History size={16} />
+            <span>View History</span>
+            {historyItems.length > 0 && (
+              <span className="bg-blue-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
+                {historyItems.length}
+              </span>
+            )}
+          </button>
         </div>
 
         <div className="flex flex-col md:flex-row gap-x-10 gap-y-12">
@@ -312,115 +446,69 @@ function PythonScriptRunner() {
             selectedCategories={selectedCategories}
             onCategoryChange={handleCategoryChange}
             selectedScript={selectedScript}
-            scriptParameters={scriptParameters[selectedScriptId] || {}}
+            scriptParameters={liveScriptParameters}
             setParameters={updateCurrentScriptParameters}
           />
 
           <main className="flex-1">
-            {loadingScripts ? (
-              // ✨ 1. Show a Skeleton Loader while fetching scripts ✨
-              <div className="border border-slate-200 rounded-lg p-6 lg:p-8 shadow-md bg-white animate-pulse">
-                <div className="h-4 bg-slate-200 rounded w-1/4 mb-4"></div>
-                <div className="h-10 bg-slate-200 rounded w-full mb-6"></div>
-                <div className="h-4 bg-slate-200 rounded w-1/3 mb-4"></div>
-                <div className="h-10 bg-slate-200 rounded w-full mb-2"></div>
-                <div className="h-10 bg-slate-200 rounded w-full"></div>
-              </div>
-            ) : selectedScriptId ? (
-              // The existing block for when a script IS selected
-              <div className="mb-8 border ...">
-                {/* ... The existing form and button ... */}
-              </div>
-            ) : (
-              // ✨ 2. Show an "Empty State" when NO script is selected ✨
-              <div className="text-center p-12 border-2 border-dashed border-slate-300 rounded-lg bg-white">
-                <Layers size={48} className="mx-auto text-slate-400 mb-4" />
-                <h3 className="text-lg font-semibold text-slate-700">
-                  Select a Script
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  Choose a script from the dropdown to see its available options
-                  and run it.
-                </p>
-              </div>
-            )}
-
-            {loadingScripts && (
-              <div className="text-center p-8">
-                <p className="text-slate-500">Loading available scripts...</p>
-              </div>
-            )}
-
-            {error && !runningScripts && (
-              <div className="bg-red-100 border border-red-200 text-red-800 p-4 rounded-lg mb-6">
-                <strong>Error:</strong> {error}
-              </div>
-            )}
-
-            {!loadingScripts && allScripts.length > 0 && (
-              <div className="mb-8 border border-slate-200 rounded-lg p-6 lg:p-8 shadow-md bg-white">
-                <div className="mb-6">
-                  <label
-                    htmlFor="script-select"
-                    className="block text-sm font-medium text-slate-700 mb-2"
-                  >
-                    Select Script
-                  </label>
-                  <select
-                    id="script-select"
-                    value={selectedScriptId}
-                    onChange={(e) => handleScriptChange(e.target.value)}
-                    disabled={runningScripts || filteredScripts.length === 0}
-                    className="block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
-                  >
-                    <option value="">
-                      {filteredScripts.length > 0
-                        ? `--- Choose from ${filteredScripts.length} script(s) ---`
-                        : "No scripts match filter"}
-                    </option>
-                    {filteredScripts.map((script) => (
-                      <option key={script.id} value={script.id}>
-                        {script.displayName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {selectedScriptId && (
-                  <div className="border-t border-slate-200 pt-6 mt-6">
-                    <h3 className="text-lg font-semibold text-slate-800 mb-4">
-                      Device & Authentication
-                    </h3>
-                    <DeviceAuthFields
-                      parameters={scriptParameters[selectedScriptId] || {}}
-                      onParamChange={updateCurrentScriptParameters}
-                    />
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={runSingleScript}
-                  disabled={!selectedScriptId || runningScripts}
-                  className={`mt-8 w-full flex items-center justify-center px-4 py-3 rounded-md text-white text-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${!selectedScriptId || runningScripts ? "bg-slate-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+            <div className="mb-8 border border-slate-200 rounded-lg p-6 lg:p-8 shadow-md bg-white">
+              <div className="mb-6">
+                <label
+                  htmlFor="script-select"
+                  className="block text-sm font-medium text-slate-700 mb-2"
                 >
-                  {runningScripts ? (
-                    <PulseLoader
-                      color={"#ffffff"}
-                      size={10}
-                      speedMultiplier={0.8}
-                    />
-                  ) : (
-                    <>
-                      <PlayCircle size={22} className="mr-2" />
-                      Run Script
-                    </>
-                  )}
-                </button>
+                  Select Script
+                </label>
+                <select
+                  id="script-select"
+                  value={selectedScriptId}
+                  onChange={(e) => handleScriptChange(e.target.value)}
+                  disabled={runningScripts || filteredScripts.length === 0}
+                  className="block w-full border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
+                >
+                  <option value="">
+                    {filteredScripts.length > 0
+                      ? `--- Choose from ${filteredScripts.length} script(s) ---`
+                      : "No scripts match filter"}
+                  </option>
+                  {filteredScripts.map((script) => (
+                    <option key={script.id} value={script.id}>
+                      {script.displayName}
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
 
-            {(Object.keys(scriptOutputs).length > 0 ||
+              {selectedScriptId && (
+                <div className="border-t border-slate-200 pt-6 mt-6">
+                  <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                    Device & Authentication
+                  </h3>
+                  <DeviceAuthFields
+                    parameters={liveScriptParameters}
+                    onParamChange={updateCurrentScriptParameters}
+                  />
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={runSingleScript}
+                disabled={!selectedScriptId || runningScripts}
+                className={`mt-8 w-full flex items-center justify-center px-4 py-3 rounded-md text-white text-lg font-semibold transition-all ${!selectedScriptId || runningScripts ? "bg-slate-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+              >
+                {runningScripts ? (
+                  <PulseLoader color={"#ffffff"} size={10} />
+                ) : (
+                  <>
+                    <PlayCircle size={22} className="mr-2" />
+                    Run Script
+                  </>
+                )}
+              </button>
+            </div>
+
+            {(Object.keys(displayedOutput).length > 0 ||
               (error && runningScripts)) && (
               <div className="mt-10 border border-slate-200 rounded-lg p-6 lg:p-8 bg-white shadow-md">
                 <h3 className="text-xl font-semibold mb-4 text-slate-800 flex items-center">
@@ -428,18 +516,11 @@ function PythonScriptRunner() {
                   Script Output
                 </h3>
                 <ErrorBoundary>
-                  {Object.entries(scriptOutputs).map(
-                    ([scriptId, { output, error: scriptError }]) => (
-                      <ScriptOutputDisplay
-                        key={scriptId}
-                        output={output}
-                        error={scriptError || error}
-                      />
-                    ),
-                  )}
-                  {error && Object.keys(scriptOutputs).length === 0 && (
-                    <ScriptOutputDisplay error={error} />
-                  )}
+                  <ScriptOutputDisplay
+                    key={selectedHistoryId || selectedScriptId}
+                    output={displayedOutput.output}
+                    error={displayedOutput.error}
+                  />
                 </ErrorBoundary>
               </div>
             )}

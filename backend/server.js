@@ -15,6 +15,8 @@ const { exec, spawn } = require("child_process"); // Import both exec and spawn
 const path = require("path");
 const fs = require("fs");
 const yaml = require("js-yaml");
+const runHistory = []; // history store
+const MAX_HISTORY_ITEMS = 50; // Cap the history size
 
 const app = express();
 const port = 3001;
@@ -320,12 +322,10 @@ app.post("/api/report/generate", (req, res) => {
       console.error(
         `[BACKEND] Failed to start report generation script: ${spawnError.message}`,
       );
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: "Failed to start the report generation process.",
-        });
+      res.status(500).json({
+        success: false,
+        message: "Failed to start the report generation process.",
+      });
     });
 
     child.on("close", (code) => {
@@ -336,12 +336,10 @@ app.post("/api/report/generate", (req, res) => {
         console.error(
           `[BACKEND] Report generation script exited with code ${code}: ${stderrData}`,
         );
-        return res
-          .status(500)
-          .json({
-            success: false,
-            message: `Report generator failed: ${stderrData}`,
-          });
+        return res.status(500).json({
+          success: false,
+          message: `Report generator failed: ${stderrData}`,
+        });
       }
 
       const outputDir = ensureOutputDirectory();
@@ -350,12 +348,10 @@ app.post("/api/report/generate", (req, res) => {
       fs.writeFile(filePath, stdoutData, "utf8", (writeErr) => {
         if (writeErr) {
           console.error(`[BACKEND] Error saving report file:`, writeErr);
-          return res
-            .status(500)
-            .json({
-              success: false,
-              message: "Failed to save the report file.",
-            });
+          return res.status(500).json({
+            success: false,
+            message: "Failed to save the report file.",
+          });
         }
         res.json({ success: true, message: `Report saved to ${safeFilename}` });
       });
@@ -366,12 +362,10 @@ app.post("/api/report/generate", (req, res) => {
   } catch (e) {
     console.error(`[BACKEND] Unhandled error in /api/report/generate:`, e);
     if (!res.headersSent) {
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: "An unexpected server error occurred.",
-        });
+      res.status(500).json({
+        success: false,
+        message: "An unexpected server error occurred.",
+      });
     }
   }
 });
@@ -415,6 +409,8 @@ app.get("/api/scripts/list", (req, res) => {
  */
 app.post("/api/scripts/run", (req, res) => {
   const { scriptId, parameters } = req.body;
+  const runId =
+    Date.now().toString() + Math.random().toString(36).substring(2, 9);
   if (!scriptId)
     return res
       .status(400)
@@ -435,10 +431,6 @@ app.post("/api/scripts/run", (req, res) => {
     scriptDef.scriptFile,
   );
 
-  // --- ✨ THE ELEGANT AND CORRECT FIX IS HERE ✨ ---
-  // We are replacing 'exec' with 'spawn'.
-
-  // 1. Prepare the arguments for the 'docker' command as an array.
   const dockerArgs = [
     "run",
     "--rm",
@@ -488,6 +480,25 @@ app.post("/api/scripts/run", (req, res) => {
 
     // 5. When the process closes, send the final response.
     child.on("close", (code) => {
+      // --- ✨ NEW HISTORY LOGIC IS HERE ✨ ---
+      const result = {
+        runId: runId,
+        timestamp: new Date().toISOString(),
+        scriptId: scriptId,
+        parameters: parameters, // Store the parameters that were used
+        isSuccess: code === 0,
+        output: stdout,
+        error: stderr,
+      };
+
+      // Add the new result to the start of the history array
+      runHistory.unshift(result);
+
+      // Trim the history array if it exceeds the max size
+      if (runHistory.length > MAX_HISTORY_ITEMS) {
+        runHistory.pop();
+      }
+      // --- END OF HISTORY LOGIC ---
       // The Python script is designed to always exit with code 0.
       // A non-zero code indicates a Docker-level failure.
       if (code !== 0) {
@@ -513,6 +524,15 @@ app.post("/api/scripts/run", (req, res) => {
       message: "An unexpected error occurred while running the script.",
     });
   }
+});
+
+// --- ✨ ADD THE NEW HISTORY ENDPOINT ✨ ---
+/**
+ * @description API endpoint to retrieve the list of recent script runs.
+ * @route GET /api/history/list
+ */
+app.get("/api/history/list", (req, res) => {
+  res.json({ success: true, history: runHistory });
 });
 
 // ====================================================================================

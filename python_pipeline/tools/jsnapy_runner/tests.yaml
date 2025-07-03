@@ -3,7 +3,7 @@
 
 test_bgp_summary:
   title: "BGP Neighbor Summary"
-  category: "Routing & BGP"
+  category: "Routing"
   rpc: "get-bgp-summary-information"
   xpath: ".//bgp-peer"
   fields:
@@ -25,6 +25,21 @@ test_interfaces:
     "Interface Name": "name"
     "Admin Status": "admin-status"
     "Link Status": "oper-status"
+
+test_ospf:
+  title: "OSPF Summary"
+  category: "Routing"
+  rpc: "get-ospf-neighbor-information"
+  # We can pass arguments to the RPC call
+  rpc_args:
+    terse: true
+  xpath: "/ospf-interface-information/ospf-interface"
+  fields:
+    "Interface Name": "name"
+    "Admin Status": "admin-status"
+    "Link Status": "oper-status"
+
+
 
 # You can easily add more tests here in the future
 # test_chassis_alarms:

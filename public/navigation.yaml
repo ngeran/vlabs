@@ -6,10 +6,10 @@ menu:
   - title: Labs
     type: dropdown # This item will be a dropdown menu
     items:
-      - title: Docker Labs Dashboard
+      - title: Docker Labs
         path: /labs-dashboard # A new, explicit path for the labs list
         description: Explore and manage Docker-based network labs.
-      - title: Python Script Runner
+      - title: Python Runner
         path: /python-runner
         description: Run Python scripts to interact with labs.
   # Example of another top-level link for future expansion

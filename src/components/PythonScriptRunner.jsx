@@ -1,16 +1,18 @@
-// src/components/PythonScriptRunner.js
+// src/components/PythonScriptRunner.jsx
 
 import React, { useEffect, useState, useMemo } from "react";
 import { Tag, FileCode, PlayCircle, Layers } from "lucide-react";
+import PulseLoader from "react-spinners/PulseLoader"; // Import the spinner
 
-// === EXTERNAL COMPONENT DEPENDENCIES (Ensure these files exist) ===
-import DeviceAuthFields from "./DeviceAuthFields"; // For the main input form
-import ScriptOutputDisplay from "./ScriptOutputDisplay"; // For showing results
-import ErrorBoundary from "./ErrorBoundary"; // For safety
-import TestSelector from "./TestSelector"; // For rendering the test checklist in the sidebar
+// === EXTERNAL COMPONENT DEPENDENCIES ===
+import DeviceAuthFields from "./DeviceAuthFields";
+import ScriptOutputDisplay from "./ScriptOutputDisplay";
+import ErrorBoundary from "./ErrorBoundary";
+import TestSelector from "./TestSelector";
+import ScriptRunnerIcon from "./ScriptRunnerIcon";
 
 // === EXTERNAL HOOK DEPENDENCY ===
-import { useTestDiscovery } from "../hooks/useTestDiscovery"; // For fetching script-specific tests
+import { useTestDiscovery } from "../hooks/useTestDiscovery";
 
 const API_BASE_URL = "http://localhost:3001";
 
@@ -67,7 +69,6 @@ function DiscoverableTestOptions({ script, parameters, setParameters }) {
 function ScriptOptionsRenderer({ script, parameters, setParameters }) {
   if (!script) return null;
 
-  // Check the metadata for a capability flag. This is a highly scalable pattern.
   if (script.capabilities?.dynamicDiscovery) {
     return (
       <DiscoverableTestOptions
@@ -77,8 +78,6 @@ function ScriptOptionsRenderer({ script, parameters, setParameters }) {
       />
     );
   }
-
-  // Add other `if (script.capabilities?.someOtherFeature)` checks here in the future.
 
   return (
     <p className="text-xs text-slate-500 italic">
@@ -123,7 +122,6 @@ function ScriptFilterSidebar({
   return (
     <aside className="w-full md:w-64 lg:w-72 flex-shrink-0">
       <div className="sticky top-24 space-y-8">
-        {/* Category Filter Section */}
         <div>
           <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2 flex items-center">
             <Tag size={18} className="mr-2 text-slate-500" /> Filter by Category
@@ -159,7 +157,6 @@ function ScriptFilterSidebar({
           </div>
         </div>
 
-        {/* Script-Specific Options Section */}
         {selectedScript && (
           <div>
             <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2 flex items-center">
@@ -238,14 +235,14 @@ function PythonScriptRunner() {
         (newCategories.length === 0 || newCategories.includes(s.category)),
     );
     if (!isStillVisible) {
-      setSelectedScriptId(""); // Deselect script if it's no longer in the filtered list.
+      setSelectedScriptId("");
     }
   };
 
   // Handler for when the user selects a different script from the dropdown.
   const handleScriptChange = (scriptId) => {
     setSelectedScriptId(scriptId);
-    setScriptOutputs({}); // Clear old output
+    setScriptOutputs({});
     setError(null);
   };
 
@@ -260,16 +257,11 @@ function PythonScriptRunner() {
     if (!selectedScriptId) return alert("Please select a script.");
     const params = scriptParameters[selectedScriptId] || {};
 
-    // Prepare the payload for the backend, cleaning up parameters.
     const payload = {
       scriptId: selectedScriptId,
       parameters: {
         ...params,
-        // Convert multi-line hostnames to a comma-separated string for the Python script
-        hostname: params.hostname
-          ? params.hostname.split("\n").filter(Boolean).join(",")
-          : undefined,
-        // Convert tests array to a comma-separated string
+        hostname: params.hostname,
         tests: Array.isArray(params.tests)
           ? params.tests.join(",")
           : params.tests,
@@ -286,10 +278,13 @@ function PythonScriptRunner() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok || !data.success)
+      if (!res.ok || !data.success) {
         throw new Error(
-          data.message || `Request failed with status ${res.status}`,
+          data.error ||
+            data.message ||
+            `Request failed with status ${res.status}`,
         );
+      }
       setScriptOutputs({
         [selectedScriptId]: { output: data.output, error: data.error || null },
       });
@@ -302,11 +297,14 @@ function PythonScriptRunner() {
   };
 
   return (
-    <div className="bg-slate-50 min-h-screen">
+    <div className="bg-slate-50 min-h-screen rounded-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 mb-10 text-center">
-          Python Script Runner
-        </h1>
+        <div className="flex items-center gap-4 mb-10">
+          <ScriptRunnerIcon className="h-10 w-10" />
+          <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">
+            Script Runner
+          </h1>
+        </div>
 
         <div className="flex flex-col md:flex-row gap-x-10 gap-y-12">
           <ScriptFilterSidebar
@@ -379,7 +377,11 @@ function PythonScriptRunner() {
                   className={`mt-8 w-full flex items-center justify-center px-4 py-3 rounded-md text-white text-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${!selectedScriptId || runningScripts ? "bg-slate-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
                 >
                   {runningScripts ? (
-                    "Running..."
+                    <PulseLoader
+                      color={"#ffffff"}
+                      size={10}
+                      speedMultiplier={0.8}
+                    />
                   ) : (
                     <>
                       <PlayCircle size={22} className="mr-2" />

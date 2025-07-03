@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-@file Dynamic Network Reporter v3.5 - Corrected and Production Ready
-@description A professional, parallel execution script for network tests. This version gracefully
-             handles all connection errors (unreachable hosts, auth failures) by returning
-             structured JSON results for each host, ensuring the main process never crashes.
+@file Dynamic Network Reporter v3.11 - Definitive Pathing
+@description This final version uses a robust, __file__-based pathing method to reliably
+             locate the inventory file, ensuring it works correctly within the Docker
+             execution environment. It handles all targeting modes and error conditions.
 @author nikos-geranios_vgi
 """
 import argparse
@@ -36,8 +36,8 @@ def run_single_test(device, test_definition):
 async def run_tests_on_host(hostname, username, password, tests_to_run):
     """
     @description An asynchronous worker that connects to a single host and runs a list of tests.
-                 It now gracefully handles ALL connection errors and always returns a
-                 structured result object for this specific host, which the UI can render.
+                 It gracefully handles specific connection errors (Timeout, Auth) and
+                 always returns a structured result object for this specific host.
     @param {str} hostname - The hostname or IP address of the target device.
     @param {str} username - The username for authentication.
     @param {str} password - The password for authentication.
@@ -45,13 +45,12 @@ async def run_tests_on_host(hostname, username, password, tests_to_run):
     @returns {dict} A structured dictionary containing results or a specific error message.
     """
     from jnpr.junos import Device
-    from jnpr.junos.exception import ConnectError
+    from jnpr.junos.exception import ConnectTimeoutError, ConnectAuthError
 
     print(f"--- Connecting to {hostname}... ---", file=sys.stderr)
     try:
         with Device(host=hostname, user=username, passwd=password, timeout=10) as dev:
             print(f"--- Connection successful to {hostname}. Running tests... ---", file=sys.stderr)
-            
             host_results = []
             for test_name, test_def in tests_to_run.items():
                 try:
@@ -60,30 +59,30 @@ async def run_tests_on_host(hostname, username, password, tests_to_run):
                 except Exception as e:
                     print(f"\n[ERROR] Test '{test_name}' failed on {hostname}: {e}\n", file=sys.stderr)
                     host_results.append({"title": test_def.get('title', test_name), "error": str(e), "headers": [], "data": []})
-
             return {"hostname": hostname, "status": "success", "test_results": host_results}
-
-    # --- ✨ THE ELEGANT AND CORRECT FIX IS HERE ✨ ---
-    # Instead of just printing, we now RETURN a structured error dictionary.
-    # This prevents the function from returning None and breaking the UI.
-    except ConnectError as e:
-        error_message = f"Connection Failed. Please check host reachability and credentials. (Error: {e})"
+    except ConnectTimeoutError as e:
+        error_message = f"Connection Timed Out. The host is unreachable. (Error: {e})"
+        print(f"[ERROR] {error_message}", file=sys.stderr)
+        return {"hostname": hostname, "status": "error", "message": error_message}
+    except ConnectAuthError as e:
+        error_message = f"Authentication Failed. Please check the username and password. (Error: {e})"
         print(f"[ERROR] {error_message}", file=sys.stderr)
         return {"hostname": hostname, "status": "error", "message": error_message}
     except Exception as e:
-        error_message = f"An unexpected error occurred: {e}"
+        error_message = f"An unexpected error occurred for this host: {e}"
         print(f"[ERROR] {error_message}", file=sys.stderr)
         return {"hostname": hostname, "status": "error", "message": error_message}
 
 
 async def main_async(args):
     """
-    @description The main asynchronous orchestrator. It now gathers a list of structured
-                 result objects (a mix of successes and failures) from all host workers.
+    @description The main asynchronous orchestrator. It now uses a reliable, __file__-based
+                 method to locate and read the inventory file within the container.
     @param {argparse.Namespace} args - The parsed command-line arguments.
     @returns {dict} A dictionary containing the final structured output for the frontend.
     """
     import yaml
+    
     script_dir = Path(__file__).parent
     test_definitions_path = script_dir / "tests.yaml"
     if not test_definitions_path.exists():
@@ -100,6 +99,33 @@ async def main_async(args):
             categorized_tests[category].append({"id": test_name, "description": test_def.get("title", "No description.")})
         return {"discovered_tests": categorized_tests}
 
+    hostnames = []
+    if args.inventory_file:
+        print(f"--- Reading inventory from {args.inventory_file}... ---", file=sys.stderr)
+        
+        # This robustly finds the python_pipeline root from the script's location.
+        # script_dir is /app/python-scripts/tools/jsnapy_runner
+        # .parent.parent takes it up to /app/python-scripts
+        # which is the mount point for the entire python_pipeline.
+        pipeline_root_in_container = script_dir.parent.parent
+        inventory_path = pipeline_root_in_container / "data" / args.inventory_file
+
+        if not inventory_path.exists():
+            raise FileNotFoundError(f"Inventory file not found at the expected path: {inventory_path}")
+            
+        with open(inventory_path, 'r') as f:
+            inventory_data = yaml.safe_load(f)
+        for location in inventory_data:
+            for router in location.get("routers", []):
+                if "ip_address" in router:
+                    hostnames.append(router["ip_address"])
+        if not hostnames:
+            raise ValueError(f"No hosts with 'ip_address' found in {args.inventory_file}")
+    elif args.hostname:
+        hostnames = [h.strip() for h in args.hostname.split(',')]
+    
+    print(f"--- Targeting {len(hostnames)} host(s): {', '.join(hostnames)} ---", file=sys.stderr)
+    
     if args.tests:
         test_names_to_run = [t.strip() for t in args.tests.split(',')]
         tests_to_run = {name: all_tests[name] for name in test_names_to_run if name in all_tests}
@@ -108,40 +134,39 @@ async def main_async(args):
     else:
         tests_to_run = all_tests
 
-    hostnames = [h.strip() for h in args.hostname.split(',')]
     tasks = [asyncio.create_task(run_tests_on_host(host, args.username, args.password, tests_to_run)) for host in hostnames]
-    
-    # This now safely gathers all result objects because every task is guaranteed to return a dictionary.
     results_from_all_hosts = await asyncio.gather(*tasks)
-
     return {"status": "completed", "results_by_host": results_from_all_hosts}
 
 
 def main():
     """
-    @description The main entry point. It handles argument parsing and top-level setup
-                 exceptions, ensuring the script always exits cleanly with structured
-                 JSON output that the UI can understand.
+    @description The main entry point. It uses a flexible argument parsing strategy that
+                 works for both discovery and execution (manual or inventory).
     """
-    # This try/except block is for catastrophic errors, not operational ones.
     try:
         parser = argparse.ArgumentParser(description="Parallel, Multi-Test Network Reporter")
-        parser.add_argument("--hostname", help="Single or comma-separated list of target hostnames/IPs")
+        
+        parser.add_argument("--hostname", help="Comma-separated list of target hostnames/IPs.")
+        parser.add_argument("--inventory_file", help="Filename of a YAML inventory file in the 'data' directory.")
         parser.add_argument("--username", help="Username for device access.")
         parser.add_argument("--password", help="Password for device access.")
-        parser.add_argument("--tests", help="Optional: Comma-separated list of tests to run")
-        parser.add_argument("--list_tests", action="store_true", help="List available tests in JSON format")
+        parser.add_argument("--tests", help="Optional: Comma-separated list of tests to run.")
+        parser.add_argument("--list_tests", action="store_true", help="List available tests in JSON format.")
         parser.add_argument("--environment", default="development", help="Execution environment context.")
-        
+
         args = parser.parse_args()
-        if not args.list_tests and not args.hostname:
-            raise ValueError("--hostname is required unless --list_tests is specified.")
-            
+
+        if not args.list_tests and not args.hostname and not args.inventory_file:
+            raise ValueError("A target is required. Provide either --hostname or --inventory_file.")
+        if not args.list_tests and (not args.username or not args.password):
+            raise ValueError("Username and password are required for execution.")
+
         final_output = asyncio.run(main_async(args))
         print(json.dumps(final_output, indent=2))
 
     except Exception as e:
-        error_output = {"status": "error", "message": f"A critical script setup error occurred: {str(e)}"}
+        error_output = {"status": "error", "message": f"A critical script error occurred: {str(e)}"}
         print(json.dumps(error_output, indent=2))
         print(f"CRITICAL ERROR: {str(e)}", file=sys.stderr)
         sys.exit(0)

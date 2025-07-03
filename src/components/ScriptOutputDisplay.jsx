@@ -63,7 +63,7 @@ function SimpleTable({ title, headers, data }) {
 /**
  * @description The main display component for script results. It intelligently renders
  *              structured JSON output, handles errors, provides a collapsible raw log view,
- *              and includes a button to save the full output to a file on the server.
+ *              and includes a button to generate and save a formatted report.
  * @param {object} props - Component props.
  * @param {string} props.output - The content from the script's stdout, expected to be JSON.
  * @param {string} props.error - The content from the script's stderr, treated as a raw log.
@@ -74,67 +74,10 @@ export default function ScriptOutputDisplay({ output, error }) {
   const [saveMessage, setSaveMessage] = useState("");
   const [saveError, setSaveError] = useState("");
 
-  /**
-   * @description Handles the "Save to File" button click. It assembles the complete
-   *              output log and sends it to the backend to be saved.
-   */
-  const handleSaveOutput = async () => {
-    setIsSaving(true);
-    setSaveMessage("");
-    setSaveError("");
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const defaultFilename = `script-output-${timestamp}.txt`;
-
-    // Combine stdout and stderr for a complete record in the saved file.
-    const fileContent = `
-=================================================
- SCRIPT OUTPUT (stdout)
-=================================================
-${output || "No structured output received."}
-
-=================================================
- RAW CONSOLE LOG (stderr)
-=================================================
-${error || "No log messages received."}
-`;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/output/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: defaultFilename,
-          content: fileContent.trim(),
-        }),
-      });
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.message || "Failed to save file on the server.");
-      }
-      setSaveMessage(data.message);
-    } catch (err) {
-      setSaveError(err.message);
-    } finally {
-      setIsSaving(false);
-      // Clear the message after a few seconds for a better UX.
-      setTimeout(() => {
-        setSaveMessage("");
-        setSaveError("");
-      }, 5000);
-    }
-  };
-
-  // If there's nothing to display at all, render nothing.
-  if (!output && !error) {
-    return null;
-  }
-
+  // --- Parse the raw output to prepare for rendering ---
   let parsedOutput;
   let renderError = null;
 
-  // Attempt to parse the main `output` prop as JSON.
   if (output) {
     try {
       parsedOutput = JSON.parse(output);
@@ -148,10 +91,59 @@ ${error || "No log messages received."}
     renderError = parsedOutput.message;
   }
 
-  // A top-level fetch error (e.g., network failure) is the most important error to show.
+  // A top-level fetch error is the most important error to show.
   if (!output && error && !error.includes("---")) {
-    // Heuristic to avoid showing logs as primary error
     renderError = error;
+  }
+
+  /**
+   * @description Handles the "Save Report" button click. Sends the parsed JSON data
+   *              to the new report generation endpoint on the backend.
+   */
+  const handleSaveReport = async () => {
+    if (!parsedOutput) {
+      setSaveError("Cannot generate report: Output data is not valid JSON.");
+      setTimeout(() => setSaveError(""), 5000);
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage("");
+    setSaveError("");
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const defaultFilename = `report-${timestamp}.txt`;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/report/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: defaultFilename,
+          jsonData: parsedOutput,
+        }),
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(
+          data.message || "Failed to generate report on the server.",
+        );
+      }
+      setSaveMessage(data.message);
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => {
+        setSaveMessage("");
+        setSaveError("");
+      }, 5000);
+    }
+  };
+
+  if (!output && !error) {
+    return null;
   }
 
   return (
@@ -159,12 +151,17 @@ ${error || "No log messages received."}
       {/* Save Button and Status Message Area */}
       <div className="flex items-center justify-between p-3 bg-slate-50 border rounded-lg flex-wrap gap-4">
         <button
-          onClick={handleSaveOutput}
-          disabled={isSaving}
+          onClick={handleSaveReport}
+          disabled={isSaving || !parsedOutput}
           className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:bg-slate-200 disabled:cursor-not-allowed transition-colors"
+          title={
+            !parsedOutput
+              ? "Cannot generate report from non-JSON or error output"
+              : "Save Formatted Report"
+          }
         >
           <Save size={16} />
-          {isSaving ? "Saving..." : "Save Full Output"}
+          {isSaving ? "Saving..." : "Save Formatted Report"}
         </button>
         <div className="text-sm font-medium text-right flex-grow">
           {saveMessage && <p className="text-green-600">{saveMessage}</p>}

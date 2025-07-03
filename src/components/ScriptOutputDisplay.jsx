@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { ChevronDown, AlertTriangle, Info, Save } from "lucide-react";
+import toast from "react-hot-toast"; // Import the toast library for notifications
 
 const API_BASE_URL = "http://localhost:3001";
 
@@ -63,16 +64,14 @@ function SimpleTable({ title, headers, data }) {
 /**
  * @description The main display component for script results. It intelligently renders
  *              structured JSON output, handles errors, provides a collapsible raw log view,
- *              and includes a button to generate and save a formatted report.
+ *              and uses toast notifications for user feedback on the save action.
  * @param {object} props - Component props.
  * @param {string} props.output - The content from the script's stdout, expected to be JSON.
  * @param {string} props.error - The content from the script's stderr, treated as a raw log.
  */
 export default function ScriptOutputDisplay({ output, error }) {
-  // State to manage the UI feedback for the save-to-file action.
+  // State is now minimal, only tracking the saving status of the button.
   const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
-  const [saveError, setSaveError] = useState("");
 
   // --- Parse the raw output to prepare for rendering ---
   let parsedOutput;
@@ -86,30 +85,25 @@ export default function ScriptOutputDisplay({ output, error }) {
     }
   }
 
-  // Check for application-level errors reported within the JSON payload.
   if (parsedOutput && parsedOutput.status === "error") {
     renderError = parsedOutput.message;
   }
 
-  // A top-level fetch error is the most important error to show.
   if (!output && error && !error.includes("---")) {
     renderError = error;
   }
 
   /**
    * @description Handles the "Save Report" button click. Sends the parsed JSON data
-   *              to the new report generation endpoint on the backend.
+   *              to the report generation endpoint and shows a toast notification on completion.
    */
   const handleSaveReport = async () => {
     if (!parsedOutput) {
-      setSaveError("Cannot generate report: Output data is not valid JSON.");
-      setTimeout(() => setSaveError(""), 5000);
+      toast.error("Cannot generate report: Output data is not valid JSON.");
       return;
     }
 
     setIsSaving(true);
-    setSaveMessage("");
-    setSaveError("");
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const defaultFilename = `report-${timestamp}.txt`;
@@ -123,22 +117,21 @@ export default function ScriptOutputDisplay({ output, error }) {
           jsonData: parsedOutput,
         }),
       });
+
       const data = await response.json();
 
-      if (!data.success) {
+      if (!response.ok || !data.success) {
         throw new Error(
           data.message || "Failed to generate report on the server.",
         );
       }
-      setSaveMessage(data.message);
+
+      toast.success(data.message || "Report saved successfully!");
     } catch (err) {
-      setSaveError(err.message);
+      toast.error(err.message || "An unknown error occurred.");
+      console.error("Save report error:", err);
     } finally {
       setIsSaving(false);
-      setTimeout(() => {
-        setSaveMessage("");
-        setSaveError("");
-      }, 5000);
     }
   };
 
@@ -148,8 +141,8 @@ export default function ScriptOutputDisplay({ output, error }) {
 
   return (
     <div className="space-y-6">
-      {/* Save Button and Status Message Area */}
-      <div className="flex items-center justify-between p-3 bg-slate-50 border rounded-lg flex-wrap gap-4">
+      {/* Save Button Area */}
+      <div className="flex items-center p-3">
         <button
           onClick={handleSaveReport}
           disabled={isSaving || !parsedOutput}
@@ -163,10 +156,7 @@ export default function ScriptOutputDisplay({ output, error }) {
           <Save size={16} />
           {isSaving ? "Saving..." : "Save Formatted Report"}
         </button>
-        <div className="text-sm font-medium text-right flex-grow">
-          {saveMessage && <p className="text-green-600">{saveMessage}</p>}
-          {saveError && <p className="text-red-600">{saveError}</p>}
-        </div>
+        {/* The old saveMessage/saveError <p> tags are now removed. */}
       </div>
 
       {/* Primary Output Display (Error or Structured Data) */}

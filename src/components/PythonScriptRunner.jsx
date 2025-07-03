@@ -317,6 +317,34 @@ function PythonScriptRunner() {
           />
 
           <main className="flex-1">
+            {loadingScripts ? (
+              // ✨ 1. Show a Skeleton Loader while fetching scripts ✨
+              <div className="border border-slate-200 rounded-lg p-6 lg:p-8 shadow-md bg-white animate-pulse">
+                <div className="h-4 bg-slate-200 rounded w-1/4 mb-4"></div>
+                <div className="h-10 bg-slate-200 rounded w-full mb-6"></div>
+                <div className="h-4 bg-slate-200 rounded w-1/3 mb-4"></div>
+                <div className="h-10 bg-slate-200 rounded w-full mb-2"></div>
+                <div className="h-10 bg-slate-200 rounded w-full"></div>
+              </div>
+            ) : selectedScriptId ? (
+              // The existing block for when a script IS selected
+              <div className="mb-8 border ...">
+                {/* ... The existing form and button ... */}
+              </div>
+            ) : (
+              // ✨ 2. Show an "Empty State" when NO script is selected ✨
+              <div className="text-center p-12 border-2 border-dashed border-slate-300 rounded-lg bg-white">
+                <Layers size={48} className="mx-auto text-slate-400 mb-4" />
+                <h3 className="text-lg font-semibold text-slate-700">
+                  Select a Script
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Choose a script from the dropdown to see its available options
+                  and run it.
+                </p>
+              </div>
+            )}
+
             {loadingScripts && (
               <div className="text-center p-8">
                 <p className="text-slate-500">Loading available scripts...</p>

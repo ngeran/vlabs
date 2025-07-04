@@ -474,6 +474,10 @@ app.get("/api/templates/:templateId", async (req, res) => {
   }
 });
 
+// ====================================================================================
+// === API TEMPLATE GENERATE ==========================================================
+// ====================================================================================
+
 /**
  * @description API endpoint to generate configuration from a template.
  * @route POST /api/templates/generate
@@ -481,6 +485,11 @@ app.get("/api/templates/:templateId", async (req, res) => {
 app.post("/api/templates/generate", async (req, res) => {
   try {
     const { templateId, parameters } = req.body;
+
+    // Enhanced logging
+    console.log(`[BACKEND] Template generation request received:`);
+    console.log(`  - Template ID: ${templateId}`);
+    console.log(`  - Parameters:`, JSON.stringify(parameters, null, 2));
 
     if (!templateId) {
       return res.status(400).json({
@@ -499,11 +508,17 @@ app.post("/api/templates/generate", async (req, res) => {
 
     const templateDef = templatesConfig.templates[templateId];
     if (!templateDef) {
+      console.log(
+        `[BACKEND] Available templates:`,
+        Object.keys(templatesConfig.templates),
+      );
       return res.status(404).json({
         success: false,
         message: `Template with ID "${templateId}" not found.`,
       });
     }
+
+    console.log(`[BACKEND] Found template definition:`, templateDef);
 
     // Check if template file exists
     if (!templateFileExists(templateDef.template_file)) {
@@ -522,9 +537,17 @@ app.post("/api/templates/generate", async (req, res) => {
       });
     }
 
-    // Use Python to render the Jinja2 template
+    console.log(
+      `[BACKEND] Template content loaded (${templateContent.length} characters)`,
+    );
+    console.log(
+      `[BACKEND] Template preview:`,
+      templateContent.substring(0, 200) + "...",
+    );
+
+    // Use Docker to render the Jinja2 template
     const renderScriptPath = path.join(
-      PYTHON_PIPELINE_MOUNT_PATH,
+      SCRIPT_MOUNT_POINT_IN_CONTAINER,
       "tools",
       "configuration",
       "utils",
@@ -537,7 +560,28 @@ app.post("/api/templates/generate", async (req, res) => {
       template_id: templateId,
     };
 
-    const child = spawn("python3", [renderScriptPath]);
+    console.log(`[BACKEND] Render data prepared:`, {
+      template_id: templateId,
+      parameters: parameters,
+      template_content_length: templateContent.length,
+    });
+
+    // Use Docker container like other endpoints
+    const dockerArgs = [
+      "run",
+      "--rm",
+      "-v",
+      `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+      "vlabs-python-runner",
+      "python",
+      renderScriptPath,
+    ];
+
+    console.log(
+      `[BACKEND] Executing Docker command: docker ${dockerArgs.join(" ")}`,
+    );
+
+    const child = spawn("docker", dockerArgs);
     let stdoutData = "";
     let stderrData = "";
 
@@ -567,6 +611,14 @@ app.post("/api/templates/generate", async (req, res) => {
       if (responseSent) return;
       responseSent = true;
 
+      console.log(
+        `[BACKEND] Template rendering process completed with code: ${code}`,
+      );
+      console.log(`[BACKEND] STDOUT (${stdoutData.length} chars):`, stdoutData);
+      if (stderrData) {
+        console.log(`[BACKEND] STDERR:`, stderrData);
+      }
+
       if (code !== 0) {
         console.error(
           `[BACKEND] Template rendering failed with code ${code}: ${stderrData}`,
@@ -579,17 +631,27 @@ app.post("/api/templates/generate", async (req, res) => {
 
       try {
         const result = JSON.parse(stdoutData);
+        console.log(
+          `[BACKEND] Template rendering successful. Generated config length: ${result.rendered_config?.length || 0}`,
+        );
+
         res.json({
           success: true,
           generated_config: result.rendered_config,
           template_id: templateId,
           parameters_used: parameters,
           generation_time: new Date().toISOString(),
+          debug_info: {
+            template_file: templateDef.template_file,
+            template_content_length: templateContent.length,
+            output_length: result.rendered_config?.length || 0,
+          },
         });
       } catch (parseError) {
         console.error(
           `[BACKEND] Failed to parse render output: ${parseError.message}`,
         );
+        console.error(`[BACKEND] Raw output was:`, stdoutData);
         res.status(500).json({
           success: false,
           message: "Failed to parse template rendering output.",
@@ -597,6 +659,8 @@ app.post("/api/templates/generate", async (req, res) => {
       }
     });
 
+    // Send the JSON data to the script
+    console.log(`[BACKEND] Sending render data to Python script...`);
     child.stdin.write(JSON.stringify(renderData));
     child.stdin.end();
   } catch (error) {
@@ -607,6 +671,9 @@ app.post("/api/templates/generate", async (req, res) => {
     });
   }
 });
+// ====================================================================================
+// === API REPORT GENERATE ==========================================================
+// ====================================================================================
 
 /**
  * @description API endpoint to generate a formatted text report and save it to a file.

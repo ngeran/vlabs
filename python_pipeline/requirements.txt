@@ -7,3 +7,4 @@ lxml
 tabulate
 psutil
 colorama
+jinja2

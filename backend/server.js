@@ -56,6 +56,20 @@ const PYTHON_PIPELINE_PATH_ON_HOST = path.join(
 );
 const SCRIPT_MOUNT_POINT_IN_CONTAINER = "/app/python-scripts";
 
+// --- TEMPLATE DISCOVERY PATH ---
+const TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER = path.join(
+  PYTHON_PIPELINE_MOUNT_PATH,
+  "tools",
+  "configuration",
+  "templates.yml",
+);
+const TEMPLATES_DIRECTORY_PATH = path.join(
+  PYTHON_PIPELINE_MOUNT_PATH,
+  "tools",
+  "configuration",
+  "templates",
+);
+
 // --- In-Memory State ---
 const labStatuses = {};
 const scriptRuns = {};
@@ -65,6 +79,55 @@ const CACHE_DURATION = 5 * 60 * 1000;
 // ====================================================================================
 // === HELPER FUNCTIONS ===============================================================
 // ====================================================================================
+/**
+ * @description Loads and parses the templates configuration file.
+ * @returns {object | null} The parsed templates configuration object, or null if an error occurs.
+ */
+const getTemplatesConfig = () => {
+  try {
+    const templatesConfigPath = TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER;
+    if (!fs.existsSync(templatesConfigPath)) {
+      console.error(
+        `[BACKEND] Templates config file not found: ${templatesConfigPath}`,
+      );
+      return null;
+    }
+    return yaml.load(fs.readFileSync(templatesConfigPath, "utf8"));
+  } catch (e) {
+    console.error(`[BACKEND] Error loading templates config: ${e.message}`);
+    return null;
+  }
+};
+
+/**
+ * @description Validates that a template file exists in the templates directory.
+ * @param {string} templateFile - The name of the template file.
+ * @returns {boolean} True if the template file exists, false otherwise.
+ */
+const templateFileExists = (templateFile) => {
+  const templatePath = path.join(TEMPLATES_DIRECTORY_PATH, templateFile);
+  return fs.existsSync(templatePath);
+};
+
+/**
+ * @description Reads the content of a template file.
+ * @param {string} templateFile - The name of the template file.
+ * @returns {string | null} The template content, or null if an error occurs.
+ */
+const getTemplateContent = (templateFile) => {
+  try {
+    const templatePath = path.join(TEMPLATES_DIRECTORY_PATH, templateFile);
+    if (!fs.existsSync(templatePath)) {
+      return null;
+    }
+    return fs.readFileSync(templatePath, "utf8");
+  } catch (e) {
+    console.error(
+      `[BACKEND] Error reading template file ${templateFile}: ${e.message}`,
+    );
+    return null;
+  }
+};
 
 /**
  * @description Gets the real-time status of a Docker Compose lab.
@@ -275,6 +338,275 @@ app.post("/api/scripts/discover-tests", async (req, res) => {
 // ====================================================================================
 // === API ENDPOINTS ==================================================================
 // ====================================================================================
+/**
+ * @description API endpoint to dynamically discover available configuration templates.
+ * @route POST /api/templates/discover
+ */
+app.post("/api/templates/discover", async (req, res) => {
+  try {
+    const { category, environment = "development" } = req.body;
+
+    const templatesConfig = getTemplatesConfig();
+    if (!templatesConfig || !templatesConfig.templates) {
+      return res.status(500).json({
+        success: false,
+        message: "Templates configuration not found or malformed.",
+      });
+    }
+
+    const templates = templatesConfig.templates;
+    const categorizedTemplates = {};
+    const availableTemplates = [];
+
+    // Process each template
+    for (const [templateId, templateDef] of Object.entries(templates)) {
+      // Check if template file exists
+      if (!templateFileExists(templateDef.template_file)) {
+        console.warn(
+          `[BACKEND] Template file not found: ${templateDef.template_file}`,
+        );
+        continue;
+      }
+
+      // Filter by category if specified
+      if (category && templateDef.category !== category) {
+        continue;
+      }
+
+      const templateCategory = templateDef.category || "General";
+
+      // Initialize category if not exists
+      if (!categorizedTemplates[templateCategory]) {
+        categorizedTemplates[templateCategory] = [];
+      }
+
+      const templateInfo = {
+        id: templateId,
+        name: templateDef.name,
+        description: templateDef.description,
+        category: templateCategory,
+        parameters: templateDef.parameters || [],
+        template_file: templateDef.template_file,
+      };
+
+      categorizedTemplates[templateCategory].push(templateInfo);
+      availableTemplates.push(templateInfo);
+    }
+
+    res.json({
+      success: true,
+      discovered_templates: categorizedTemplates,
+      available_templates: availableTemplates,
+      total_count: availableTemplates.length,
+      backend_metadata: {
+        discovery_time: new Date().toISOString(),
+        environment: environment,
+      },
+    });
+  } catch (error) {
+    console.error(`[BACKEND] Template discovery API error:`, error.message);
+    res.status(500).json({
+      success: false,
+      message: `Template discovery failed: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * @description API endpoint to get detailed information about a specific template.
+ * @route GET /api/templates/:templateId
+ */
+app.get("/api/templates/:templateId", async (req, res) => {
+  try {
+    const { templateId } = req.params;
+
+    const templatesConfig = getTemplatesConfig();
+    if (!templatesConfig || !templatesConfig.templates) {
+      return res.status(500).json({
+        success: false,
+        message: "Templates configuration not found or malformed.",
+      });
+    }
+
+    const templateDef = templatesConfig.templates[templateId];
+    if (!templateDef) {
+      return res.status(404).json({
+        success: false,
+        message: `Template with ID "${templateId}" not found.`,
+      });
+    }
+
+    // Check if template file exists
+    if (!templateFileExists(templateDef.template_file)) {
+      return res.status(404).json({
+        success: false,
+        message: `Template file "${templateDef.template_file}" not found.`,
+      });
+    }
+
+    // Get template content
+    const templateContent = getTemplateContent(templateDef.template_file);
+    if (!templateContent) {
+      return res.status(500).json({
+        success: false,
+        message: `Failed to read template file "${templateDef.template_file}".`,
+      });
+    }
+
+    res.json({
+      success: true,
+      template: {
+        id: templateId,
+        name: templateDef.name,
+        description: templateDef.description,
+        category: templateDef.category || "General",
+        parameters: templateDef.parameters || [],
+        template_file: templateDef.template_file,
+        template_content: templateContent,
+      },
+    });
+  } catch (error) {
+    console.error(`[BACKEND] Template detail API error:`, error.message);
+    res.status(500).json({
+      success: false,
+      message: `Template detail retrieval failed: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * @description API endpoint to generate configuration from a template.
+ * @route POST /api/templates/generate
+ */
+app.post("/api/templates/generate", async (req, res) => {
+  try {
+    const { templateId, parameters } = req.body;
+
+    if (!templateId) {
+      return res.status(400).json({
+        success: false,
+        message: "templateId is required",
+      });
+    }
+
+    const templatesConfig = getTemplatesConfig();
+    if (!templatesConfig || !templatesConfig.templates) {
+      return res.status(500).json({
+        success: false,
+        message: "Templates configuration not found or malformed.",
+      });
+    }
+
+    const templateDef = templatesConfig.templates[templateId];
+    if (!templateDef) {
+      return res.status(404).json({
+        success: false,
+        message: `Template with ID "${templateId}" not found.`,
+      });
+    }
+
+    // Check if template file exists
+    if (!templateFileExists(templateDef.template_file)) {
+      return res.status(404).json({
+        success: false,
+        message: `Template file "${templateDef.template_file}" not found.`,
+      });
+    }
+
+    // Get template content
+    const templateContent = getTemplateContent(templateDef.template_file);
+    if (!templateContent) {
+      return res.status(500).json({
+        success: false,
+        message: `Failed to read template file "${templateDef.template_file}".`,
+      });
+    }
+
+    // Use Python to render the Jinja2 template
+    const renderScriptPath = path.join(
+      PYTHON_PIPELINE_MOUNT_PATH,
+      "tools",
+      "configuration",
+      "utils",
+      "render_template.py",
+    );
+
+    const renderData = {
+      template_content: templateContent,
+      parameters: parameters || {},
+      template_id: templateId,
+    };
+
+    const child = spawn("python3", [renderScriptPath]);
+    let stdoutData = "";
+    let stderrData = "";
+
+    child.stdout.on("data", (data) => {
+      stdoutData += data.toString();
+    });
+
+    child.stderr.on("data", (data) => {
+      stderrData += data.toString();
+    });
+
+    let responseSent = false;
+
+    child.on("error", (spawnError) => {
+      if (responseSent) return;
+      responseSent = true;
+      console.error(
+        `[BACKEND] Failed to start template rendering: ${spawnError.message}`,
+      );
+      res.status(500).json({
+        success: false,
+        message: "Failed to start template rendering process.",
+      });
+    });
+
+    child.on("close", (code) => {
+      if (responseSent) return;
+      responseSent = true;
+
+      if (code !== 0) {
+        console.error(
+          `[BACKEND] Template rendering failed with code ${code}: ${stderrData}`,
+        );
+        return res.status(500).json({
+          success: false,
+          message: `Template rendering failed: ${stderrData}`,
+        });
+      }
+
+      try {
+        const result = JSON.parse(stdoutData);
+        res.json({
+          success: true,
+          generated_config: result.rendered_config,
+          template_id: templateId,
+          parameters_used: parameters,
+          generation_time: new Date().toISOString(),
+        });
+      } catch (parseError) {
+        console.error(
+          `[BACKEND] Failed to parse render output: ${parseError.message}`,
+        );
+        res.status(500).json({
+          success: false,
+          message: "Failed to parse template rendering output.",
+        });
+      }
+    });
+
+    child.stdin.write(JSON.stringify(renderData));
+    child.stdin.end();
+  } catch (error) {
+    console.error(`[BACKEND] Template generation API error:`, error.message);
+    res.status(500).json({
+      success: false,
+      message: `Template generation failed: ${error.message}`,
+    });
+  }
+});
 
 /**
  * @description API endpoint to generate a formatted text report and save it to a file.

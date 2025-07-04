@@ -1,0 +1,127 @@
+# Configuration templates for Juniper devices
+templates:
+  interface_config:
+    name: "Interface Configuration"
+    description: "Configure physical and logical interfaces"
+    category: "Interface"
+    template_file: "interface.j2"
+    parameters:
+      - name: interface_name
+        label: "Interface Name"
+        type: "text"
+        required: true
+        placeholder: "ge-0/0/0"
+        validation: "^[a-zA-Z0-9-/]+$"
+      - name: description
+        label: "Description"
+        type: "text"
+        required: false
+        placeholder: "Link to Router A"
+      - name: ip_address
+        label: "IP Address"
+        type: "text"
+        required: true
+        placeholder: "192.168.1.1/24"
+        validation: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+      - name: vlan_id
+        label: "VLAN ID"
+        type: "number"
+        required: false
+        min: 1
+        max: 4094
+      - name: mtu
+        label: "MTU"
+        type: "number"
+        required: false
+        default: 1500
+        min: 68
+        max: 9192
+
+  bgp_config:
+    name: "BGP Configuration"
+    description: "Configure BGP routing protocol"
+    category: "Routing"
+    template_file: "bgp.j2"
+    parameters:
+      - name: local_as
+        label: "Local AS Number"
+        type: "number"
+        required: true
+        placeholder: "65001"
+        min: 1
+        max: 4294967295
+      - name: router_id
+        label: "Router ID"
+        type: "text"
+        required: true
+        placeholder: "1.1.1.1"
+        validation: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
+      - name: neighbor_ip
+        label: "Neighbor IP"
+        type: "text"
+        required: true
+        placeholder: "192.168.1.2"
+        validation: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
+      - name: neighbor_as
+        label: "Neighbor AS"
+        type: "number"
+        required: true
+        placeholder: "65002"
+        min: 1
+        max: 4294967295
+      - name: policy_import
+        label: "Import Policy"
+        type: "text"
+        required: false
+        placeholder: "bgp-import"
+      - name: policy_export
+        label: "Export Policy"
+        type: "text"
+        required: false
+        placeholder: "bgp-export"
+
+  ospf_config:
+    name: "OSPF Configuration"
+    description: "Configure OSPF routing protocol"
+    category: "Routing"
+    template_file: "ospf.j2"
+    parameters:
+      - name: area_id
+        label: "Area ID"
+        type: "text"
+        required: true
+        placeholder: "0.0.0.0"
+        validation: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
+      - name: router_id
+        label: "Router ID"
+        type: "text"
+        required: true
+        placeholder: "1.1.1.1"
+        validation: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
+      - name: interface_name
+        label: "Interface Name"
+        type: "text"
+        required: true
+        placeholder: "ge-0/0/0.0"
+      - name: hello_interval
+        label: "Hello Interval (seconds)"
+        type: "number"
+        required: false
+        default: 10
+        min: 1
+        max: 65535
+      - name: dead_interval
+        label: "Dead Interval (seconds)"
+        type: "number"
+        required: false
+        default: 40
+        min: 1
+        max: 65535
+      - name: metric
+        label: "Interface Metric"
+        type: "number"
+        required: false
+        default: 1
+        min: 1
+        max: 65535
+

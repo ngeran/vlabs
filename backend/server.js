@@ -15,6 +15,8 @@ const { exec, spawn } = require("child_process"); // Import both exec and spawn
 const path = require("path");
 const fs = require("fs");
 const yaml = require("js-yaml");
+const runHistory = []; // history store
+const MAX_HISTORY_ITEMS = 50; // Cap the history size
 
 const app = express();
 const port = 3001;
@@ -54,6 +56,20 @@ const PYTHON_PIPELINE_PATH_ON_HOST = path.join(
 );
 const SCRIPT_MOUNT_POINT_IN_CONTAINER = "/app/python-scripts";
 
+// --- TEMPLATE DISCOVERY PATH ---
+const TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER = path.join(
+  PYTHON_PIPELINE_MOUNT_PATH,
+  "tools",
+  "configuration",
+  "templates.yml",
+);
+const TEMPLATES_DIRECTORY_PATH = path.join(
+  PYTHON_PIPELINE_MOUNT_PATH,
+  "tools",
+  "configuration",
+  "templates",
+);
+
 // --- In-Memory State ---
 const labStatuses = {};
 const scriptRuns = {};
@@ -63,6 +79,55 @@ const CACHE_DURATION = 5 * 60 * 1000;
 // ====================================================================================
 // === HELPER FUNCTIONS ===============================================================
 // ====================================================================================
+/**
+ * @description Loads and parses the templates configuration file.
+ * @returns {object | null} The parsed templates configuration object, or null if an error occurs.
+ */
+const getTemplatesConfig = () => {
+  try {
+    const templatesConfigPath = TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER;
+    if (!fs.existsSync(templatesConfigPath)) {
+      console.error(
+        `[BACKEND] Templates config file not found: ${templatesConfigPath}`,
+      );
+      return null;
+    }
+    return yaml.load(fs.readFileSync(templatesConfigPath, "utf8"));
+  } catch (e) {
+    console.error(`[BACKEND] Error loading templates config: ${e.message}`);
+    return null;
+  }
+};
+
+/**
+ * @description Validates that a template file exists in the templates directory.
+ * @param {string} templateFile - The name of the template file.
+ * @returns {boolean} True if the template file exists, false otherwise.
+ */
+const templateFileExists = (templateFile) => {
+  const templatePath = path.join(TEMPLATES_DIRECTORY_PATH, templateFile);
+  return fs.existsSync(templatePath);
+};
+
+/**
+ * @description Reads the content of a template file.
+ * @param {string} templateFile - The name of the template file.
+ * @returns {string | null} The template content, or null if an error occurs.
+ */
+const getTemplateContent = (templateFile) => {
+  try {
+    const templatePath = path.join(TEMPLATES_DIRECTORY_PATH, templateFile);
+    if (!fs.existsSync(templatePath)) {
+      return null;
+    }
+    return fs.readFileSync(templatePath, "utf8");
+  } catch (e) {
+    console.error(
+      `[BACKEND] Error reading template file ${templateFile}: ${e.message}`,
+    );
+    return null;
+  }
+};
 
 /**
  * @description Gets the real-time status of a Docker Compose lab.
@@ -273,6 +338,343 @@ app.post("/api/scripts/discover-tests", async (req, res) => {
 // ====================================================================================
 // === API ENDPOINTS ==================================================================
 // ====================================================================================
+/**
+ * @description API endpoint to dynamically discover available configuration templates.
+ * @route POST /api/templates/discover
+ */
+app.post("/api/templates/discover", async (req, res) => {
+  try {
+    const { category, environment = "development" } = req.body;
+
+    const templatesConfig = getTemplatesConfig();
+    if (!templatesConfig || !templatesConfig.templates) {
+      return res.status(500).json({
+        success: false,
+        message: "Templates configuration not found or malformed.",
+      });
+    }
+
+    const templates = templatesConfig.templates;
+    const categorizedTemplates = {};
+    const availableTemplates = [];
+
+    // Process each template
+    for (const [templateId, templateDef] of Object.entries(templates)) {
+      // Check if template file exists
+      if (!templateFileExists(templateDef.template_file)) {
+        console.warn(
+          `[BACKEND] Template file not found: ${templateDef.template_file}`,
+        );
+        continue;
+      }
+
+      // Filter by category if specified
+      if (category && templateDef.category !== category) {
+        continue;
+      }
+
+      const templateCategory = templateDef.category || "General";
+
+      // Initialize category if not exists
+      if (!categorizedTemplates[templateCategory]) {
+        categorizedTemplates[templateCategory] = [];
+      }
+
+      const templateInfo = {
+        id: templateId,
+        name: templateDef.name,
+        description: templateDef.description,
+        category: templateCategory,
+        parameters: templateDef.parameters || [],
+        template_file: templateDef.template_file,
+      };
+
+      categorizedTemplates[templateCategory].push(templateInfo);
+      availableTemplates.push(templateInfo);
+    }
+
+    res.json({
+      success: true,
+      discovered_templates: categorizedTemplates,
+      available_templates: availableTemplates,
+      total_count: availableTemplates.length,
+      backend_metadata: {
+        discovery_time: new Date().toISOString(),
+        environment: environment,
+      },
+    });
+  } catch (error) {
+    console.error(`[BACKEND] Template discovery API error:`, error.message);
+    res.status(500).json({
+      success: false,
+      message: `Template discovery failed: ${error.message}`,
+    });
+  }
+});
+
+/**
+ * @description API endpoint to get detailed information about a specific template.
+ * @route GET /api/templates/:templateId
+ */
+app.get("/api/templates/:templateId", async (req, res) => {
+  try {
+    const { templateId } = req.params;
+
+    const templatesConfig = getTemplatesConfig();
+    if (!templatesConfig || !templatesConfig.templates) {
+      return res.status(500).json({
+        success: false,
+        message: "Templates configuration not found or malformed.",
+      });
+    }
+
+    const templateDef = templatesConfig.templates[templateId];
+    if (!templateDef) {
+      return res.status(404).json({
+        success: false,
+        message: `Template with ID "${templateId}" not found.`,
+      });
+    }
+
+    // Check if template file exists
+    if (!templateFileExists(templateDef.template_file)) {
+      return res.status(404).json({
+        success: false,
+        message: `Template file "${templateDef.template_file}" not found.`,
+      });
+    }
+
+    // Get template content
+    const templateContent = getTemplateContent(templateDef.template_file);
+    if (!templateContent) {
+      return res.status(500).json({
+        success: false,
+        message: `Failed to read template file "${templateDef.template_file}".`,
+      });
+    }
+
+    res.json({
+      success: true,
+      template: {
+        id: templateId,
+        name: templateDef.name,
+        description: templateDef.description,
+        category: templateDef.category || "General",
+        parameters: templateDef.parameters || [],
+        template_file: templateDef.template_file,
+        template_content: templateContent,
+      },
+    });
+  } catch (error) {
+    console.error(`[BACKEND] Template detail API error:`, error.message);
+    res.status(500).json({
+      success: false,
+      message: `Template detail retrieval failed: ${error.message}`,
+    });
+  }
+});
+
+// ====================================================================================
+// === API TEMPLATE GENERATE ==========================================================
+// ====================================================================================
+
+/**
+ * @description API endpoint to generate configuration from a template.
+ * @route POST /api/templates/generate
+ */
+app.post("/api/templates/generate", async (req, res) => {
+  try {
+    const { templateId, parameters } = req.body;
+
+    // Enhanced logging
+    console.log(`[BACKEND] Template generation request received:`);
+    console.log(`  - Template ID: ${templateId}`);
+    console.log(`  - Parameters:`, JSON.stringify(parameters, null, 2));
+
+    if (!templateId) {
+      return res.status(400).json({
+        success: false,
+        message: "templateId is required",
+      });
+    }
+
+    const templatesConfig = getTemplatesConfig();
+    if (!templatesConfig || !templatesConfig.templates) {
+      return res.status(500).json({
+        success: false,
+        message: "Templates configuration not found or malformed.",
+      });
+    }
+
+    const templateDef = templatesConfig.templates[templateId];
+    if (!templateDef) {
+      console.log(
+        `[BACKEND] Available templates:`,
+        Object.keys(templatesConfig.templates),
+      );
+      return res.status(404).json({
+        success: false,
+        message: `Template with ID "${templateId}" not found.`,
+      });
+    }
+
+    console.log(`[BACKEND] Found template definition:`, templateDef);
+
+    // Check if template file exists
+    if (!templateFileExists(templateDef.template_file)) {
+      return res.status(404).json({
+        success: false,
+        message: `Template file "${templateDef.template_file}" not found.`,
+      });
+    }
+
+    // Get template content
+    const templateContent = getTemplateContent(templateDef.template_file);
+    if (!templateContent) {
+      return res.status(500).json({
+        success: false,
+        message: `Failed to read template file "${templateDef.template_file}".`,
+      });
+    }
+
+    console.log(
+      `[BACKEND] Template content loaded (${templateContent.length} characters)`,
+    );
+    console.log(
+      `[BACKEND] Template preview:`,
+      templateContent.substring(0, 200) + "...",
+    );
+
+    // Use Docker to render the Jinja2 template
+    const renderScriptPath = path.join(
+      SCRIPT_MOUNT_POINT_IN_CONTAINER,
+      "tools",
+      "configuration",
+      "utils",
+      "render_template.py",
+    );
+
+    const renderData = {
+      template_content: templateContent,
+      parameters: parameters || {},
+      template_id: templateId,
+    };
+
+    console.log(`[BACKEND] Render data prepared:`, {
+      template_id: templateId,
+      parameters: parameters,
+      template_content_length: templateContent.length,
+    });
+
+    // Use Docker container like other endpoints
+    const dockerArgs = [
+      "run",
+      "--rm",
+      "-i",
+      "-v",
+      `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+      "vlabs-python-runner",
+      "python",
+      renderScriptPath,
+    ];
+
+    console.log(
+      `[BACKEND] Executing Docker command: docker ${dockerArgs.join(" ")}`,
+    );
+
+    const child = spawn("docker", dockerArgs);
+    let stdoutData = "";
+    let stderrData = "";
+
+    child.stdout.on("data", (data) => {
+      stdoutData += data.toString();
+    });
+
+    child.stderr.on("data", (data) => {
+      stderrData += data.toString();
+    });
+
+    let responseSent = false;
+
+    child.on("error", (spawnError) => {
+      if (responseSent) return;
+      responseSent = true;
+      console.error(
+        `[BACKEND] Failed to start template rendering: ${spawnError.message}`,
+      );
+      res.status(500).json({
+        success: false,
+        message: "Failed to start template rendering process.",
+      });
+    });
+
+    child.on("close", (code) => {
+      if (responseSent) return;
+      responseSent = true;
+
+      console.log(
+        `[BACKEND] Template rendering process completed with code: ${code}`,
+      );
+      console.log(`[BACKEND] STDOUT (${stdoutData.length} chars):`, stdoutData);
+      if (stderrData) {
+        console.log(`[BACKEND] STDERR:`, stderrData);
+      }
+
+      if (code !== 0) {
+        console.error(
+          `[BACKEND] Template rendering failed with code ${code}: ${stderrData}`,
+        );
+        return res.status(500).json({
+          success: false,
+          message: `Template rendering failed: ${stderrData}`,
+        });
+      }
+
+      try {
+        const result = JSON.parse(stdoutData);
+        console.log(
+          `[BACKEND] Template rendering successful. Generated config length: ${result.rendered_config?.length || 0}`,
+        );
+
+        res.json({
+          success: true,
+          generated_config: result.rendered_config,
+          template_id: templateId,
+          parameters_used: parameters,
+          generation_time: new Date().toISOString(),
+          debug_info: {
+            template_file: templateDef.template_file,
+            template_content_length: templateContent.length,
+            output_length: result.rendered_config?.length || 0,
+          },
+        });
+      } catch (parseError) {
+        console.error(
+          `[BACKEND] Failed to parse render output: ${parseError.message}`,
+        );
+        console.error(`[BACKEND] Raw output was:`, stdoutData);
+        res.status(500).json({
+          success: false,
+          message: "Failed to parse template rendering output.",
+        });
+      }
+    });
+
+    // Send the JSON data to the script
+    console.log(`[BACKEND] Sending render data to Python script...`);
+    child.stdin.write(JSON.stringify(renderData));
+    child.stdin.end();
+  } catch (error) {
+    console.error(`[BACKEND] Template generation API error:`, error.message);
+    res.status(500).json({
+      success: false,
+      message: `Template generation failed: ${error.message}`,
+    });
+  }
+});
+// ====================================================================================
+// === API REPORT GENERATE ==========================================================
+// ====================================================================================
 
 /**
  * @description API endpoint to generate a formatted text report and save it to a file.
@@ -320,12 +722,10 @@ app.post("/api/report/generate", (req, res) => {
       console.error(
         `[BACKEND] Failed to start report generation script: ${spawnError.message}`,
       );
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: "Failed to start the report generation process.",
-        });
+      res.status(500).json({
+        success: false,
+        message: "Failed to start the report generation process.",
+      });
     });
 
     child.on("close", (code) => {
@@ -336,12 +736,10 @@ app.post("/api/report/generate", (req, res) => {
         console.error(
           `[BACKEND] Report generation script exited with code ${code}: ${stderrData}`,
         );
-        return res
-          .status(500)
-          .json({
-            success: false,
-            message: `Report generator failed: ${stderrData}`,
-          });
+        return res.status(500).json({
+          success: false,
+          message: `Report generator failed: ${stderrData}`,
+        });
       }
 
       const outputDir = ensureOutputDirectory();
@@ -350,12 +748,10 @@ app.post("/api/report/generate", (req, res) => {
       fs.writeFile(filePath, stdoutData, "utf8", (writeErr) => {
         if (writeErr) {
           console.error(`[BACKEND] Error saving report file:`, writeErr);
-          return res
-            .status(500)
-            .json({
-              success: false,
-              message: "Failed to save the report file.",
-            });
+          return res.status(500).json({
+            success: false,
+            message: "Failed to save the report file.",
+          });
         }
         res.json({ success: true, message: `Report saved to ${safeFilename}` });
       });
@@ -366,12 +762,10 @@ app.post("/api/report/generate", (req, res) => {
   } catch (e) {
     console.error(`[BACKEND] Unhandled error in /api/report/generate:`, e);
     if (!res.headersSent) {
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: "An unexpected server error occurred.",
-        });
+      res.status(500).json({
+        success: false,
+        message: "An unexpected server error occurred.",
+      });
     }
   }
 });
@@ -415,6 +809,8 @@ app.get("/api/scripts/list", (req, res) => {
  */
 app.post("/api/scripts/run", (req, res) => {
   const { scriptId, parameters } = req.body;
+  const runId =
+    Date.now().toString() + Math.random().toString(36).substring(2, 9);
   if (!scriptId)
     return res
       .status(400)
@@ -435,13 +831,10 @@ app.post("/api/scripts/run", (req, res) => {
     scriptDef.scriptFile,
   );
 
-  // --- ✨ THE ELEGANT AND CORRECT FIX IS HERE ✨ ---
-  // We are replacing 'exec' with 'spawn'.
-
-  // 1. Prepare the arguments for the 'docker' command as an array.
   const dockerArgs = [
     "run",
     "--rm",
+    "--network=host",
     "-v",
     `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
     "vlabs-python-runner",
@@ -488,6 +881,25 @@ app.post("/api/scripts/run", (req, res) => {
 
     // 5. When the process closes, send the final response.
     child.on("close", (code) => {
+      // --- ✨ NEW HISTORY LOGIC IS HERE ✨ ---
+      const result = {
+        runId: runId,
+        timestamp: new Date().toISOString(),
+        scriptId: scriptId,
+        parameters: parameters, // Store the parameters that were used
+        isSuccess: code === 0,
+        output: stdout,
+        error: stderr,
+      };
+
+      // Add the new result to the start of the history array
+      runHistory.unshift(result);
+
+      // Trim the history array if it exceeds the max size
+      if (runHistory.length > MAX_HISTORY_ITEMS) {
+        runHistory.pop();
+      }
+      // --- END OF HISTORY LOGIC ---
       // The Python script is designed to always exit with code 0.
       // A non-zero code indicates a Docker-level failure.
       if (code !== 0) {
@@ -512,6 +924,142 @@ app.post("/api/scripts/run", (req, res) => {
       success: false,
       message: "An unexpected error occurred while running the script.",
     });
+  }
+});
+
+// --- ✨ ADD THE NEW HISTORY ENDPOINT ✨ ---
+/**
+ * @description API endpoint to retrieve the list of recent script runs.
+ * @route GET /api/history/list
+ */
+app.get("/api/history/list", (req, res) => {
+  res.json({ success: true, history: runHistory });
+});
+// ====================================================================================
+// === ✨ REVISED: API TEMPLATE APPLY (Receives pre-rendered config) ==================
+// ====================================================================================
+/**
+ * @description API endpoint to APPLY a pre-rendered configuration to a device.
+ * @route POST /api/templates/apply
+ */
+app.post("/api/templates/apply", async (req, res) => {
+  // 1. EXTRACT PARAMETERS - Now includes 'rendered_config'
+  const {
+    templateId, // Still useful for logging/history
+    renderedConfig, // The pre-rendered config from the frontend
+    targetHostname,
+    inventoryFile,
+    username,
+    password,
+    commitCheck,
+  } = req.body;
+
+  console.log(
+    `[BACKEND] Apply request received for template '${templateId}' on host '${targetHostname}'`,
+  );
+
+  // --- VALIDATION ---
+  if (!renderedConfig || !targetHostname || !username || !password) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Missing required parameters (renderedConfig, targetHostname, auth) for applying configuration.",
+    });
+  }
+
+  try {
+    // --- APPLY THE CONFIGURATION (Call run.py) ---
+    console.log("[BACKEND] Applying pre-rendered configuration to device...");
+    const applyResult = await new Promise((resolve, reject) => {
+      const runScriptPath = path.join(
+        SCRIPT_MOUNT_POINT_IN_CONTAINER,
+        "tools",
+        "configuration",
+        "run.py",
+      );
+
+      const dockerArgs = [
+        "run",
+        "--rm",
+        "--network=host",
+        "-v",
+        `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+        "vlabs-python-runner",
+        "python",
+        runScriptPath,
+        "--template_id",
+        templateId,
+        "--rendered_config",
+        renderedConfig,
+        "--target_host",
+        targetHostname,
+        "--username",
+        username,
+        "--password",
+        password,
+      ];
+
+      if (inventoryFile) {
+        dockerArgs.push(
+          "--inventory_file",
+          path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, "data", inventoryFile),
+        );
+      }
+      if (commitCheck) {
+        dockerArgs.push("--commit_check");
+      }
+
+      console.log(
+        `[BACKEND] Spawning Docker command: docker ${dockerArgs.join(" ")}`,
+      );
+
+      const child = spawn("docker", dockerArgs);
+      let stdoutData = "",
+        stderrData = "";
+      child.stdout.on("data", (data) => (stdoutData += data.toString()));
+      child.stderr.on("data", (data) => (stderrData += data.toString()));
+      child.on("error", (err) =>
+        reject(new Error(`Failed to start apply script: ${err.message}`)),
+      );
+      child.on("close", (code) => {
+        console.log(`[BACKEND] Apply script stdout:\n${stdoutData}`);
+        if (stderrData)
+          console.error(`[BACKEND] Apply script stderr:\n${stderrData}`);
+        // ----------------------------------------------------------------------------------
+        // Find the start of the JSON block, which we assume begins with '{' on a new line.
+        const jsonStartIndex = stdoutData.indexOf("\n{");
+        if (jsonStartIndex === -1) {
+          return reject(
+            new Error(
+              `Could not find start of JSON output from apply script. Full output: ${stdoutData}`,
+            ),
+          );
+        }
+
+        // Extract the substring that contains only the JSON.
+        const jsonBlock = stdoutData.substring(jsonStartIndex).trim();
+
+        try {
+          // Parse the extracted block.
+          resolve(JSON.parse(jsonBlock));
+        } catch (e) {
+          reject(
+            new Error(
+              `Failed to parse apply script output: ${e.message}. Raw JSON block was: ${jsonBlock}`,
+            ),
+          );
+        }
+
+        //-------------------------------------------------------------------------------------
+      });
+    });
+
+    // --- SEND FINAL RESPONSE ---
+    console.log("[BACKEND] Apply process completed.");
+    res.json(applyResult);
+  } catch (error) {
+    console.error(`[BACKEND] Apply process failed: ${error.message}`);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

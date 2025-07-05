@@ -2,23 +2,18 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { Code, HardHat } from "lucide-react";
-import SiteLogo from "./SiteLogo";
+import { Code } from "lucide-react"; // <-- 3. REMOVED HardHat from this import
+import SiteLogo from "./icons/SiteLogo";
+import LabIcon from "./icons/LabIcon";
+import CodeIcon from "./icons/CodeIcon";
 
 // An Icon Registry is a clean, scalable way to manage icons.
 const iconRegistry = {
   python: (
-    <Code
-      size={16}
-      className="text-slate-500 group-hover:text-blue-600 transition-colors"
-    />
+    <CodeIcon className="h-5 w-5 text-slate-500 group-hover:text-blue-600 transition-colors" />
   ),
   docker: (
-    <img
-      src="https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png"
-      alt="Docker"
-      className="h-5 w-auto"
-    />
+    <LabIcon className="h-5 w-5 text-slate-500 group-hover:text-blue-600 transition-colors" />
   ),
 };
 
@@ -61,8 +56,11 @@ const SiteNavigation = () => {
 
   // Helper to get the correct icon for a link
   const getIconForLink = (link) => {
-    if (link.title.includes("Docker")) return iconRegistry.docker;
-    if (link.title.includes("Python")) return iconRegistry.python;
+    // This logic remains flexible. If your YAML specified a key, we'd use that.
+    // For now, we infer based on title.
+    if (link.title.includes("Docker") || link.title.includes("Labs"))
+      return iconRegistry.docker;
+    if (link.title.includes("Runner")) return iconRegistry.python;
     return null;
   };
 
@@ -70,9 +68,7 @@ const SiteNavigation = () => {
   const navClasses =
     "sticky top-0 w-full bg-white/95 backdrop-blur-sm border-b border-slate-200 z-30";
   const containerClasses = "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8";
-
-  // --- ✨ THE LAYOUT CHANGE IS HERE ✨ ---
-  const flexContainerClasses = "flex items-center h-16 space-x-8"; // Changed to space-x-8
+  const flexContainerClasses = "flex items-center h-16 space-x-8";
 
   // --- Loading and Error States ---
   if (isLoading || error) {
@@ -80,8 +76,6 @@ const SiteNavigation = () => {
       <nav className={navClasses}>
         <div className={containerClasses}>
           <div className="flex items-center justify-between h-16">
-            {" "}
-            {/* Keep this centered for loading/error */}
             <Link to="/" className="flex-shrink-0">
               <SiteLogo size={32} />
             </Link>
@@ -101,14 +95,14 @@ const SiteNavigation = () => {
     <nav className={navClasses}>
       <div className={containerClasses}>
         <div className={flexContainerClasses}>
-          {/* Logo - The first item in the flex container */}
+          {/* Logo */}
           <div className="flex-shrink-0">
             <Link to="/">
               <SiteLogo size={32} />
             </Link>
           </div>
 
-          {/* Horizontal Navigation Links - The second item, spaced by the parent */}
+          {/* Horizontal Navigation Links */}
           <div className="flex items-center space-x-2">
             {flatNavLinks.map((link) => (
               <NavLink

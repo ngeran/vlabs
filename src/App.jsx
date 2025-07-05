@@ -1,7 +1,7 @@
 // src/App.jsx
 
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 
 import labsData from "./data/labsData";
 import categories from "./constants/categories";
@@ -13,7 +13,8 @@ import LabCard from "./components/LabCard";
 import LabModal from "./components/LabModal";
 import PythonScriptRunner from "./components/PythonScriptRunner";
 import HomePage from "./pages/HomePage"; // IMPORT THE NEW HOME PAGE COMPONENT
-import { Network } from "lucide-react"; // Keep if Network icon is used elsewhere (e.g., HomePage), otherwise it can be removed
+import { Network } from "lucide-react";
+import { Toaster } from "react-hot-toast";
 
 // --- IMPORT THE LAB LAUNCHER UTILITIES ---
 import {
@@ -146,12 +147,31 @@ const App = () => {
   return (
     // Updated overall page background color
     <div className="min-h-screen bg-[#E9E9E9]">
+      {/* 
+        This component listens for all toast() calls and renders the notifications.
+        It's best to place it in your top-level layout component.
+      */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          success: {
+            style: {
+              background: "#F0FDF4", // green-50
+              color: "#166534", // green-800
+            },
+          },
+          error: {
+            style: {
+              background: "#FEF2F2", // red-50
+              color: "#991B1B", // red-800
+            },
+          },
+        }}
+      />
       <Router>
         <Header /> {/* Header component now includes SiteNavigation */}
-
         {/* The previous simple navigation <nav> element has been removed from here.
             SiteNavigation component (within Header) now handles all navigation. */}
-
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-140px)]">
           <Routes>
             {/* NEW: Route for the Home Page */}
@@ -199,8 +219,8 @@ const App = () => {
                         No labs found
                       </h3>
                       <p className="text-gray-500">
-                        Try selecting a different category or check back later for new
-                        labs.
+                        Try selecting a different category or check back later
+                        for new labs.
                       </p>
                     </div>
                   )}
@@ -212,9 +232,7 @@ const App = () => {
             <Route path="/python-runner" element={<PythonScriptRunner />} />
           </Routes>
         </main>
-
         <Footer />
-
         {/* Lab Modal - Render only if open and a lab is selected */}
         {isModalOpen && selectedLab && (
           <LabModal

@@ -50,13 +50,9 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
 
   const handleModeChange = (mode) => {
     setInputMode(mode);
-    if (mode === "manual") {
-      const { inventory_file, ...rest } = parameters;
-      onParamChange(rest);
-    } else {
-      const { hostname, ...rest } = parameters;
-      onParamChange(rest);
-    }
+    // No need to change the parameters when switching modes.
+    // Just change the local state that controls the UI.
+    // This prevents accidental deletion of data from the parent state.
   };
 
   return (

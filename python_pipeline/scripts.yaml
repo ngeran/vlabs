@@ -1,16 +1,6 @@
 # vlabs/python_pipeline/scripts.yaml (Industry Standard Implementation)
 
 scripts:
-  - id: hello_world
-    displayName: "Hello World Example"
-    description: "A simple script to greet with a message."
-    category: Basic
-    tags:
-      - featured
-      - utility
-    scriptFile: "hello_world.py"
-    metadataFile: "metadata.yml"
-
   # JSNAPy From The Beginning
   - id: tools/jsnapy_runner # The new, clean ID
     displayName: "Junos JSNAPy"
@@ -50,3 +40,20 @@ scripts:
       version: "1.0.0"
       implemented_by: "nikos-geranios_vgi"
       compliance_date: "2025-06-26 17:22:25 UTC"
+
+ # --- DEVICE CONFIGUARTION  ---
+  - id: tools/configuration # This is the scriptId that PythonScriptRunner.jsx will use
+    displayName: "Device Configuration"
+    description: "Apply configuration templates to Juniper devices."
+    category: "Network Automation"
+    tags:
+      - configuration
+      - Juniper
+      - templates
+      - PyEZ
+      - network_automation
+    scriptFile: "run.py" # Points to the run.py inside the 'configuration' directory
+    metadataFile: "metadata.yml" # Points to metadata.yml inside 'configuration' directory
+    capabilities:
+      templateGeneration: true # Indicates this script uses template generation logic
+      deviceInteraction: true  # Indicates this script interacts with devices

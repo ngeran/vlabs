@@ -42,7 +42,7 @@ scripts:
       compliance_date: "2025-06-26 17:22:25 UTC"
 
  # --- DEVICE CONFIGUARTION  ---
-  - id: configuration # This is the scriptId that PythonScriptRunner.jsx will use
+  - id: tools/configuration # This is the scriptId that PythonScriptRunner.jsx will use
     displayName: "Device Configuration"
     description: "Apply configuration templates to Juniper devices."
     category: "Network Automation"

@@ -570,6 +570,7 @@ app.post("/api/templates/generate", async (req, res) => {
     const dockerArgs = [
       "run",
       "--rm",
+      "-i",
       "-v",
       `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
       "vlabs-python-runner",
@@ -833,6 +834,7 @@ app.post("/api/scripts/run", (req, res) => {
   const dockerArgs = [
     "run",
     "--rm",
+    "--network=host",
     "-v",
     `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
     "vlabs-python-runner",
@@ -932,6 +934,209 @@ app.post("/api/scripts/run", (req, res) => {
  */
 app.get("/api/history/list", (req, res) => {
   res.json({ success: true, history: runHistory });
+});
+// ====================================================================================
+// === ✨ NEW: API TEMPLATE APPLY (ORCHESTRATOR) =======================================
+// ====================================================================================
+/**
+ * @description API endpoint to orchestrate template generation and application to a device.
+ * @route POST /api/templates/apply
+ */
+app.post("/api/templates/apply", async (req, res) => {
+  // 1. EXTRACT ALL PARAMETERS FROM THE INCOMING REQUEST
+  const {
+    templateId,
+    templateParameters, // e.g., { interface_name: 'ge-0/0/1', ... }
+    targetHost,
+    inventoryFile,
+    username,
+    password,
+    commitCheck, // Optional: for dry-runs
+  } = req.body;
+
+  console.log(
+    `[BACKEND] Orchestration request received for template '${templateId}' on host '${targetHost}'`,
+  );
+
+  // --- VALIDATION ---
+  if (
+    !templateId ||
+    !templateParameters ||
+    !targetHost ||
+    !inventoryFile ||
+    !username ||
+    !password
+  ) {
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message: "Missing required parameters for applying template.",
+      });
+  }
+
+  try {
+    // 2. --- GENERATE THE CONFIGURATION (Internal Logic) ---
+    console.log("[BACKEND] Step 1: Generating configuration...");
+    const templatesConfig = getTemplatesConfig();
+    const templateDef = templatesConfig?.templates?.[templateId];
+    if (!templateDef) {
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: `Template with ID "${templateId}" not found.`,
+        });
+    }
+    const templateContent = getTemplateContent(templateDef.template_file);
+    if (!templateContent) {
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: `Failed to read template file "${templateDef.template_file}".`,
+        });
+    }
+
+    // Call the same rendering utility as the /generate endpoint
+    const renderResult = await new Promise((resolve, reject) => {
+      const renderScriptPath = path.join(
+        SCRIPT_MOUNT_POINT_IN_CONTAINER,
+        "tools",
+        "configuration",
+        "utils",
+        "render_template.py",
+      );
+      const renderData = {
+        template_content: templateContent,
+        parameters: templateParameters,
+      };
+      const dockerArgs = [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+        "vlabs-python-runner",
+        "python",
+        renderScriptPath,
+      ];
+
+      const child = spawn("docker", dockerArgs);
+      let stdoutData = "",
+        stderrData = "";
+      child.stdout.on("data", (data) => (stdoutData += data.toString()));
+      child.stderr.on("data", (data) => (stderrData += data.toString()));
+      child.on("error", (err) =>
+        reject(new Error(`Failed to start render script: ${err.message}`)),
+      );
+      child.on("close", (code) => {
+        if (code !== 0)
+          return reject(new Error(`Template rendering failed: ${stderrData}`));
+        try {
+          resolve(JSON.parse(stdoutData));
+        } catch (e) {
+          reject(new Error(`Failed to parse render output: ${stdoutData}`));
+        }
+      });
+      child.stdin.write(JSON.stringify(renderData));
+      child.stdin.end();
+    });
+
+    if (!renderResult.success || !renderResult.rendered_config) {
+      console.error(
+        `[BACKEND] Template generation failed: ${renderResult.error}`,
+      );
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: `Template generation failed: ${renderResult.error}`,
+        });
+    }
+
+    const renderedConfig = renderResult.rendered_config;
+    console.log(
+      `[BACKEND] Step 1 successful. Generated config length: ${renderedConfig.length}`,
+    );
+
+    // 3. --- APPLY THE CONFIGURATION (Internal Logic from /api/scripts/run) ---
+    console.log("[BACKEND] Step 2: Applying configuration to device...");
+    const applyResult = await new Promise((resolve, reject) => {
+      const runScriptPath = path.join(
+        SCRIPT_MOUNT_POINT_IN_CONTAINER,
+        "configuration",
+        "run.py",
+      ); // Path to your run.py
+
+      const dockerArgs = [
+        "run",
+        "--rm",
+        "--network=host",
+        "-v",
+        `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+        "vlabs-python-runner",
+        "python",
+        runScriptPath,
+        "--template_id",
+        templateId,
+        "--rendered_config",
+        renderedConfig,
+        "--inventory_file",
+        path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, "data", inventoryFile), // Pass full path
+        "--target_host",
+        targetHost,
+        "--username",
+        username,
+        "--password",
+        password,
+      ];
+
+      if (commitCheck) {
+        dockerArgs.push("--commit_check");
+      }
+
+      console.log(
+        `[BACKEND] Spawning Docker command: docker ${dockerArgs.join(" ")}`,
+      );
+
+      const child = spawn("docker", dockerArgs);
+      let stdoutData = "",
+        stderrData = "";
+      child.stdout.on("data", (data) => (stdoutData += data.toString()));
+      child.stderr.on("data", (data) => (stderrData += data.toString()));
+      child.on("error", (err) =>
+        reject(new Error(`Failed to start apply script: ${err.message}`)),
+      );
+      child.on("close", (code) => {
+        console.log(`[BACKEND] Apply script stdout:\n${stdoutData}`);
+        if (stderrData)
+          console.error(`[BACKEND] Apply script stderr:\n${stderrData}`);
+        if (code !== 0)
+          return reject(new Error(`Apply script execution failed.`));
+        // The python script outputs JSON, so we find it.
+        const jsonOutputMatch = stdoutData.match(/\{[\s\S]*\}/);
+        if (!jsonOutputMatch)
+          return reject(
+            new Error("Could not find JSON output from apply script."),
+          );
+        try {
+          resolve(JSON.parse(jsonOutputMatch[0]));
+        } catch (e) {
+          reject(
+            new Error(`Failed to parse apply script output: ${e.message}`),
+          );
+        }
+      });
+    });
+
+    // 4. --- SEND FINAL RESPONSE ---
+    console.log("[BACKEND] Orchestration completed.");
+    res.json(applyResult);
+  } catch (error) {
+    console.error(`[BACKEND] Orchestration failed: ${error.message}`);
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 // ====================================================================================

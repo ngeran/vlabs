@@ -11,15 +11,17 @@ import {
   ServerCrash,
   CheckCircle,
   X,
-  FileText, // Added for template icon
-  Cpu, // Added for parameters icon
+  FileText,
+  Cpu,
   ChevronDown,
   Plus,
   Minus,
+  Wrench, // Icon for Generate
+  Send, // Icon for Apply
 } from "lucide-react";
 import PulseLoader from "react-spinners/PulseLoader";
 
-// === EXTERNAL COMPONENT DEPENDENCIES (Ensure these files exist) ===
+// === EXTERNAL COMPONENT DEPENDENCIES (These must exist in your project) ===
 import DeviceAuthFields from "./DeviceAuthFields";
 import ScriptOutputDisplay from "./ScriptOutputDisplay";
 import ErrorBoundary from "./ErrorBoundary";
@@ -27,26 +29,24 @@ import TestSelector from "./TestSelector";
 import ScriptRunnerIcon from "./icons/ScriptRunnerIcon";
 
 // === EXTERNAL HOOK DEPENDENCY ===
+// This import must correctly bring in the fixed `useTemplateGeneration` hook.
 import { useTestDiscovery } from "../hooks/useTestDiscovery";
 import {
   useTemplateDiscovery,
   useTemplateGeneration,
-} from "../hooks/useTemplateDiscovery"; // Added useTemplateDiscovery and useTemplateGeneration
+} from "../hooks/useTemplateDiscovery";
 
 const API_BASE_URL = "http://localhost:3001";
 
 // ====================================================================================
-// === INTERNAL COMPONENTS (Defined here for a single-file solution) ================
+// === INTERNAL HELPER COMPONENTS (Included to prevent "not defined" errors) =========
 // ====================================================================================
+// Note: These are the internal components from your file, included here for completeness.
 
-/**
- * @description Renders the UI for selecting a script's discoverable tests in the sidebar.
- * @param {object} props - Component props.
- */
 function DiscoverableTestOptions({ script, parameters, setParameters }) {
   const { categorizedTests, loading, error } = useTestDiscovery(
-    script.id,
-    parameters.environment,
+    script?.id,
+    parameters?.environment,
   );
   const handleTestToggle = (testId) => {
     const currentTests = parameters.tests || [];
@@ -70,29 +70,16 @@ function DiscoverableTestOptions({ script, parameters, setParameters }) {
   );
 }
 
-/**
- * @description Renders the input form for template-specific parameters.
- * This component is placed in the main content area and only displays if a template
- * is selected and has defined parameters.
- * @param {object} props - Component props.
- * @param {object|null} props.selectedTemplate - The currently selected template object.
- * @param {object} props.templateParams - The current values of the template parameters (from parent state).
- * @param {function} props.onParamChange - Handler function to update individual parameter values in the parent state.
- */
 function TemplateParameterForm({
   selectedTemplate,
   templateParams,
   onParamChange,
 }) {
-  // Do not render if no template is selected or if the selected template has no parameters.
-  if (!selectedTemplate || !selectedTemplate.parameters?.length) {
-    return null;
-  }
-
+  if (!selectedTemplate || !selectedTemplate.parameters?.length) return null;
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200 mb-6 mt-8">
       <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b pb-2 flex items-center">
-        <Layers size={18} className="mr-2 text-slate-500" /> Parameters for{" "}
+        <Cpu size={18} className="mr-2 text-slate-500" /> Parameters for{" "}
         <span className="text-blue-600 ml-1">{selectedTemplate.name}</span>
       </h3>
       {selectedTemplate.description && (
@@ -114,7 +101,7 @@ function TemplateParameterForm({
               type={param.type === "number" ? "number" : "text"}
               id={`param-${param.name}`}
               name={param.name}
-              value={templateParams[param.name] || ""}
+              value={(templateParams || {})[param.name] || ""}
               onChange={(e) => onParamChange(param.name, e.target.value)}
               placeholder={param.placeholder || ""}
               required={param.required}
@@ -132,72 +119,35 @@ function TemplateParameterForm({
   );
 }
 
-// ====================================================================================
-// ====================== Template Configuration Options ==============================
-// ====================================================================================
-
-/**
- * @description Renders the UI for selecting and configuring templates in the sidebar.
- * @param {object} props - Component props.
- */
-
-function TemplateConfigurationOptions({
-  script,
-  parameters,
-  setParameters,
-  onTemplateSelected,
-  onTemplateParamChange,
-}) {
+function TemplateConfigurationOptions({ parameters, onTemplateSelected }) {
   const { categorizedTemplates, loading, error, discoverTemplates } =
-    useTemplateDiscovery(
-      null, // No initial category filter
-      parameters.environment,
-    );
-
-  // State to manage which accordion category is open
-  const [openCategory, setOpenCategory] = useState(null); // Stores the name of the currently open category
-
-  // Changed to accept templateId directly for radio buttons
+    useTemplateDiscovery(null, parameters.environment);
+  const [openCategory, setOpenCategory] = useState(null);
   const handleTemplateSelect = (templateId) => {
     const templateObject = Object.values(categorizedTemplates)
       .flat()
       .find((t) => t.id === templateId);
-    onTemplateSelected(templateId, templateObject); // Use the new callback
+    onTemplateSelected(templateId, templateObject);
   };
-
-  const selectedTemplate = useMemo(() => {
-    const allTemplates = Object.values(categorizedTemplates).flat();
-    return allTemplates.find((t) => t.id === parameters.templateId);
-  }, [parameters.templateId, categorizedTemplates]);
-
   useEffect(() => {
-    // Re-discover templates when environment changes
     discoverTemplates(null, parameters.environment);
   }, [parameters.environment, discoverTemplates]);
-
   if (loading)
     return (
       <p className="text-sm text-slate-500 italic">Discovering templates...</p>
     );
   if (error)
     return <p className="text-sm font-semibold text-red-600">Error: {error}</p>;
-
-  // Function to toggle accordion section
   const toggleCategory = (categoryName) => {
     setOpenCategory(openCategory === categoryName ? null : categoryName);
   };
-
   return (
     <div className="space-y-4">
-      {/* Optional: A main heading for template options */}
       <h3 className="text-md font-semibold text-slate-800 flex items-center mb-4">
         <FileText size={16} className="mr-2 text-slate-500" /> Choose Template
       </h3>
-
       {Object.entries(categorizedTemplates).length === 0 && !loading ? (
-        <p className="text-sm text-slate-500 italic">
-          No templates found for this environment.
-        </p>
+        <p className="text-sm text-slate-500 italic">No templates found.</p>
       ) : (
         <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
           {Object.entries(categorizedTemplates).map(([category, templates]) => (
@@ -207,7 +157,7 @@ function TemplateConfigurationOptions({
             >
               <button
                 type="button"
-                className="flex justify-between items-center w-full p-4 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors border-none"
+                className="flex justify-between items-center w-full p-4 hover:bg-slate-50 focus:outline-none"
                 onClick={() => toggleCategory(category)}
               >
                 <div className="flex items-center gap-3">
@@ -217,9 +167,9 @@ function TemplateConfigurationOptions({
                   </span>
                 </div>
                 {openCategory === category ? (
-                  <Minus size={18} className="text-slate-600" />
+                  <Minus size={18} />
                 ) : (
-                  <Plus size={18} className="text-slate-600" />
+                  <Plus size={18} />
                 )}
               </button>
               {openCategory === category && (
@@ -228,15 +178,15 @@ function TemplateConfigurationOptions({
                     {templates.map((template) => (
                       <label
                         key={template.id}
-                        className="flex items-center text-sm font-medium text-slate-700 cursor-pointer hover:bg-slate-100 p-2 rounded transition-colors"
+                        className="flex items-center text-sm font-medium text-slate-700 cursor-pointer hover:bg-slate-100 p-2 rounded"
                       >
                         <input
                           type="radio"
-                          name="selectedTemplate" // Group radio buttons by name
+                          name="selectedTemplate"
                           value={template.id}
                           checked={parameters.templateId === template.id}
                           onChange={() => handleTemplateSelect(template.id)}
-                          className="h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                          className="h-4 w-4 text-blue-600 border-slate-300"
                         />
                         <span className="ml-2">{template.name}</span>
                       </label>
@@ -248,29 +198,18 @@ function TemplateConfigurationOptions({
           ))}
         </div>
       )}
-
-      {/* REMOVED: The parameter rendering section that was duplicating the main content area */}
-      {/* This section has been removed to eliminate the duplicate parameter forms */}
     </div>
   );
 }
-// ====================================================================================
-// ========================= Script Option Renderer ===================================
-// ====================================================================================
 
-/**
- * @description The "brain" that decides which options UI to render in the sidebar.
- * @param {object} props - Component props.
- */
 function ScriptOptionsRenderer({
   script,
   parameters,
   setParameters,
   onTemplateSelected,
-  onTemplateParamChange,
 }) {
   if (!script) return null;
-  if (script.capabilities?.dynamicDiscovery) {
+  if (script.capabilities?.dynamicDiscovery)
     return (
       <DiscoverableTestOptions
         script={script}
@@ -278,30 +217,20 @@ function ScriptOptionsRenderer({
         setParameters={setParameters}
       />
     );
-  }
-  if (script.capabilities?.templateGeneration) {
-    // New condition for template generation
+  if (script.capabilities?.templateGeneration)
     return (
       <TemplateConfigurationOptions
-        script={script}
         parameters={parameters}
-        setParameters={setParameters}
         onTemplateSelected={onTemplateSelected}
-        onTemplateParamChange={onTemplateParamChange}
       />
     );
-  }
   return (
     <p className="text-xs text-slate-500 italic">
-      This script has no additional sidebar options.
+      This script has no additional options.
     </p>
   );
 }
 
-/**
- * @description The static sidebar component for filtering scripts and displaying script options.
- * @param {object} props - Component props.
- */
 function ScriptFilterSidebar({
   allScripts,
   selectedCategories,
@@ -310,7 +239,6 @@ function ScriptFilterSidebar({
   scriptParameters,
   setParameters,
   onTemplateSelected,
-  onTemplateParamChange,
 }) {
   const { uniqueCategories, scriptCounts } = useMemo(() => {
     const counts = {};
@@ -323,7 +251,6 @@ function ScriptFilterSidebar({
       scriptCounts: counts,
     };
   }, [allScripts]);
-
   const handleCheckboxChange = (category) => {
     const newSelection = new Set(selectedCategories);
     newSelection.has(category)
@@ -331,26 +258,25 @@ function ScriptFilterSidebar({
       : newSelection.add(category);
     onCategoryChange(Array.from(newSelection));
   };
-
   return (
     <aside className="w-full md:w-64 lg:w-72 flex-shrink-0">
       <div className="sticky top-24 space-y-8">
         <div>
-          <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2 flex items-center">
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b pb-2 flex items-center">
             <Tag size={18} className="mr-2 text-slate-500" /> Filter by Category
           </h3>
           <div className="space-y-1">
             {uniqueCategories.map((category) => (
               <label
                 key={category}
-                className="flex items-center justify-between text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md p-2 cursor-pointer transition-colors"
+                className="flex items-center justify-between text-sm font-medium p-2 cursor-pointer"
               >
                 <div className="flex items-center">
                   <input
                     type="checkbox"
                     checked={selectedCategories.includes(category)}
                     onChange={() => handleCheckboxChange(category)}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded"
                   />
                   <span className="ml-3">{category}</span>
                 </div>
@@ -364,15 +290,14 @@ function ScriptFilterSidebar({
                 onClick={() => onCategoryChange([])}
                 className="text-sm text-blue-600 hover:underline mt-4 p-2 font-medium"
               >
-                Clear All Filters
+                Clear All
               </button>
             )}
           </div>
         </div>
-
         {selectedScript && (
           <div>
-            <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2 flex items-center">
+            <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b pb-2 flex items-center">
               <Layers size={18} className="mr-2 text-slate-500" /> Script
               Options
             </h3>
@@ -381,7 +306,6 @@ function ScriptFilterSidebar({
               parameters={scriptParameters}
               setParameters={setParameters}
               onTemplateSelected={onTemplateSelected}
-              onTemplateParamChange={onTemplateParamChange}
             />
           </div>
         )}
@@ -390,10 +314,6 @@ function ScriptFilterSidebar({
   );
 }
 
-/**
- * @description A slide-in drawer component for displaying script run history.
- * @param {object} props - Component props.
- */
 function HistoryDrawer({
   isOpen,
   onClose,
@@ -409,37 +329,31 @@ function HistoryDrawer({
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, [onClose]);
-
   return (
     <>
       <div
-        className={`fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        className={`fixed inset-0 bg-black/60 z-40 transition-opacity ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={onClose}
       />
       <div
-        className={`fixed top-0 right-0 bottom-0 w-80 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+        className={`fixed top-0 right-0 bottom-0 w-80 bg-white shadow-xl z-50 transform transition-transform ${isOpen ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="p-4 h-full flex flex-col">
-          <header className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
-            <h3 className="text-lg font-semibold text-slate-800 flex items-center">
-              <History size={18} className="mr-2 text-slate-500" /> Run History
+          <header className="flex items-center justify-between border-b pb-3 mb-4">
+            <h3 className="text-lg font-semibold flex items-center">
+              <History size={18} className="mr-2" /> Run History
             </h3>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-full text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
-            >
+            <button onClick={onClose} className="p-1 rounded-full">
               <X size={20} />
             </button>
           </header>
-          <div className="overflow-y-auto flex-1 pr-2">
+          <div className="overflow-y-auto flex-1">
             {isLoading ? (
-              <p className="text-sm text-slate-500 p-2">Loading history...</p>
+              <p>Loading history...</p>
             ) : history.length === 0 ? (
-              <p className="text-sm text-slate-500 italic p-2">
-                No recent runs found.
-              </p>
+              <p>No recent runs.</p>
             ) : (
-              <ul className="space-y-1">
+              <ul>
                 {history.map((run) => (
                   <li key={run.runId}>
                     <button
@@ -447,9 +361,9 @@ function HistoryDrawer({
                         onSelectHistoryItem(run.runId);
                         onClose();
                       }}
-                      className={`w-full text-left p-2 rounded-md hover:bg-slate-100 transition-colors ${selectedHistoryId === run.runId ? "bg-blue-50" : ""}`}
+                      className={`w-full text-left p-2 rounded-md ${selectedHistoryId === run.runId ? "bg-blue-50" : ""}`}
                     >
-                      <div className="flex items-center justify-between font-medium text-sm text-slate-800">
+                      <div className="flex items-center justify-between">
                         <span className="truncate">{run.scriptId}</span>
                         {run.isSuccess ? (
                           <CheckCircle size={16} className="text-green-500" />
@@ -457,7 +371,7 @@ function HistoryDrawer({
                           <ServerCrash size={16} className="text-red-500" />
                         )}
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
+                      <div className="flex items-center gap-1 text-xs mt-1">
                         <Clock size={12} />
                         <span>
                           {new Date(run.timestamp).toLocaleTimeString()}
@@ -476,10 +390,10 @@ function HistoryDrawer({
 }
 
 // ====================================================================================
-// === MAIN PAGE COMPONENT ============================================================
+// === MAIN PAGE COMPONENT with Two-Step "Generate & Apply" Workflow ================
 // ====================================================================================
-
 function PythonScriptRunner() {
+  // --- Standard State Management ---
   const [allScripts, setAllScripts] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedScriptId, setSelectedScriptId] = useState("");
@@ -487,22 +401,27 @@ function PythonScriptRunner() {
   const [scriptOutputs, setScriptOutputs] = useState({});
   const [error, setError] = useState(null);
   const [loadingScripts, setLoadingScripts] = useState(true);
-  const [runningScripts, setRunningScripts] = useState(false);
   const [historyItems, setHistoryItems] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [selectedHistoryId, setSelectedHistoryId] = useState(null);
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
-
-  // NEW STATE: Store the full selected template object here
   const [selectedTemplateDetails, setSelectedTemplateDetails] = useState(null);
 
-  // Added useTemplateGeneration hook here for global access if needed
+  // --- State for the Two-Step Workflow ---
+  const [generatedConfig, setGeneratedConfig] = useState(null);
+  const [isRunningOther, setIsRunningOther] = useState(false);
+
+  // --- This is the key: Instantiate the custom hook for template generation ---
   const {
     generateConfig,
-    loading: generatingConfig,
+    loading: isGenerating,
     error: generationError,
   } = useTemplateGeneration();
 
+  // Use a separate loading state for the "Apply" button.
+  const [isApplying, setIsApplying] = useState(false);
+
+  // --- Effect Hooks for fetching initial data ---
   useEffect(() => {
     async function fetchScripts() {
       setLoadingScripts(true);
@@ -528,7 +447,7 @@ function PythonScriptRunner() {
         const data = await res.json();
         if (data.success) setHistoryItems(data.history || []);
       } catch (err) {
-        console.error("Failed to fetch initial history:", err);
+        console.error("Failed to fetch history:", err);
       } finally {
         setLoadingHistory(false);
       }
@@ -536,6 +455,7 @@ function PythonScriptRunner() {
     fetchHistory();
   }, []);
 
+  // --- Memoized values to compute derived state efficiently ---
   const filteredScripts = useMemo(() => {
     if (selectedCategories.length === 0) return allScripts;
     return allScripts.filter((s) => selectedCategories.includes(s.category));
@@ -545,12 +465,12 @@ function PythonScriptRunner() {
     () => allScripts.find((s) => s.id === selectedScriptId),
     [allScripts, selectedScriptId],
   );
+  const liveScriptParameters = useMemo(
+    () => scriptParameters[selectedScriptId] || {},
+    [selectedScriptId, scriptParameters],
+  );
 
-  const liveScriptParameters = useMemo(() => {
-    if (!selectedScriptId) return {};
-    return scriptParameters[selectedScriptId] || {};
-  }, [selectedScriptId, scriptParameters]);
-
+  // With this improved version:
   const displayedOutput = useMemo(() => {
     if (selectedHistoryId) {
       const historicRun = historyItems.find(
@@ -558,105 +478,165 @@ function PythonScriptRunner() {
       );
       return historicRun
         ? { output: historicRun.output, error: historicRun.error }
-        : {};
+        : { output: null, error: null };
     }
-    return scriptOutputs[selectedScriptId] || {};
+    return scriptOutputs[selectedScriptId] || { output: null, error: null };
   }, [selectedHistoryId, historyItems, scriptOutputs, selectedScriptId]);
 
-  const handleCategoryChange = (newCategories) => {
-    setSelectedCategories(newCategories);
-    const isStillVisible = allScripts.some(
-      (s) =>
-        s.id === selectedScriptId &&
-        (newCategories.length === 0 || newCategories.includes(s.category)),
-    );
-    if (!isStillVisible) setSelectedScriptId("");
-  };
-
+  // --- State Update Handlers ---
   const handleScriptChange = (scriptId) => {
     setSelectedScriptId(scriptId);
     setSelectedHistoryId(null);
     setScriptOutputs({});
     setError(null);
-    setSelectedTemplateDetails(null); // Clear selected template details when script changes
+    setGeneratedConfig(null);
+    setSelectedTemplateDetails(null);
   };
-
   const updateCurrentScriptParameters = (newParams) => {
     if (!selectedScriptId) return;
     setScriptParameters((prev) => ({ ...prev, [selectedScriptId]: newParams }));
   };
-
-  const handleSelectHistoryItem = (runId) => {
-    setSelectedHistoryId(runId);
-    setSelectedScriptId("");
-    setScriptOutputs({});
-    setError(null);
-  };
-
-  // NEW: Callback for TemplateConfigurationOptions to notify PythonScriptRunner of template selection
   const handleTemplateSelectedFromChild = (templateId, templateObject) => {
     updateCurrentScriptParameters({
       ...liveScriptParameters,
       templateId: templateId,
-      templateParams: {}, // Clear params when a new template is selected
+      templateParams: {},
     });
-    setSelectedTemplateDetails(templateObject); // Store the full template object
+    setSelectedTemplateDetails(templateObject);
   };
-
-  // NEW: handleTemplateParamChange moved to PythonScriptRunner
   const handleTemplateParamChange = (paramName, value) => {
-    if (!selectedScriptId) return; // Ensure a script is selected
+    if (!selectedScriptId) return;
     setScriptParameters((prev) => ({
       ...prev,
       [selectedScriptId]: {
-        ...(prev[selectedScriptId] || {}), // Preserve existing params for the selected script
+        ...(prev[selectedScriptId] || {}),
         templateParams: {
-          ...(prev[selectedScriptId]?.templateParams || {}), // Preserve existing template params
+          ...(prev[selectedScriptId]?.templateParams || {}),
           [paramName]: value,
         },
       },
     }));
   };
-
-  const runSingleScript = async () => {
-    if (!selectedScriptId) return alert("Please select a script.");
-    const params = scriptParameters[selectedScriptId] || {};
-    let payload = {
-      scriptId: selectedScriptId,
-      parameters: {
-        ...params,
-        hostname: params.hostname,
-        tests: Array.isArray(params.tests)
-          ? params.tests.join(",")
-          : params.tests,
-      },
-    };
-
-    setRunningScripts(true);
+  const handleSelectHistoryItem = (runId) => {
+    setSelectedHistoryId(runId);
+    setSelectedScriptId("");
+    setScriptOutputs({});
     setError(null);
+    setGeneratedConfig(null);
+  };
+
+  // ===================================================================================
+  // === ACTION HANDLERS for Generate, Apply, and Run ================================
+  // ===================================================================================
+
+  /**
+   * Action 1: Handles the "Generate Config" button click.
+   * It now correctly uses the `generateConfig` function from our custom hook.
+   */
+  const handleGenerateConfig = async () => {
+    if (!selectedScriptId || !liveScriptParameters.templateId) {
+      setError("Please select a script and a template first.");
+      return;
+    }
+    setError(null);
+    setGeneratedConfig(null);
     setScriptOutputs({});
 
-    try {
-      // NEW: Handle template generation if the script has this capability
-      if (
-        selectedScript?.capabilities?.templateGeneration &&
-        params.templateId
-      ) {
-        const genResult = await generateConfig(
-          params.templateId,
-          params.templateParams,
-        );
-        if (!genResult.success) {
-          throw new Error(
-            genResult.error ||
-              "Failed to generate configuration from template.",
-          );
-        }
-        // Add the rendered configuration to the script parameters
-        payload.parameters.renderedConfig = genResult.rendered_config;
-        payload.parameters.templateIdUsed = params.templateId; // Pass template ID for history
-      }
+    // Call the function from the hook. The hook itself manages the `isGenerating` state via its return value.
+    const result = await generateConfig(
+      liveScriptParameters.templateId,
+      liveScriptParameters.templateParams || {},
+    );
 
+    // `console.log` added for final debugging verification.
+    console.log("RECEIVED RESULT IN COMPONENT:", result);
+
+    // The hook now reliably returns the result object.
+    if (result.success) {
+      // If successful, update the state. This will cause the UI to re-render and show the verification box.
+      setGeneratedConfig(result.generated_config);
+    } else {
+      // If it failed, display the error from the result object.
+      setError(
+        `Generation Error: ${result.error || "An unknown error occurred."}`,
+      );
+    }
+  };
+
+  /**
+   * Action 2: Handles the "Apply to Device" button click.
+   */
+  const handleApplyConfig = async () => {
+    if (!generatedConfig) {
+      alert("Please generate a configuration first.");
+      return;
+    }
+    const currentParams = liveScriptParameters;
+    const {
+      hostname,
+      inventory_file,
+      username,
+      password,
+      templateId,
+      commit_check,
+    } = currentParams;
+    if (!hostname || !username || !password) {
+      setError(
+        "Hostname, Username, and Password are required to apply configuration.",
+      );
+      return;
+    }
+    setIsApplying(true);
+    setError(null);
+    setScriptOutputs({});
+    try {
+      const payload = {
+        templateId: templateId,
+        renderedConfig: generatedConfig,
+        targetHostname: hostname,
+        inventoryFile: inventory_file,
+        username: username,
+        password: password,
+        commitCheck: commit_check || false,
+      };
+      const response = await fetch(`${API_BASE_URL}/api/templates/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to apply configuration.");
+      }
+      setScriptOutputs({
+        [selectedScriptId]: {
+          output: JSON.stringify(data, null, 2),
+          error: null,
+        },
+      });
+    } catch (err) {
+      setError(`Apply Error: ${err.message}`);
+      setScriptOutputs({
+        [selectedScriptId]: { output: null, error: err.message },
+      });
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  /**
+   * Action 3: Handles the "Run Script" button for non-template scripts.
+   */
+  const handleRunOtherScript = async () => {
+    if (!selectedScriptId) return;
+    setIsRunningOther(true);
+    setError(null);
+    setScriptOutputs({});
+    try {
+      const payload = {
+        scriptId: selectedScriptId,
+        parameters: liveScriptParameters,
+      };
       const res = await fetch(`${API_BASE_URL}/api/scripts/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -664,11 +644,10 @@ function PythonScriptRunner() {
       });
       const data = await res.json();
       if (!res.ok || !data.success)
-        throw new Error(data.error || data.message || `Request failed`);
+        throw new Error(data.error || data.message || "Request failed");
       setScriptOutputs({
         [selectedScriptId]: { output: data.output, error: data.error || null },
       });
-
       const historyRes = await fetch(`${API_BASE_URL}/api/history/list`);
       const historyData = await historyRes.json();
       if (historyData.success) {
@@ -678,10 +657,13 @@ function PythonScriptRunner() {
     } catch (err) {
       setError(`Script error: ${err.message}`);
     } finally {
-      setRunningScripts(false);
+      setIsRunningOther(false);
     }
   };
 
+  // ===================================================================================
+  // === JSX / UI RENDERING ============================================================
+  // ===================================================================================
   return (
     <div className="bg-slate-100 min-h-screen rounded-xl">
       <HistoryDrawer
@@ -692,7 +674,6 @@ function PythonScriptRunner() {
         onSelectHistoryItem={handleSelectHistoryItem}
         selectedHistoryId={selectedHistoryId}
       />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-10">
           <div className="flex items-center gap-4">
@@ -714,19 +695,16 @@ function PythonScriptRunner() {
             )}
           </button>
         </div>
-
         <div className="flex flex-col md:flex-row gap-x-10 gap-y-12">
           <ScriptFilterSidebar
             allScripts={allScripts}
             selectedCategories={selectedCategories}
-            onCategoryChange={handleCategoryChange}
+            onCategoryChange={setSelectedCategories}
             selectedScript={selectedScript}
             scriptParameters={liveScriptParameters}
             setParameters={updateCurrentScriptParameters}
-            onTemplateSelected={handleTemplateSelectedFromChild} // Pass new callback
-            onTemplateParamChange={handleTemplateParamChange} // Pass new param change handler
+            onTemplateSelected={handleTemplateSelectedFromChild}
           />
-
           <main className="flex-1">
             <div className="mb-8 border border-slate-200 rounded-lg p-6 lg:p-8 shadow-md bg-white">
               <div className="mb-6">
@@ -740,7 +718,7 @@ function PythonScriptRunner() {
                   id="script-select"
                   value={selectedScriptId}
                   onChange={(e) => handleScriptChange(e.target.value)}
-                  disabled={runningScripts || filteredScripts.length === 0}
+                  disabled={isApplying || isGenerating || isRunningOther}
                   className="block w-full border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
                 >
                   <option value="">
@@ -755,7 +733,6 @@ function PythonScriptRunner() {
                   ))}
                 </select>
               </div>
-
               {selectedScriptId && (
                 <div className="border-t border-slate-200 pt-6 mt-6">
                   <h3 className="text-lg font-semibold text-slate-800 mb-4">
@@ -767,45 +744,93 @@ function PythonScriptRunner() {
                   />
                 </div>
               )}
-
-              {/* Template Parameter Form */}
-              {/* This component is rendered here, directly after the DeviceAuthFields,
-                  only if the selected script supports template generation. */}
               {selectedScript?.capabilities?.templateGeneration && (
                 <TemplateParameterForm
-                  selectedTemplate={selectedTemplateDetails} // Use the new state variable
-                  templateParams={liveScriptParameters.templateParams}
+                  selectedTemplate={selectedTemplateDetails}
+                  templateParams={liveScriptParameters.templateParams || {}}
                   onParamChange={handleTemplateParamChange}
                 />
               )}
-              <button
-                type="button"
-                onClick={runSingleScript}
-                disabled={
-                  !selectedScriptId || runningScripts || generatingConfig
-                } // Disable if generating config
-                className={`mt-8 w-full flex items-center justify-center px-4 py-3 rounded-md text-white text-lg font-semibold transition-all ${!selectedScriptId || runningScripts || generatingConfig ? "bg-slate-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
-              >
-                {runningScripts || generatingConfig ? ( // Show loader if running or generating config
-                  <PulseLoader color={"#ffffff"} size={10} />
-                ) : (
-                  <>
-                    <PlayCircle size={22} className="mr-2" />
-                    Run Script
-                  </>
-                )}
-              </button>
-              {generationError && ( // Display template generation error
-                <p className="text-red-500 text-sm mt-2">{`Configuration generation error: ${generationError}`}</p>
+              <div className="mt-8">
+                {selectedScript?.capabilities?.templateGeneration ? (
+                  <div className="space-y-4">
+                    <button
+                      type="button"
+                      onClick={handleGenerateConfig}
+                      disabled={isGenerating || isApplying || !selectedScriptId}
+                      className="w-full flex items-center justify-center px-4 py-3 rounded-md bg-green-600 text-white text-lg font-semibold hover:bg-green-700 disabled:bg-slate-400 transition-all"
+                    >
+                      {isGenerating ? (
+                        <PulseLoader color={"#ffffff"} size={10} />
+                      ) : (
+                        <>
+                          <Wrench size={20} className="mr-2" />
+                          1. Generate Config
+                        </>
+                      )}
+                    </button>
+                    {generatedConfig && (
+                      <button
+                        type="button"
+                        onClick={handleApplyConfig}
+                        disabled={isApplying || isGenerating}
+                        className="w-full flex items-center justify-center px-4 py-3 rounded-md bg-blue-600 text-white text-lg font-semibold hover:bg-blue-700 disabled:bg-slate-400 transition-all"
+                      >
+                        {isApplying ? (
+                          <PulseLoader color={"#ffffff"} size={10} />
+                        ) : (
+                          <>
+                            <Send size={20} className="mr-2" />
+                            2. Apply to Device
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                ) : selectedScriptId ? (
+                  <button
+                    type="button"
+                    onClick={handleRunOtherScript}
+                    disabled={isRunningOther}
+                    className="w-full flex items-center justify-center px-4 py-3 rounded-md bg-blue-600 text-white text-lg font-semibold hover:bg-blue-700 disabled:bg-slate-400 transition-all"
+                  >
+                    {isRunningOther ? (
+                      <PulseLoader color={"#ffffff"} size={10} />
+                    ) : (
+                      <>
+                        <PlayCircle size={22} className="mr-2" />
+                        Run Script
+                      </>
+                    )}
+                  </button>
+                ) : null}
+              </div>
+              {error && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+                  {error}
+                </div>
+              )}
+              {generationError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{`Hook Error: ${generationError}`}</div>
               )}
             </div>
-
-            {(Object.keys(displayedOutput).length > 0 ||
-              (error && runningScripts)) && (
+            {generatedConfig && (
+              <div className="mt-10 border border-green-300 rounded-lg p-6 lg:p-8 bg-green-50 shadow-md">
+                <h3 className="text-xl font-semibold mb-4 text-green-800 flex items-center">
+                  <CheckCircle size={20} className="mr-2" /> Generated
+                  Configuration (Please Verify)
+                </h3>
+                <pre className="bg-slate-900 text-white p-4 rounded-md text-sm overflow-x-auto max-h-96">
+                  <code>{generatedConfig}</code>
+                </pre>
+              </div>
+            )}
+            {(Object.keys(scriptOutputs).length > 0 || selectedHistoryId) && (
               <div className="mt-10 border border-slate-200 rounded-lg p-6 lg:p-8 bg-white shadow-md">
-                <h3 className="text-xl font-semibold mb-4 text-slate-800 flex items-center">
-                  <FileCode size={20} className="mr-2 text-slate-500" />
-                  Script Output
+                <h3 className="text-xl font-semibold mb-4 text-slate-800">
+                  {selectedHistoryId
+                    ? "Historical Run Result"
+                    : "Apply/Run Result"}
                 </h3>
                 <ErrorBoundary>
                   <ScriptOutputDisplay

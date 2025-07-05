@@ -936,138 +936,47 @@ app.get("/api/history/list", (req, res) => {
   res.json({ success: true, history: runHistory });
 });
 // ====================================================================================
-// === ✨ NEW: API TEMPLATE APPLY (ORCHESTRATOR) =======================================
+// === ✨ REVISED: API TEMPLATE APPLY (Receives pre-rendered config) ==================
 // ====================================================================================
 /**
- * @description API endpoint to orchestrate template generation and application to a device.
+ * @description API endpoint to APPLY a pre-rendered configuration to a device.
  * @route POST /api/templates/apply
  */
 app.post("/api/templates/apply", async (req, res) => {
-  // 1. EXTRACT ALL PARAMETERS FROM THE INCOMING REQUEST
+  // 1. EXTRACT PARAMETERS - Now includes 'rendered_config'
   const {
-    templateId,
-    templateParameters, // e.g., { interface_name: 'ge-0/0/1', ... }
-    targetHost,
+    templateId, // Still useful for logging/history
+    renderedConfig, // The pre-rendered config from the frontend
+    targetHostname,
     inventoryFile,
     username,
     password,
-    commitCheck, // Optional: for dry-runs
+    commitCheck,
   } = req.body;
 
   console.log(
-    `[BACKEND] Orchestration request received for template '${templateId}' on host '${targetHost}'`,
+    `[BACKEND] Apply request received for template '${templateId}' on host '${targetHostname}'`,
   );
 
   // --- VALIDATION ---
-  if (
-    !templateId ||
-    !templateParameters ||
-    !targetHost ||
-    !inventoryFile ||
-    !username ||
-    !password
-  ) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "Missing required parameters for applying template.",
-      });
+  if (!renderedConfig || !targetHostname || !username || !password) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Missing required parameters (renderedConfig, targetHostname, auth) for applying configuration.",
+    });
   }
 
   try {
-    // 2. --- GENERATE THE CONFIGURATION (Internal Logic) ---
-    console.log("[BACKEND] Step 1: Generating configuration...");
-    const templatesConfig = getTemplatesConfig();
-    const templateDef = templatesConfig?.templates?.[templateId];
-    if (!templateDef) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: `Template with ID "${templateId}" not found.`,
-        });
-    }
-    const templateContent = getTemplateContent(templateDef.template_file);
-    if (!templateContent) {
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message: `Failed to read template file "${templateDef.template_file}".`,
-        });
-    }
-
-    // Call the same rendering utility as the /generate endpoint
-    const renderResult = await new Promise((resolve, reject) => {
-      const renderScriptPath = path.join(
-        SCRIPT_MOUNT_POINT_IN_CONTAINER,
-        "tools",
-        "configuration",
-        "utils",
-        "render_template.py",
-      );
-      const renderData = {
-        template_content: templateContent,
-        parameters: templateParameters,
-      };
-      const dockerArgs = [
-        "run",
-        "--rm",
-        "-i",
-        "-v",
-        `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
-        "vlabs-python-runner",
-        "python",
-        renderScriptPath,
-      ];
-
-      const child = spawn("docker", dockerArgs);
-      let stdoutData = "",
-        stderrData = "";
-      child.stdout.on("data", (data) => (stdoutData += data.toString()));
-      child.stderr.on("data", (data) => (stderrData += data.toString()));
-      child.on("error", (err) =>
-        reject(new Error(`Failed to start render script: ${err.message}`)),
-      );
-      child.on("close", (code) => {
-        if (code !== 0)
-          return reject(new Error(`Template rendering failed: ${stderrData}`));
-        try {
-          resolve(JSON.parse(stdoutData));
-        } catch (e) {
-          reject(new Error(`Failed to parse render output: ${stdoutData}`));
-        }
-      });
-      child.stdin.write(JSON.stringify(renderData));
-      child.stdin.end();
-    });
-
-    if (!renderResult.success || !renderResult.rendered_config) {
-      console.error(
-        `[BACKEND] Template generation failed: ${renderResult.error}`,
-      );
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message: `Template generation failed: ${renderResult.error}`,
-        });
-    }
-
-    const renderedConfig = renderResult.rendered_config;
-    console.log(
-      `[BACKEND] Step 1 successful. Generated config length: ${renderedConfig.length}`,
-    );
-
-    // 3. --- APPLY THE CONFIGURATION (Internal Logic from /api/scripts/run) ---
-    console.log("[BACKEND] Step 2: Applying configuration to device...");
+    // --- APPLY THE CONFIGURATION (Call run.py) ---
+    console.log("[BACKEND] Applying pre-rendered configuration to device...");
     const applyResult = await new Promise((resolve, reject) => {
       const runScriptPath = path.join(
         SCRIPT_MOUNT_POINT_IN_CONTAINER,
+        "tools",
         "configuration",
         "run.py",
-      ); // Path to your run.py
+      );
 
       const dockerArgs = [
         "run",
@@ -1082,16 +991,20 @@ app.post("/api/templates/apply", async (req, res) => {
         templateId,
         "--rendered_config",
         renderedConfig,
-        "--inventory_file",
-        path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, "data", inventoryFile), // Pass full path
         "--target_host",
-        targetHost,
+        targetHostname,
         "--username",
         username,
         "--password",
         password,
       ];
 
+      if (inventoryFile) {
+        dockerArgs.push(
+          "--inventory_file",
+          path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, "data", inventoryFile),
+        );
+      }
       if (commitCheck) {
         dockerArgs.push("--commit_check");
       }
@@ -1112,29 +1025,40 @@ app.post("/api/templates/apply", async (req, res) => {
         console.log(`[BACKEND] Apply script stdout:\n${stdoutData}`);
         if (stderrData)
           console.error(`[BACKEND] Apply script stderr:\n${stderrData}`);
-        if (code !== 0)
-          return reject(new Error(`Apply script execution failed.`));
-        // The python script outputs JSON, so we find it.
-        const jsonOutputMatch = stdoutData.match(/\{[\s\S]*\}/);
-        if (!jsonOutputMatch)
+        // ----------------------------------------------------------------------------------
+        // Find the start of the JSON block, which we assume begins with '{' on a new line.
+        const jsonStartIndex = stdoutData.indexOf("\n{");
+        if (jsonStartIndex === -1) {
           return reject(
-            new Error("Could not find JSON output from apply script."),
-          );
-        try {
-          resolve(JSON.parse(jsonOutputMatch[0]));
-        } catch (e) {
-          reject(
-            new Error(`Failed to parse apply script output: ${e.message}`),
+            new Error(
+              `Could not find start of JSON output from apply script. Full output: ${stdoutData}`,
+            ),
           );
         }
+
+        // Extract the substring that contains only the JSON.
+        const jsonBlock = stdoutData.substring(jsonStartIndex).trim();
+
+        try {
+          // Parse the extracted block.
+          resolve(JSON.parse(jsonBlock));
+        } catch (e) {
+          reject(
+            new Error(
+              `Failed to parse apply script output: ${e.message}. Raw JSON block was: ${jsonBlock}`,
+            ),
+          );
+        }
+
+        //-------------------------------------------------------------------------------------
       });
     });
 
-    // 4. --- SEND FINAL RESPONSE ---
-    console.log("[BACKEND] Orchestration completed.");
+    // --- SEND FINAL RESPONSE ---
+    console.log("[BACKEND] Apply process completed.");
     res.json(applyResult);
   } catch (error) {
-    console.error(`[BACKEND] Orchestration failed: ${error.message}`);
+    console.error(`[BACKEND] Apply process failed: ${error.message}`);
     res.status(500).json({ success: false, message: error.message });
   }
 });

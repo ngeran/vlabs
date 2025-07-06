@@ -96,6 +96,26 @@ wss.on("connection", (ws) => {
     console.error(`[WebSocket] Error for client ${clientId}:`, error);
     clients.delete(clientId);
   });
+  // --- ADD THIS BLOCK ---
+  // This is the missing piece. It handles messages coming FROM the client.
+  ws.on("message", (message) => {
+    try {
+      const data = JSON.parse(message);
+
+      // Respond to heartbeat pings to keep the connection alive
+      if (data.type === "ping") {
+        ws.send(JSON.stringify({ type: "pong" }));
+        return; // Don't process pings any further
+      }
+
+      // You can add other server-side message handlers here in the future
+      // For example: if (data.type === 'register') { ... }
+    } catch (e) {
+      // Don't log errors for non-JSON messages if you don't expect them
+      // console.error('[WebSocket] Error parsing message:', message.toString(), e);
+    }
+  });
+  // --- END OF ADDED BLOCK ---
 });
 
 // ====================================================================================
@@ -799,8 +819,10 @@ app.get("/api/inventories/list", async (req, res) => {
     });
   }
 });
-
+//---------------------------------------------------------
 // --- ✨ WEBSOCKET-ENABLED API TEMPLATE APPLY ENDPOINT ---
+// Enhanced WebSocket-enabled API template apply endpoint
+//---------------------------------------------------------
 app.post("/api/templates/apply", async (req, res) => {
   const {
     wsClientId,
@@ -812,20 +834,30 @@ app.post("/api/templates/apply", async (req, res) => {
     password,
     commitCheck,
   } = req.body;
-  if (!wsClientId)
-    return res
-      .status(400)
-      .json({ success: false, message: "WebSocket Client ID is required." });
-  if (!renderedConfig || !targetHostname || !username || !password)
-    return res
-      .status(400)
-      .json({ success: false, message: "Missing required parameters." });
+
+  // Validation
+  if (!wsClientId) {
+    return res.status(400).json({
+      success: false,
+      message: "WebSocket Client ID is required.",
+    });
+  }
+
+  if (!renderedConfig || !targetHostname || !username || !password) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing required parameters.",
+    });
+  }
+
   const clientWs = clients.get(wsClientId);
-  if (!clientWs)
+  if (!clientWs) {
     return res.status(404).json({
       success: false,
       message: "WebSocket client not found or disconnected.",
     });
+  }
+
   try {
     const runScriptPath = path.join(
       SCRIPT_MOUNT_POINT_IN_CONTAINER,
@@ -833,6 +865,8 @@ app.post("/api/templates/apply", async (req, res) => {
       "configuration",
       "run.py",
     );
+
+    // Enhanced Docker arguments for better real-time output
     const dockerArgs = [
       "run",
       "--rm",
@@ -841,6 +875,7 @@ app.post("/api/templates/apply", async (req, res) => {
       `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
       "vlabs-python-runner",
       "python",
+      "-u", // Force unbuffered output for real-time updates
       runScriptPath,
       "--template_id",
       templateId,
@@ -852,89 +887,569 @@ app.post("/api/templates/apply", async (req, res) => {
       username,
       "--password",
       password,
-      "--simple_output",
+      "--simple_output", // Use simple output for WebSocket consumption
     ];
-    if (inventoryFile)
+
+    if (inventoryFile) {
       dockerArgs.push(
         "--inventory_file",
         path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, "data", inventoryFile),
       );
-    if (commitCheck) dockerArgs.push("--commit_check");
+    }
+
+    if (commitCheck) {
+      dockerArgs.push("--commit_check");
+    }
 
     console.log(
       `[BACKEND] Spawning Docker command: docker ${dockerArgs.join(" ")}`,
     );
+
+    // Send immediate response
     res.status(202).json({
       success: true,
       message: "Apply process started. See WebSocket for progress.",
+      templateId,
+      targetHostname,
+      wsClientId,
     });
 
-    const child = spawn("docker", dockerArgs);
-    let finalJsonOutput = null;
+    // Send initial status via WebSocket
+    if (clientWs.readyState === 1) {
+      clientWs.send(
+        JSON.stringify({
+          type: "status",
+          message: "Configuration deployment process initiated",
+          templateId,
+          targetHostname,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    }
 
+    const child = spawn("docker", dockerArgs, {
+      stdio: ["pipe", "pipe", "pipe"], // Ensure we can capture all streams
+      env: { ...process.env, PYTHONUNBUFFERED: "1" }, // Force Python unbuffered output
+    });
+
+    let finalJsonOutput = "";
+    let stdoutBuffer = "";
+    let stderrBuffer = "";
+
+    // Enhanced stderr processing for JSON progress updates
     child.stderr.on("data", (data) => {
-      const lines = data
-        .toString()
-        .split("\n")
-        .filter((line) => line.startsWith("JSON_PROGRESS:"));
+      stderrBuffer += data.toString();
+
+      // Process complete lines
+      const lines = stderrBuffer.split("\n");
+      stderrBuffer = lines.pop() || ""; // Keep the incomplete line in buffer
+
       for (const line of lines) {
-        try {
-          const progressData = JSON.parse(line.substring(14).trim());
-          console.log(
-            `[WebSocket] Forwarding to ${wsClientId}: ${progressData.message}`,
-          );
-          if (clientWs.readyState === 1)
-            clientWs.send(
-              JSON.stringify({ type: "progress", data: progressData }),
+        if (line.trim().startsWith("JSON_PROGRESS:")) {
+          // This now handles ALL progress, including commit
+          try {
+            const progressData = JSON.parse(line.substring(14).trim());
+
+            console.log(
+              `[WebSocket] Progress for ${wsClientId}: ${progressData.message}`,
             );
-        } catch (e) {
-          console.error("[BACKEND] Failed to parse progress JSON:", line);
+
+            // Send progress update via WebSocket
+            if (clientWs.readyState === 1) {
+              clientWs.send(
+                JSON.stringify({
+                  type: "progress", // Standarized type
+                  data: progressData,
+                  templateId,
+                  targetHostname,
+                  timestamp: new Date().toISOString(),
+                }),
+              );
+            }
+          } catch (e) {
+            console.error("[BACKEND] Failed to parse progress JSON:", line);
+          }
+        } else if (line.trim()) {
+          // Forward other stderr output as debug info
+          console.log(`[BACKEND] Script stderr: ${line}`);
         }
       }
     });
 
+    // Enhanced stdout processing for final results
     child.stdout.on("data", (data) => {
-      finalJsonOutput = data.toString();
+      stdoutBuffer += data.toString();
+
+      // Process complete lines for any immediate output
+      const lines = stdoutBuffer.split("\n");
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i].trim();
+        if (line && !line.startsWith("{")) {
+          // Forward non-JSON stdout as info
+          if (clientWs.readyState === 1) {
+            clientWs.send(
+              JSON.stringify({
+                type: "info",
+                message: line,
+                templateId,
+                targetHostname,
+                timestamp: new Date().toISOString(),
+              }),
+            );
+          }
+        }
+      }
     });
 
+    // Handle process completion
     child.on("close", (code) => {
       console.log(`[BACKEND] Apply script finished with code ${code}.`);
+
+      // Process any remaining stderr buffer
+      if (stderrBuffer.trim()) {
+        console.log(`[BACKEND] Remaining stderr: ${stderrBuffer}`);
+      }
+
+      // Handle non-zero exit codes
       if (code !== 0) {
-        if (clientWs.readyState === 1)
+        const errorMsg = `Script exited with error code ${code}`;
+        console.error(`[BACKEND] ${errorMsg}`);
+
+        if (clientWs.readyState === 1) {
           clientWs.send(
             JSON.stringify({
               type: "error",
-              message: `Script exited with error code ${code}.`,
+              message: errorMsg,
+              exitCode: code,
+              templateId,
+              targetHostname,
+              timestamp: new Date().toISOString(),
             }),
           );
+        }
         return;
       }
+
+      // Parse final JSON output
       try {
-        const finalResult = JSON.parse(finalJsonOutput);
-        if (clientWs.readyState === 1)
-          clientWs.send(JSON.stringify({ type: "result", data: finalResult }));
+        // Look for JSON in the stdout buffer
+        const jsonMatch = stdoutBuffer.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const finalResult = JSON.parse(jsonMatch[0]);
+          console.log(`[BACKEND] Final result parsed successfully`);
+
+          if (clientWs.readyState === 1) {
+            clientWs.send(
+              JSON.stringify({
+                type: "result",
+                data: finalResult,
+                templateId,
+                targetHostname,
+                timestamp: new Date().toISOString(),
+              }),
+            );
+          }
+        } else {
+          throw new Error("No JSON result found in output");
+        }
       } catch (e) {
-        if (clientWs.readyState === 1)
+        console.error(`[BACKEND] Failed to parse final output: ${e.message}`);
+        console.error(`[BACKEND] Raw stdout: ${stdoutBuffer}`);
+
+        if (clientWs.readyState === 1) {
           clientWs.send(
             JSON.stringify({
               type: "error",
-              message: "Failed to parse final script output.",
+              message: "Failed to parse final script output",
+              error: e.message,
+              rawOutput: stdoutBuffer.substring(0, 1000), // First 1000 chars for debugging
+              templateId,
+              targetHostname,
+              timestamp: new Date().toISOString(),
             }),
           );
+        }
       }
+    });
+
+    // Handle process errors
+    child.on("error", (error) => {
+      console.error(`[BACKEND] Process error: ${error.message}`);
+
+      if (clientWs.readyState === 1) {
+        clientWs.send(
+          JSON.stringify({
+            type: "error",
+            message: `Process error: ${error.message}`,
+            templateId,
+            targetHostname,
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      }
+    });
+
+    // Set up process timeout (optional)
+    const timeout = setTimeout(() => {
+      console.log(`[BACKEND] Process timeout reached, killing process`);
+      child.kill("SIGTERM");
+
+      if (clientWs.readyState === 1) {
+        clientWs.send(
+          JSON.stringify({
+            type: "error",
+            message: "Process timed out",
+            templateId,
+            targetHostname,
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      }
+    }, 600000); // 10 minute timeout
+
+    // Clear timeout when process completes
+    child.on("exit", () => {
+      clearTimeout(timeout);
     });
   } catch (error) {
     console.error(`[BACKEND] Apply process failed to start: ${error.message}`);
+
     const clientWs = clients.get(wsClientId);
     if (clientWs && clientWs.readyState === 1) {
       clientWs.send(
         JSON.stringify({
           type: "error",
           message: `Failed to start apply process: ${error.message}`,
+          templateId,
+          targetHostname,
+          timestamp: new Date().toISOString(),
         }),
       );
     }
   }
+});
+
+// Optional: Add endpoint to check WebSocket connection status
+app.get("/api/websocket/status/:clientId", (req, res) => {
+  const { clientId } = req.params;
+  const clientWs = clients.get(clientId);
+
+  res.json({
+    connected: !!clientWs,
+    readyState: clientWs ? clientWs.readyState : null,
+    clientId,
+  });
+});
+
+// Optional: Add endpoint to send test message
+app.post("/api/websocket/test/:clientId", (req, res) => {
+  const { clientId } = req.params;
+  const { message } = req.body;
+
+  const clientWs = clients.get(clientId);
+  if (!clientWs) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Client not found" });
+  }
+
+  if (clientWs.readyState === 1) {
+    clientWs.send(
+      JSON.stringify({
+        type: "test",
+        message: message || "Test message",
+        timestamp: new Date().toISOString(),
+      }),
+    );
+    res.json({ success: true, message: "Test message sent" });
+  } else {
+    res.status(400).json({ success: false, message: "WebSocket not ready" });
+  }
+});
+// ====================================================================================
+// SECTION 7.1: NEW WEBSOCKET-ENABLED SCRIPT RUN ENDPOINT
+// Add this new endpoint to your server.js file
+// ====================================================================================
+app.post("/api/scripts/run-stream", (req, res) => {
+  const { scriptId, parameters, wsClientId } = req.body;
+  const runId =
+    Date.now().toString() + Math.random().toString(36).substring(2, 9);
+
+  // --- Enhanced Debugging ---
+  console.log("🔍 [BACKEND DEBUG] Script run request received:", {
+    scriptId,
+    wsClientId,
+    runId,
+    totalClients: clients.size,
+    availableClients: Array.from(clients.keys()),
+  });
+
+  // --- Validation ---
+  if (!scriptId) {
+    console.error("❌ [BACKEND ERROR] Missing scriptId");
+    return res
+      .status(400)
+      .json({ success: false, message: "scriptId is required." });
+  }
+
+  if (!wsClientId) {
+    console.error("❌ [BACKEND ERROR] Missing wsClientId");
+    return res.status(400).json({
+      success: false,
+      message: "wsClientId is required for streaming.",
+    });
+  }
+
+  const clientWs = clients.get(wsClientId);
+  if (!clientWs) {
+    console.error("❌ [BACKEND ERROR] WebSocket client not found:", {
+      requestedClientId: wsClientId,
+      availableClients: Array.from(clients.keys()),
+      totalClients: clients.size,
+    });
+    return res.status(404).json({
+      success: false,
+      message: `WebSocket client not found: ${wsClientId}`,
+      debug: {
+        availableClients: Array.from(clients.keys()),
+        totalClients: clients.size,
+      },
+    });
+  }
+
+  // Check if WebSocket is still open
+  if (clientWs.readyState !== 1) {
+    // 1 = OPEN
+    console.error("❌ [BACKEND ERROR] WebSocket client not in OPEN state:", {
+      clientId: wsClientId,
+      readyState: clientWs.readyState,
+      states: { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 },
+    });
+
+    // Clean up dead connection
+    clients.delete(wsClientId);
+
+    return res.status(410).json({
+      success: false,
+      message: `WebSocket client connection is not open: ${wsClientId}`,
+      debug: {
+        readyState: clientWs.readyState,
+        states: { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 },
+      },
+    });
+  }
+
+  console.log("✅ [BACKEND SUCCESS] Valid WebSocket client found:", {
+    clientId: wsClientId,
+    readyState: clientWs.readyState,
+  });
+
+  const config = yaml.load(
+    fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
+  );
+  const scriptDef = config.scripts.find((s) => s.id === scriptId);
+  if (!scriptDef) {
+    console.error("❌ [BACKEND ERROR] Script definition not found:", scriptId);
+    return res
+      .status(404)
+      .json({ success: false, message: "Script definition not found." });
+  }
+
+  const scriptPath = path.join(
+    SCRIPT_MOUNT_POINT_IN_CONTAINER,
+    scriptDef.id,
+    scriptDef.scriptFile,
+  );
+
+  console.log("🚀 [BACKEND] Starting script execution:", {
+    scriptId,
+    scriptPath,
+    runId,
+    clientId: wsClientId,
+  });
+
+  // Acknowledge the request immediately
+  res
+    .status(202)
+    .json({ success: true, message: "Script execution started.", runId });
+
+  // --- Prepare Docker Command ---
+  const dockerArgs = [
+    "run",
+    "--rm",
+    "--network=host",
+    "-v",
+    `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+    "vlabs-python-runner",
+    "python",
+    "-u", // Use unbuffered python output for real-time streaming
+    scriptPath,
+  ];
+
+  if (parameters) {
+    for (const [key, value] of Object.entries(parameters)) {
+      if (value !== undefined && value !== null && value !== "") {
+        dockerArgs.push(`--${key}`);
+        dockerArgs.push(String(value));
+      }
+    }
+  }
+
+  // --- Spawn Process and Stream Output ---
+  try {
+    const child = spawn("docker", dockerArgs);
+    let fullStdout = "";
+    let fullStderr = "";
+
+    const sendToClient = (type, data) => {
+      // Re-check client state before sending
+      const currentClient = clients.get(wsClientId);
+      if (currentClient && currentClient.readyState === 1) {
+        try {
+          currentClient.send(JSON.stringify({ type, ...data }));
+          console.log(`📤 [BACKEND] Sent ${type} to client ${wsClientId}`);
+        } catch (sendError) {
+          console.error(
+            `❌ [BACKEND ERROR] Failed to send ${type} to client ${wsClientId}:`,
+            sendError,
+          );
+          // Clean up dead connection
+          clients.delete(wsClientId);
+        }
+      } else {
+        console.warn(
+          `⚠️ [BACKEND WARNING] Cannot send ${type} - client ${wsClientId} not available`,
+        );
+      }
+    };
+
+    // Send start message
+    sendToClient("script_start", {
+      runId,
+      scriptId,
+      message: "Script process started.",
+    });
+
+    child.stdout.on("data", (data) => {
+      const outputChunk = data.toString();
+      fullStdout += outputChunk;
+      sendToClient("script_output", { runId, scriptId, output: outputChunk });
+    });
+
+    child.stderr.on("data", (data) => {
+      const errorChunk = data.toString();
+      fullStderr += errorChunk;
+      sendToClient("script_error", { runId, scriptId, error: errorChunk });
+    });
+
+    child.on("close", (code) => {
+      console.log(
+        `🏁 [BACKEND] Script ${scriptId} completed with exit code:`,
+        code,
+      );
+
+      // --- THIS IS THE SINGLE, CORRECT BLOCK TO SAVE HISTORY ---
+      const result = {
+        runId,
+        timestamp: new Date().toISOString(),
+        scriptId,
+        parameters,
+        isSuccess: code === 0,
+        output: fullStdout,
+        error: fullStderr,
+      };
+
+      // Add to history
+      runHistory.unshift(result);
+      if (runHistory.length > MAX_HISTORY_ITEMS) {
+        runHistory.pop();
+      }
+      // --- END OF HISTORY BLOCK ---
+
+      // Notify client that the script has ended
+      sendToClient("script_end", { runId, scriptId, exitCode: code });
+    });
+
+    child.on("error", (err) => {
+      console.error(
+        `❌ [BACKEND ERROR] Failed to start script ${scriptId}:`,
+        err,
+      );
+      sendToClient("script_error", {
+        runId,
+        scriptId,
+        error: `Failed to start process: ${err.message}`,
+      });
+      sendToClient("script_end", { runId, scriptId, exitCode: 1 });
+    });
+  } catch (e) {
+    console.error(
+      `❌ [BACKEND ERROR] Error spawning script process for ${scriptId}:`,
+      e,
+    );
+
+    // Re-check client before sending error
+    const currentClient = clients.get(wsClientId);
+    if (currentClient && currentClient.readyState === 1) {
+      try {
+        currentClient.send(
+          JSON.stringify({
+            type: "script_error",
+            runId,
+            scriptId,
+            error: `Server error on spawn: ${e.message}`,
+          }),
+        );
+        currentClient.send(
+          JSON.stringify({ type: "script_end", runId, scriptId, exitCode: 1 }),
+        );
+      } catch (sendError) {
+        console.error(
+          `❌ [BACKEND ERROR] Failed to send error to client:`,
+          sendError,
+        );
+      }
+    }
+  }
+});
+
+// Add endpoint to check client status (for debugging)
+app.get("/api/websocket/clients/:clientId/status", (req, res) => {
+  const { clientId } = req.params;
+  const client = clients.get(clientId);
+
+  if (!client) {
+    return res.status(404).json({
+      success: false,
+      message: "Client not found",
+      debug: {
+        availableClients: Array.from(clients.keys()),
+        totalClients: clients.size,
+      },
+    });
+  }
+
+  res.json({
+    success: true,
+    clientId,
+    readyState: client.readyState,
+    states: { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 },
+  });
+});
+
+// Add endpoint to list all clients (for debugging)
+app.get("/api/websocket/clients", (req, res) => {
+  const clientList = Array.from(clients.entries()).map(([id, ws]) => ({
+    id,
+    readyState: ws.readyState,
+    states: { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 },
+  }));
+
+  res.json({
+    success: true,
+    totalClients: clients.size,
+    clients: clientList,
+  });
 });
 
 // ====================================================================================

@@ -495,6 +495,20 @@ function PythonScriptRunner() {
   const isActionInProgress =
     isGenerating || templateRunner.isApplying || scriptRunner.isRunning;
 
+  // ======================================================================
+  // --- ADD THIS ENTIRE useEffect BLOCK ---
+  // ======================================================================
+  // This effect runs only ONCE when the component first mounts.
+  // Its job is to guarantee a clean state on every page load or hot-reload.
+  useEffect(() => {
+    console.log("PythonScriptRunner mounted. Forcing a state reset.");
+    templateRunner.resetState();
+    scriptRunner.resetState();
+  }, []); // The empty dependency array [] is crucial. It means "run only once".
+  // ======================================================================
+  // --- END OF ADDED BLOCK ---
+  // ======================================================================
+
   // --- Data Fetching ---
   useEffect(() => {
     async function fetchScripts() {
@@ -732,26 +746,28 @@ function PythonScriptRunner() {
           <main className="flex-1">
             <ErrorBoundary>
               {/* --- Panel 1: Configuration & Action Buttons --- */}
-              <div className="mb-8 border border-slate-200 rounded-lg p-6 lg:p-8 shadow-md bg-white">
-                <div className="mb-6">
-                  <label
-                    htmlFor="script-select"
-                    className="block text-sm font-medium text-slate-700 mb-2"
-                  >
-                    Select Script
-                  </label>
-
-                  {/* --- ADD THE "START OVER" BUTTON --- */}
-                  {(selectedScriptId ||
-                    scriptRunner.isComplete ||
-                    templateRunner.isComplete) && (
-                    <button
-                      onClick={handleReset}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+              <div>
+                <div className="mb-8 border border-slate-200 rounded-lg p-6 lg:p-8 shadow-md bg-white">
+                  <div className="flex justify-between items-center mb-2">
+                    <label
+                      htmlFor="script-select"
+                      className="block text-sm font-medium text-slate-700 mb-2"
                     >
-                      Start Over
-                    </button>
-                  )}
+                      Select Script
+                    </label>
+
+                    {/* --- ADD THE "START OVER" BUTTON --- */}
+                    {(selectedScriptId ||
+                      scriptRunner.isComplete ||
+                      templateRunner.isComplete) && (
+                      <button
+                        onClick={handleReset}
+                        className="block text-sm font-medium text-slate-700 hover:text-blue-800"
+                      >
+                        Start Over
+                      </button>
+                    )}
+                  </div>
                   {/* --- END OF BUTTON --- */}
 
                   <select
@@ -768,6 +784,7 @@ function PythonScriptRunner() {
                       </option>
                     ))}
                   </select>
+
                   {/* --- ADD THE SCRIPT DESCRIPTION --- */}
                   {selectedScript?.description && (
                     <p className="mt-3 text-sm text-slate-600 bg-slate-50 p-3 rounded-md border border-slate-200">
@@ -776,6 +793,7 @@ function PythonScriptRunner() {
                   )}
                   {/* --- END OF DESCRIPTION --- */}
                 </div>
+
                 {selectedScriptId && (
                   <div className="border-t border-slate-200 pt-6 mt-6">
                     <h3 className="text-lg font-semibold text-slate-800 mb-4">

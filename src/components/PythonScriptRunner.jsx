@@ -166,20 +166,19 @@ function TemplateConfigurationOptions({ parameters, onTemplateSelected }) {
       {Object.entries(categorizedTemplates).length === 0 && !loading ? (
         <p className="text-sm text-slate-500 italic">No templates found.</p>
       ) : (
-        <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+        <div className=" overflow-hidden">
           {Object.entries(categorizedTemplates).map(([category, templates]) => (
-            <div
-              key={category}
-              className="border-b border-slate-200 last:border-b-0"
-            >
+            <div key={category} className=" last:border-b-0">
               <button
                 type="button"
-                className="flex justify-between items-center w-full p-4 hover:bg-slate-50 focus:outline-none"
+                className="flex justify-between items-center w-full p-4 focus:outline-none"
                 onClick={() => toggleCategory(category)}
               >
                 <div className="flex items-center gap-3">
-                  <span className="font-medium text-slate-700">{category}</span>
-                  <span className="bg-slate-200 text-slate-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                  <span className="text-sm font-medium text-slate-700">
+                    {category}
+                  </span>
+                  <span className="bg-slate-900 text-slate-100 text-xs font-semibold px-2 py-0.5 rounded-full">
                     {templates.length}
                   </span>
                 </div>
@@ -747,7 +746,7 @@ function PythonScriptRunner() {
             <ErrorBoundary>
               {/* --- Panel 1: Configuration & Action Buttons --- */}
               <div>
-                <div className="mb-8 border border-slate-200 rounded-lg p-6 lg:p-8 shadow-md bg-white">
+                <div className="mb-8 border-t border-slate-200 rounded-lg p-6 lg:p-8">
                   <div className="flex justify-between items-center mb-2">
                     <label
                       htmlFor="script-select"
@@ -795,8 +794,8 @@ function PythonScriptRunner() {
                 </div>
 
                 {selectedScriptId && (
-                  <div className="border-t border-slate-200 pt-6 mt-6">
-                    <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                  <div className="border-t border-slate-200 pt-6 mt-6 rounded-md">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4 rounded-md">
                       Device & Authentication
                     </h3>
                     <DeviceAuthFields

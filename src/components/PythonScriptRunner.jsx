@@ -166,20 +166,19 @@ function TemplateConfigurationOptions({ parameters, onTemplateSelected }) {
       {Object.entries(categorizedTemplates).length === 0 && !loading ? (
         <p className="text-sm text-slate-500 italic">No templates found.</p>
       ) : (
-        <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+        <div className=" overflow-hidden">
           {Object.entries(categorizedTemplates).map(([category, templates]) => (
-            <div
-              key={category}
-              className="border-b border-slate-200 last:border-b-0"
-            >
+            <div key={category} className=" last:border-b-0">
               <button
                 type="button"
-                className="flex justify-between items-center w-full p-4 hover:bg-slate-50 focus:outline-none"
+                className="flex justify-between items-center w-full p-4 focus:outline-none"
                 onClick={() => toggleCategory(category)}
               >
                 <div className="flex items-center gap-3">
-                  <span className="font-medium text-slate-700">{category}</span>
-                  <span className="bg-slate-200 text-slate-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                  <span className="text-sm font-medium text-slate-700">
+                    {category}
+                  </span>
+                  <span className="bg-slate-900 text-slate-100 text-xs font-semibold px-2 py-0.5 rounded-full">
                     {templates.length}
                   </span>
                 </div>
@@ -339,6 +338,7 @@ function HistoryDrawer({
   isLoading,
   onSelectHistoryItem,
   selectedHistoryId,
+  allScripts = [], // <-- FIX 1: Add a default empty array to prevent crashes
 }) {
   useEffect(() => {
     const handleEsc = (event) => {
@@ -355,50 +355,74 @@ function HistoryDrawer({
         onClick={onClose}
       />
       <div
-        className={`fixed top-0 right-0 bottom-0 w-80 bg-white shadow-xl z-50 transform transition-transform ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+        className={`fixed top-0 right-0 bottom-0 w-80 md:w-96 bg-white shadow-xl z-50 transform transition-transform ${isOpen ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="p-4 h-full flex flex-col">
           <header className="flex items-center justify-between border-b pb-3 mb-4">
             <h3 className="text-lg font-semibold flex items-center">
               <History size={18} className="mr-2" /> Run History
             </h3>
-            <button onClick={onClose} className="p-1 rounded-full">
+            <button
+              onClick={onClose}
+              className="p-1 rounded-full hover:bg-slate-100"
+            >
               <X size={20} />
             </button>
           </header>
-          <div className="overflow-y-auto flex-1 pr-2">
+          <div className="overflow-y-auto flex-1 pr-2 -mr-2">
+            {" "}
+            {/* Improved scrollbar handling */}
             {isLoading ? (
-              <p>Loading history...</p>
+              <p className="text-slate-500 italic p-4">Loading history...</p>
             ) : history.length === 0 ? (
-              <p>No recent runs.</p>
+              <p className="text-slate-500 italic p-4">No recent runs.</p>
             ) : (
-              <ul>
-                {history.map((run) => (
-                  <li key={run.runId}>
-                    <button
-                      onClick={() => {
-                        onSelectHistoryItem(run.runId);
-                        onClose();
-                      }}
-                      className={`w-full text-left p-2 rounded-md hover:bg-slate-100 ${selectedHistoryId === run.runId ? "bg-blue-50" : ""}`}
-                    >
-                      <div className="flex items-center justify-between font-medium text-sm text-slate-800">
-                        <span className="truncate">{run.scriptId}</span>
-                        {run.isSuccess ? (
-                          <CheckCircle size={16} className="text-green-500" />
-                        ) : (
-                          <ServerCrash size={16} className="text-red-500" />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
-                        <Clock size={12} />
-                        <span>
-                          {new Date(run.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                    </button>
-                  </li>
-                ))}
+              <ul className="space-y-2">
+                {" "}
+                {/* Added space-y for better separation */}
+                {history.map((run) => {
+                  // --- LOOKUP LOGIC (Now safe) ---
+                  const script = allScripts.find((s) => s.id === run.scriptId);
+                  const displayName = script?.displayName || run.scriptId;
+                  // --- END OF LOOKUP LOGIC ---
+
+                  return (
+                    <li key={run.runId}>
+                      <button
+                        onClick={() => {
+                          onSelectHistoryItem(run.runId);
+                          onClose();
+                        }}
+                        className={`w-full text-left p-3 rounded-md transition-colors border ${
+                          selectedHistoryId === run.runId
+                            ? "bg-blue-50 border-blue-300"
+                            : "bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between font-semibold text-sm text-slate-800">
+                          <span className="truncate pr-2">{displayName}</span>
+                          {run.isSuccess ? (
+                            <CheckCircle
+                              size={18}
+                              className="text-green-500 flex-shrink-0"
+                            />
+                          ) : (
+                            <ServerCrash
+                              size={18}
+                              className="text-red-500 flex-shrink-0"
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1.5">
+                          <Clock size={12} />
+                          <span>
+                            {new Date(run.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -408,6 +432,9 @@ function HistoryDrawer({
   );
 }
 
+//-------------------------------------------------------------------------------------------
+//
+//-------------------------------------------------------------------------------------------
 function StreamedOutputDisplay({ runnerState, onReset }) {
   if (!runnerState.isRunning && !runnerState.isComplete) return null;
 
@@ -467,6 +494,20 @@ function PythonScriptRunner() {
   const isActionInProgress =
     isGenerating || templateRunner.isApplying || scriptRunner.isRunning;
 
+  // ======================================================================
+  // --- ADD THIS ENTIRE useEffect BLOCK ---
+  // ======================================================================
+  // This effect runs only ONCE when the component first mounts.
+  // Its job is to guarantee a clean state on every page load or hot-reload.
+  useEffect(() => {
+    console.log("PythonScriptRunner mounted. Forcing a state reset.");
+    templateRunner.resetState();
+    scriptRunner.resetState();
+  }, []); // The empty dependency array [] is crucial. It means "run only once".
+  // ======================================================================
+  // --- END OF ADDED BLOCK ---
+  // ======================================================================
+
   // --- Data Fetching ---
   useEffect(() => {
     async function fetchScripts() {
@@ -520,6 +561,20 @@ function PythonScriptRunner() {
       : null;
   }, [selectedHistoryId, historyItems]);
 
+  // ======================================================================
+  // HANDLER RESET
+  // ======================================================================
+  const handleReset = useCallback(() => {
+    setSelectedScriptId("");
+    setScriptParameters({});
+    setGeneratedConfig(null);
+    setTopLevelError(null);
+    setSelectedTemplateDetails(null);
+    setSelectedHistoryId(null);
+    templateRunner.resetState();
+    scriptRunner.resetState();
+  }, [templateRunner, scriptRunner]); // Dependencies are correct
+
   // --- UI Event Handlers using useCallback for stable references ---
   const handleScriptChange = useCallback(
     (scriptId) => {
@@ -547,6 +602,7 @@ function PythonScriptRunner() {
 
   const handleTemplateSelected = useCallback(
     (templateId, templateObject) => {
+      setGeneratedConfig(null);
       updateCurrentScriptParameters({
         ...liveScriptParameters,
         templateId,
@@ -559,6 +615,8 @@ function PythonScriptRunner() {
 
   const handleTemplateParamChange = useCallback(
     (paramName, value) => {
+      setGeneratedConfig(null); // Invalidate old config on any parameter change
+
       updateCurrentScriptParameters({
         ...liveScriptParameters,
         templateParams: {
@@ -638,6 +696,7 @@ function PythonScriptRunner() {
         isLoading={loadingHistory}
         onSelectHistoryItem={handleSelectHistoryItem}
         selectedHistoryId={selectedHistoryId}
+        allScripts={allScripts} // <-- PASS THE SCRIPTS ARRAY
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-10">
@@ -686,14 +745,30 @@ function PythonScriptRunner() {
           <main className="flex-1">
             <ErrorBoundary>
               {/* --- Panel 1: Configuration & Action Buttons --- */}
-              <div className="mb-8 border border-slate-200 rounded-lg p-6 lg:p-8 shadow-md bg-white">
-                <div className="mb-6">
-                  <label
-                    htmlFor="script-select"
-                    className="block text-sm font-medium text-slate-700 mb-2"
-                  >
-                    Select Script
-                  </label>
+              <div>
+                <div className="mb-8 border-t border-slate-200 rounded-lg p-6 lg:p-8">
+                  <div className="flex justify-between items-center mb-2">
+                    <label
+                      htmlFor="script-select"
+                      className="block text-sm font-medium text-slate-700 mb-2"
+                    >
+                      Select Script
+                    </label>
+
+                    {/* --- ADD THE "START OVER" BUTTON --- */}
+                    {(selectedScriptId ||
+                      scriptRunner.isComplete ||
+                      templateRunner.isComplete) && (
+                      <button
+                        onClick={handleReset}
+                        className="block text-sm font-medium text-slate-700 hover:text-blue-800"
+                      >
+                        Start Over
+                      </button>
+                    )}
+                  </div>
+                  {/* --- END OF BUTTON --- */}
+
                   <select
                     id="script-select"
                     value={selectedScriptId}
@@ -708,10 +783,19 @@ function PythonScriptRunner() {
                       </option>
                     ))}
                   </select>
+
+                  {/* --- ADD THE SCRIPT DESCRIPTION --- */}
+                  {selectedScript?.description && (
+                    <p className="mt-3 text-sm text-slate-600 bg-slate-50 p-3 rounded-md border border-slate-200">
+                      {selectedScript.description}
+                    </p>
+                  )}
+                  {/* --- END OF DESCRIPTION --- */}
                 </div>
+
                 {selectedScriptId && (
-                  <div className="border-t border-slate-200 pt-6 mt-6">
-                    <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                  <div className="border-t border-slate-200 pt-6 mt-6 rounded-md">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4 rounded-md">
                       Device & Authentication
                     </h3>
                     <DeviceAuthFields

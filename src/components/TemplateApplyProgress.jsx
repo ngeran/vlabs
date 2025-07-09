@@ -96,7 +96,7 @@ const TemplateApplyProgress = ({ applicationState, onReset }) => {
           <span>
             Deployment{" "}
             {overallStatus === "SUCCESS" ? "Completed Successfully" : "Failed"}{" "}
-            in {(duration / 1000).toFixed(2)}s
+            {duration ? `in ${(duration / 1000).toFixed(2)}s` : ""}
           </span>
         </div>
       )}

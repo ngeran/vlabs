@@ -1,0 +1,55 @@
+{
+  "backup_info": {
+    "hostname": "172.27.200.200",
+    "backup_timestamp": "2025-07-09T01:15:11.101016",
+    "backup_type": "full_device_backup",
+    "total_files": 6,
+    "total_size": 7945
+  },
+  "device_info": {
+    "hostname": "MLRENGBSMSRX01",
+    "model": "SRX320-POE",
+    "version": "24.2R1-S2.5",
+    "serial_number": "CX1923AN0400",
+    "uptime": "5 hours, 42 minutes, 26 seconds"
+  },
+  "backup_files": {
+    "configurations": {
+      "text": {
+        "filename": "172.27.200.200_text_20250709_011508.txt",
+        "path": "/app/python-scripts/tools/backup_and_restore/backups/172.27.200.200/172.27.200.200_text_20250709_011508.txt",
+        "size": 46,
+        "description": "Hierarchical format (for 'load override')"
+      },
+      "set": {
+        "filename": "172.27.200.200_set_20250709_011508.set",
+        "path": "/app/python-scripts/tools/backup_and_restore/backups/172.27.200.200/172.27.200.200_set_20250709_011508.set",
+        "size": 45,
+        "description": "Set commands format (for 'load set')"
+      },
+      "xml": {
+        "filename": "172.27.200.200_xml_20250709_011509.xml",
+        "path": "/app/python-scripts/tools/backup_and_restore/backups/172.27.200.200/172.27.200.200_xml_20250709_011509.xml",
+        "size": 41,
+        "description": "XML format configuration"
+      },
+      "json": {
+        "filename": "172.27.200.200_json_20250709_011510.json",
+        "path": "/app/python-scripts/tools/backup_and_restore/backups/172.27.200.200/172.27.200.200_json_20250709_011510.json",
+        "size": 6300,
+        "description": "JSON format configuration"
+      }
+    },
+    "facts": {
+      "filename": "172.27.200.200_facts_20250709_011510.json",
+      "path": "/app/python-scripts/tools/backup_and_restore/backups/172.27.200.200/172.27.200.200_facts_20250709_011510.json",
+      "size": 1468
+    },
+    "hardware": {
+      "filename": "172.27.200.200_hardware_20250709_011511.xml",
+      "path": "/app/python-scripts/tools/backup_and_restore/backups/172.27.200.200/172.27.200.200_hardware_20250709_011511.xml",
+      "size": 45
+    }
+  },
+  "backup_errors": []
+}

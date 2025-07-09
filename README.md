@@ -198,3 +198,179 @@ This phase automates the release process after a Pull Request is successfully te
     *   **For Production**: The deployment to production could be a manual "click-to-deploy" action in your CI/CD tool, or it could be fully automated after the staging deployment is verified.
 
 By implementing these phases, you'll create a highly professional, resilient, and efficient workflow that allows your team to contribute new functionality with high confidence and minimal manual intervention.
+
+### Overview of the Process
+
+The system is designed to distinguish between two types of scripts based on the `scripts.yaml` manifest:
+
+1.  **Template-Based Scripts (`templateGeneration: true`):** These scripts use a two-step workflow: "1. Generate Config" -> "2. Apply to Device". They use the `/api/templates/apply` endpoint and the `useTemplateApplication` hook.
+2.  **Generic Streaming Scripts (no `templateGeneration` capability):** These scripts use a simpler one-step workflow: "Run Script". They use the dedicated `/api/scripts/run-stream` endpoint and the `useScriptRunnerStream` hook, which is exactly what we want for our new script.
+
+Our goal is to create a script that fits into the second category.
+
+---
+
+### Step 1: Create the Script's Directory and Files
+
+First, we need to create the directory structure and the Python script itself. Following the existing pattern, we'll place it inside the `tools/` directory.
+
+1.  **Create the Directory:**
+    Create a new folder named `health_check` inside the `python_pipeline/tools/` directory.
+
+    ```bash
+    mkdir -p python_pipeline/tools/health_check
+    ```
+
+2.  **Create the Metadata File (`metadata.yml`):**
+    This file provides additional, more detailed metadata that isn't required in the main `scripts.yaml`. It's good practice to include it.
+
+    Create `python_pipeline/tools/health_check/metadata.yml`:
+    ```yaml
+    # python_pipeline/tools/health_check/metadata.yml
+    name: "Device Health Check"
+    version: "1.0.0"
+    author: "Your Name"
+    description: "A comprehensive script to check device health, including CPU, memory, and interface status. Streams output in real-time."
+    parameters:
+      - name: "target_host"
+        label: "Target Hostname or IP"
+        type: "string"
+        required: true
+        description: "The device to run the health check against."
+      - name: "check_level"
+        label: "Check Level"
+        type: "string"
+        required: false
+        placeholder: "standard"
+        description: "Specify 'standard' or 'deep' for the check level. Defaults to 'standard'."
+    ```
+
+3.  **Create the Python Script (`run.py`):**
+    This is the core logic. The key to making it WebSocket-capable is to print output incrementally and ensure the output buffer is flushed. The backend's `python -u` flag helps with this, but using `flush=True` in your Python `print` statements is a robust way to guarantee it.
+
+    Create `python_pipeline/tools/health_check/run.py`:
+    ```python
+    #!/usr/bin/env python3
+    
+    import time
+    import sys
+    import argparse
+    
+    def run_health_check(target_host, check_level):
+        """
+        Simulates a health check script that streams its output.
+        """
+        print(f"--- Starting Health Check for {target_host} (Level: {check_level}) ---", flush=True)
+    
+        # Step 1: Pinging device
+        print("\n[1/4] Checking device reachability...", flush=True)
+        time.sleep(1)
+        print(f"  > PING {target_host}: 56 data bytes", flush=True)
+        time.sleep(0.5)
+        print(f"  > 64 bytes from {target_host}: icmp_seq=0 ttl=64 time=1.23 ms", flush=True)
+        print("  > SUCCESS: Device is reachable.", flush=True)
+    
+        # Step 2: Checking CPU
+        print("\n[2/4] Checking CPU utilization...", flush=True)
+        time.sleep(1.5)
+        print("  > CPU load: 15%", flush=True)
+        print("  > SUCCESS: CPU utilization is within normal parameters.", flush=True)
+    
+        # Step 3: Checking Memory
+        print("\n[3/4] Checking memory usage...", flush=True)
+        time.sleep(1.5)
+        print("  > Memory usage: 45%", flush=True)
+        # Example of printing to stderr for warnings or non-critical errors
+        print("  > WARNING: High memory watermark reached in the last 24 hours.", file=sys.stderr, flush=True)
+        print("  > SUCCESS: Current memory usage is acceptable.", flush=True)
+    
+        # Step 4: Checking Interfaces
+        if check_level == 'deep':
+            print("\n[4/4] Performing deep interface check...", flush=True)
+            time.sleep(1)
+            print("  > Checking ge-0/0/0... UP", flush=True)
+            time.sleep(0.5)
+            print("  > Checking ge-0/0/1... UP", flush=True)
+            time.sleep(0.5)
+            print("  > Checking ge-0/0/2... DOWN", file=sys.stderr, flush=True)
+            print("  > ALERT: Interface ge-0/0/2 is down!", file=sys.stderr, flush=True)
+        else:
+            print("\n[4/4] Performing standard interface check...", flush=True)
+            time.sleep(1)
+            print("  > All critical interfaces are UP.", flush=True)
+    
+        print("\n--- Health Check Complete ---", flush=True)
+    
+    
+    if __name__ == "__main__":
+        parser = argparse.ArgumentParser(description="Device Health Check Script")
+        # These arguments will be passed from the frontend via the DeviceAuthFields component
+        parser.add_argument("--hostname", help="Target device hostname or IP", required=True)
+        parser.add_argument("--check_level", help="Level of check ('standard' or 'deep')", default="standard")
+        # Add other common args even if not used, to prevent errors
+        parser.add_argument("--username", help="Device username")
+        parser.add_argument("--password", help="Device password")
+        parser.add_argument("--inventory", help="Inventory file path")
+        
+        args = parser.parse_args()
+    
+        # The script gets the target from the --hostname parameter
+        run_health_check(args.hostname, args.check_level)
+    ```
+
+### Step 2: Register the New Script in the Manifest
+
+Now, you must add an entry for your new script in `python_pipeline/scripts.yaml`. This is how the frontend discovers it and knows how to handle it.
+
+1.  **Edit `scripts.yaml`:**
+    Open the file and add a new entry to the `scripts` list.
+
+    ```yaml
+    # python_pipeline/scripts.yaml
+    
+    scripts:
+      # ... [existing script entries for JSNAPy and Device Configuration] ...
+    
+      # --- NEW: DEVICE HEALTH CHECK SCRIPT ---
+      - id: "tools/health_check"               # MUST match the directory path
+        displayName: "Device Health Check"       # Name shown in the UI dropdown
+        description: "Runs a real-time health check on a device, streaming output."
+        category: "Diagnostics"                # Used for filtering in the UI
+        tags:
+          - diagnostics
+          - health_check
+          - streaming
+          - real-time
+        scriptFile: "run.py"                   # The executable script in the directory
+        metadataFile: "metadata.yml"           # The corresponding metadata file
+        # CRITICAL: We DO NOT add a 'capabilities' block.
+        # The absence of 'capabilities.templateGeneration: true' tells the frontend
+        # to use the generic, single-button "Run Script" streaming workflow.
+    ```
+
+**Key Insight:** The most important part of this step is what you *don't* add. By omitting the `capabilities.templateGeneration` flag, you signal to `PythonScriptRunner.jsx` that this is a generic script, which correctly routes it to the `handleRunOtherScript` function and the `useScriptRunnerStream` hook.
+
+### Step 3: Verify Backend and Frontend Integration (No Code Changes Needed)
+
+The beauty of the existing system is that **no changes are required in `server.js` or `PythonScriptRunner.jsx`**. The code is already built to handle this case generically.
+
+*   **Backend (`server.js`):** The `/api/scripts/run-stream` endpoint is generic. It takes any `scriptId`, finds its path, and executes it, streaming `stdout`/`stderr` over the WebSocket connection associated with the `wsClientId`.
+*   **Frontend (`PythonScriptRunner.jsx`):** The component's logic will automatically adapt:
+    1.  It will fetch the new script from `/api/scripts/list`.
+    2.  When you select "Device Health Check" from the dropdown, it will check `selectedScript.capabilities?.templateGeneration`.
+    3.  This will be `undefined` (and thus falsy).
+    4.  The component will therefore render the single, blue **"Run Script"** button instead of the two-step green and blue buttons.
+    5.  Clicking this button triggers `handleRunOtherScript`, which uses the `useScriptRunnerStream` hook to correctly call the streaming backend endpoint.
+
+### Step 4: Run and Test
+
+You are now ready to run your new script.
+
+1.  **Restart Your Application:** Make sure the backend server reloads the new `scripts.yaml` file. If you are using a tool like `nodemon`, this should happen automatically. Otherwise, restart the server.
+2.  **Open the UI:** Navigate to the Script Runner page in your browser.
+3.  **Select the Script:** Open the "Select Script" dropdown. You should now see **"Device Health Check"**. The description you provided will appear below it.
+4.  **Fill in Parameters:** The `DeviceAuthFields` component will appear. Enter a target hostname (e.g., `192.168.1.1`). The other parameters from your `run.py`'s `argparse` will also be available if you were to build a UI for them.
+5.  **Run the Script:** Click the blue **"Run Script"** button.
+6.  **Watch the Real-Time Output:** The `StreamedOutputDisplay` panel will appear, and you will see the output from your Python script being printed line-by-line, exactly as the `time.sleep()` calls dictate. Lines printed to `stderr` will appear in the red error panel.
+
+Congratulations! You have successfully added a new, WebSocket-enabled Python script to the platform, leveraging the existing generic streaming architecture.

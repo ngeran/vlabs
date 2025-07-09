@@ -57,3 +57,20 @@ scripts:
     capabilities:
       templateGeneration: true # Indicates this script uses template generation logic
       deviceInteraction: true  # Indicates this script interacts with devices
+
+ # --- DEVICE BACKUP ---
+  - id: tools/backup_and_restore # This is the scriptId that PythonScriptRunner.jsx will use
+    displayName: "Backup and Restore"
+    description: "Backup or Restore Juniper Device Configuration."
+    category: "Network Automation"
+    tags:
+      - configuration
+      - Juniper
+      - templates
+      - PyEZ
+      - network_automation
+    scriptFile: "run.py" # Points to the run.py inside the 'configuration' directory
+    metadataFile: "metadata.yml" # Points to metadata.yml inside 'configuration' directory
+    capabilities:
+      templateGeneration: false # Indicates this script uses template generation logic
+      deviceInteraction: false  # Indicates this script interacts with devices

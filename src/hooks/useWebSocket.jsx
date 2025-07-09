@@ -487,43 +487,45 @@ export const useTemplateApplication = (wsContext = {}, options = {}) => {
     // ======================================================================
     // START OF THE FIX
     // ======================================================================
-    // Progress updates
-    // ✨ FIX 2: This handler now intelligently accumulates step progress.
-
     unsubscribers.push(
       websocketService.on("progress", (data) => {
-        // `data` is the full WS message: { type: 'progress', data: { ...python_object... } }
+        // `data` is the WS message from the server: e.g., { type: 'progress', data: python_payload }
         const pythonPayload = data.data; // This is the object from the Python script
-        const stepData = pythonPayload.data; // This is the ACTUAL step info object we need
 
-        // Guard against malformed progress messages that might not have the nested data
-        if (!stepData || typeof stepData.step === "undefined") {
-          console.warn(
-            "Received malformed progress update, skipping:",
-            pythonPayload,
-          );
+        // Guard against malformed messages
+        if (!pythonPayload || typeof pythonPayload.data?.step === "undefined") {
+          console.warn("Received malformed progress update, skipping:", data);
           return;
         }
 
+        const stepData = pythonPayload.data; // This is the actual step info object
+
+        // ✨ THIS IS THE KEY CHANGE ✨
+        // Use the functional update form of setApplicationState.
+        // The `prev` argument is guaranteed by React to be the latest state.
         setApplicationState((prev) => {
+          // Create a fresh copy of the steps array from the most recent state
           const newSteps = [...(prev.progress?.steps || [])];
 
-          // Now this findIndex works correctly because `stepData.step` is a valid number
+          // Find if this step number already exists
           const stepIndex = newSteps.findIndex((s) => s.step === stepData.step);
 
           if (stepIndex > -1) {
-            // Update an existing step (e.g., from IN_PROGRESS to COMPLETED)
+            // Step exists: Merge the new data into the existing step object
+            // This handles updates like changing status from IN_PROGRESS to COMPLETED
             newSteps[stepIndex] = { ...newSteps[stepIndex], ...stepData };
           } else {
-            // Add a new step
+            // Step is new: Push it to the array
             newSteps.push(stepData);
           }
 
+          // Always sort to ensure correct order, just in case messages arrive out of order
           newSteps.sort((a, b) => a.step - b.step);
 
+          // Return the new state object
           return {
             ...prev,
-            currentStatus: pythonPayload.message, // Use the high-level message from Python
+            currentStatus: pythonPayload.message, // Update the high-level status message
             progress: {
               ...prev.progress,
               steps: newSteps,
@@ -534,7 +536,6 @@ export const useTemplateApplication = (wsContext = {}, options = {}) => {
         onProgressUpdate?.(data);
       }),
     );
-
     // ======================================================================
     // END OF THE FIX
     // ======================================================================

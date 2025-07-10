@@ -1,14 +1,30 @@
-# Defines the input fields for the UI form
+# python_pipeline/tools/jsnapy_runner/metadata.yml
+
+displayName: "JSNAPy Test Runner"
+description: "Executes JSNAPy snapshot tests against devices to validate operational state."
+
+# --- THIS IS THE FIX ---
+# This line assigns the script to the category that our navigation bar
+# uses for the "Network Automation" dropdown menu.
+category: "Validation & Testing"
+
+# This capability flag tells the UI to render the special test selector 
+# component in the sidebar for this script.
+capabilities:
+  dynamicDiscovery: true
+
+# Parameters required by this script's UI.
 parameters:
-  - name: hostname
-    label: "Target Hostname or IP"
-    type: text
+  - name: "environment"
+    label: "Environment"
+    type: "enum"
     required: true
-  - name: username
-    label: "Username"
-    type: text
+    default: "development"
+    options:
+      - { value: "development", label: "Development" }
+      - { value: "lab", label: "Lab" }
+  - name: "tests"
+    label: "Tests to run"
+    type: "string_array" # This is a conceptual type handled by the custom UI
     required: true
-  - name: password
-    label: "Password"
-    type: password
-    required: true
+    description: "Select tests from the sidebar options."

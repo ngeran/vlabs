@@ -8,9 +8,10 @@ from jnpr.junos.exception import CommitError
 # from utils.shared_utils import ProgressTracker
 
 class RestoreManager:
-    def __init__(self, device: Device, progress_tracker):
+    def __init__(self, device: Device, progress_tracker, logger):
         self.dev = device
         self.progress = progress_tracker
+        self.logger = logger # Store the logger instance
         self.config = Config(self.dev)
 
     def run_restore(self, backup_file_path: str, restore_type: str, confirmed_timeout: int):

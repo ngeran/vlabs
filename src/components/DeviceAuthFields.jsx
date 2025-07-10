@@ -1,30 +1,48 @@
-// src/components/DeviceAuthFields.jsx
+// ====================================================================================
+// COMPONENT: DeviceAuthFields.jsx - FINAL CORRECTED VERSION
+// This version fixes the critical bug in how the onParamChange prop is called.
+// ====================================================================================
 
+// ====================================================================================
+// SECTION 1: IMPORTS & DEPENDENCIES
+// ====================================================================================
 import React, { useState, useEffect } from "react";
 import { List, Keyboard } from "lucide-react";
 
+// ====================================================================================
+// SECTION 2: API CONSTANTS
+// ====================================================================================
 const API_BASE_URL = "http://localhost:3001";
 
+// ====================================================================================
+// SECTION 3: MAIN COMPONENT DEFINITION
+// ====================================================================================
 /**
  * @description A smart component for handling device targeting and authentication.
- *              It allows switching between manual host entry and inventory file selection,
- *              and provides a compact, user-friendly layout for credentials.
  * @param {object} props - Component props.
- * @param {object} props.parameters - The current state of parameters for the script.
- * @param {function} props.onParamChange - The callback to update the parent's state.
+ * @param {object} props.parameters - The current state object for all form parameters.
+ * @param {(name: string, value: any) => void} props.onParamChange - Callback to update ONE parameter in the parent's state.
  */
 export default function DeviceAuthFields({ parameters, onParamChange }) {
+  // ----------------------------------------------------------------------------------
+  // Subsection 3.1: State Management
+  // ----------------------------------------------------------------------------------
   const [inputMode, setInputMode] = useState("manual");
   const [inventories, setInventories] = useState([]);
   const [loadingInv, setLoadingInv] = useState(false);
   const [errorInv, setErrorInv] = useState(null);
 
+  // ----------------------------------------------------------------------------------
+  // Subsection 3.2: Data Fetching Effect
+  // ----------------------------------------------------------------------------------
   useEffect(() => {
-    const fetchInventories = async () => {
+    async function fetchInventories() {
       setLoadingInv(true);
       setErrorInv(null);
       try {
         const response = await fetch(`${API_BASE_URL}/api/inventories/list`);
+        if (!response.ok)
+          throw new Error(`Server responded with ${response.status}`);
         const data = await response.json();
         if (data.success) {
           setInventories(data.inventories || []);
@@ -39,25 +57,47 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
       } finally {
         setLoadingInv(false);
       }
-    };
+    }
     fetchInventories();
   }, []);
 
+  // ----------------------------------------------------------------------------------
+  // Subsection 3.3: Event Handlers
+  // ----------------------------------------------------------------------------------
+
+  /**
+   * ✨ THIS IS THE FIX ✨
+   * @description Handles any change in the input or select fields.
+   * It now calls the parent's handler with the correct (name, value) signature.
+   */
   const handleChange = (e) => {
     const { name, value } = e.target;
-    onParamChange({ ...parameters, [name]: value });
+    // Correctly call the parent's state update function with two arguments.
+    onParamChange(name, value);
   };
 
+  /**
+   * ✨ THIS IS THE FIX ✨
+   * @description Handles clicks on the 'Manual Entry' vs 'Inventory File' toggle.
+   * It now correctly calls the parent's handler to clear the conflicting field.
+   */
   const handleModeChange = (mode) => {
     setInputMode(mode);
-    // No need to change the parameters when switching modes.
-    // Just change the local state that controls the UI.
-    // This prevents accidental deletion of data from the parent state.
+    if (mode === "manual") {
+      // Tell the parent to REMOVE the 'inventory_file' key by passing undefined.
+      onParamChange("inventory_file", undefined);
+    } else {
+      // Tell the parent to REMOVE the 'hostname' key by passing undefined.
+      onParamChange("hostname", undefined);
+    }
   };
 
+  // ----------------------------------------------------------------------------------
+  // Subsection 3.4: Main Render Logic (JSX)
+  // ----------------------------------------------------------------------------------
   return (
     <div className="space-y-6">
-      {/* Target Mode Selector (unchanged) */}
+      {/* Target Mode Selector Toggle */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Target Mode
@@ -80,7 +120,7 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
         </div>
       </div>
 
-      {/* Conditional Inputs */}
+      {/* Conditional Input Area */}
       {inputMode === "manual" ? (
         <div>
           <label
@@ -89,20 +129,16 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
           >
             Target Hostname(s)
           </label>
-          {/* --- UI CHANGE #1: Use a single-line input instead of textarea --- */}
           <input
             type="text"
             id="hostname"
             name="hostname"
             value={parameters.hostname || ""}
             onChange={handleChange}
-            placeholder="e.g., router1, router2.cisco.com, 10.0.0.1"
+            placeholder="e.g., router1, 10.0.0.1"
             className="mt-1 block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500"
             required
           />
-          <p className="text-xs text-slate-500 mt-1">
-            Enter one or more hostnames/IPs, separated by commas.
-          </p>
         </div>
       ) : (
         <div>
@@ -138,9 +174,8 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
         </div>
       )}
 
-      {/* Common Auth Fields */}
+      {/* Common Authentication Fields */}
       <div className="border-t border-slate-200 pt-6">
-        {/* --- UI CHANGE #2: Wrap username and password in a flex container --- */}
         <div className="flex flex-col md:flex-row md:gap-4">
           <div className="w-full md:flex-1 mb-4 md:mb-0">
             <label

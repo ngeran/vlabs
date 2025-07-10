@@ -9,10 +9,12 @@ from jnpr.junos import Device
 # from utils.shared_utils import ProgressTracker 
 
 class BackupManager:
-    def __init__(self, device: Device, progress_tracker):
+    def __init__(self, device: Device, progress_tracker, logger):
         self.dev = device
         self.progress = progress_tracker
+        self.logger = logger # Store the logger instance
         self.hostname = device.hostname or device.facts['hostname']
+        
 
     def run_backup(self, backup_path: str, config_only: bool = False):
         self.progress.start_operation(f"Backup for '{self.hostname}'")

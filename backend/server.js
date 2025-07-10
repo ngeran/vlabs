@@ -199,18 +199,50 @@ const getDockerComposeStatus = (labPath) => {
     });
   });
 };
-const getScriptIndividualMetadata = (scriptId, metadataFileName) => {
-  if (!scriptId || !metadataFileName) return null;
+//-----------------------------------------------------------------------------
+//
+//-----------------------------------------------------------------------------
+const getScriptIndividualMetadata = (scriptDefinition) => {
+  // Now takes the whole script definition object from scripts.yaml
+  if (
+    !scriptDefinition ||
+    !scriptDefinition.id ||
+    !scriptDefinition.path ||
+    !scriptDefinition.metadataFile
+  ) {
+    console.error(
+      "[BACKEND] Invalid script definition passed to getScriptIndividualMetadata:",
+      scriptDefinition,
+    );
+    return null;
+  }
+
   try {
-    const p = path.join(PYTHON_PIPELINE_MOUNT_PATH, scriptId, metadataFileName);
-    return yaml.load(fs.readFileSync(p, "utf8"));
+    // Correctly construct the full path using the `path` property from scripts.yaml
+    const metadataPath = path.join(
+      PYTHON_PIPELINE_MOUNT_PATH, // e.g., /python_pipeline
+      scriptDefinition.path, // e.g., "tools/jsnapy_runner"
+      scriptDefinition.metadataFile, // e.g., "metadata.yml"
+    );
+    // Correct resulting path: /python_pipeline/tools/jsnapy_runner/metadata.yml
+
+    if (!fs.existsSync(metadataPath)) {
+      console.warn(
+        `[BACKEND] Metadata file not found for script "${scriptDefinition.id}" at: ${metadataPath}`,
+      );
+      return { error: `Metadata file not found at ${metadataPath}` }; // Return an error object
+    }
+
+    return yaml.load(fs.readFileSync(metadataPath, "utf8"));
   } catch (e) {
     console.error(
-      `[BACKEND] Error processing metadata for script "${scriptId}": ${e.message}`,
+      `[BACKEND] Error processing metadata for script "${scriptDefinition.id}": ${e.message}`,
     );
     return null;
   }
 };
+
+//-----------------------------------------------------------------------------
 const executeTestDiscovery = (scriptId, environment = "development") => {
   return new Promise((resolve, reject) => {
     const cacheKey = `${scriptId}-${environment}`;
@@ -562,16 +594,27 @@ app.post("/api/report/generate", (req, res) => {
   }
 });
 
+// --- UPDATE THIS ENDPOINT ---
 app.get("/api/scripts/list", (req, res) => {
   try {
     const config = yaml.load(
       fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
     );
     if (config && Array.isArray(config.scripts)) {
-      const scripts = config.scripts.map((s) => ({
-        ...s,
-        ...getScriptIndividualMetadata(s.id, s.metadataFile),
-      }));
+      // Map over the script definitions from the master YAML file
+      const scripts = config.scripts
+        .map((scriptDef) => {
+          // Pass the entire script definition object to our corrected helper function
+          const individualMetadata = getScriptIndividualMetadata(scriptDef);
+
+          // Merge the base info (id, path) with the detailed metadata
+          return {
+            ...scriptDef, // Keeps the original id, path, metadataFile
+            ...individualMetadata, // Merges displayName, description, category, parameters, etc.
+          };
+        })
+        .filter((s) => s && !s.error); // Filter out any scripts where metadata failed to load
+
       res.json({ success: true, scripts: scripts });
     } else {
       res
@@ -586,6 +629,7 @@ app.get("/api/scripts/list", (req, res) => {
   }
 });
 
+// ... (the rest of your server.js file)
 app.post("/api/scripts/run", (req, res) => {
   const { scriptId, parameters } = req.body;
   const runId =
@@ -1254,12 +1298,22 @@ app.post("/api/scripts/run-stream", (req, res) => {
       .status(404)
       .json({ success: false, message: "Script definition not found." });
   }
+  // --- REPLACE THIS LINE ---
+  // const scriptPath = path.join(
+  //   SCRIPT_MOUNT_POINT_IN_CONTAINER,
+  //   scriptDef.id,
+  //   scriptDef.scriptFile,
+  // );
 
+  // --- WITH THIS CORRECTED LOGIC ---
   const scriptPath = path.join(
-    SCRIPT_MOUNT_POINT_IN_CONTAINER,
-    scriptDef.id,
-    scriptDef.scriptFile,
+    SCRIPT_MOUNT_POINT_IN_CONTAINER, // e.g., /app/python-scripts
+    scriptDef.path, // e.g., "tools/backup_and_restore"
+    "run.py", // The assumed executable name
   );
+  // Correct resulting path: /app/python-scripts/tools/backup_and_restore/run.py
+
+  // --- END OF CORRECTION ---
 
   console.log("🚀 [BACKEND] Starting script execution:", {
     scriptId,
@@ -1286,14 +1340,35 @@ app.post("/api/scripts/run-stream", (req, res) => {
     scriptPath,
   ];
 
+  // --- REPLACE THE OLD LOOP WITH THIS CORRECTED LOGIC ---
   if (parameters) {
     for (const [key, value] of Object.entries(parameters)) {
-      if (value !== undefined && value !== null && value !== "") {
-        dockerArgs.push(`--${key}`);
-        dockerArgs.push(String(value));
+      // Skip if the value is null, undefined, or an empty string
+      if (value === null || value === undefined || value === "") {
+        continue;
       }
+
+      // Handle boolean 'true' flags (like --config_only)
+      // These flags are present without a value.
+      if (value === true) {
+        dockerArgs.push(`--${key}`);
+        continue; // Go to the next parameter
+      }
+
+      // Handle boolean 'false' flags
+      // We do nothing, effectively omitting the flag from the command.
+      if (value === false) {
+        continue; // Go to the next parameter
+      }
+
+      // Handle all other key-value pairs (strings, numbers)
+      dockerArgs.push(`--${key}`);
+      dockerArgs.push(String(value));
     }
   }
+  // --- END OF REPLACEMENT ---
+
+  console.log("🚀 [BACKEND] Spawning command:", dockerArgs.join(" "));
 
   // --- Spawn Process and Stream Output ---
   try {
@@ -1412,7 +1487,37 @@ app.post("/api/scripts/run-stream", (req, res) => {
     }
   }
 });
+//=================================================================
+app.get("/api/inventories/list", async (req, res) => {
+  // We'll look for inventory files in the main /data directory for now.
+  // This could be made more specific per-script in the future if needed.
+  const dataDir = path.join(PYTHON_PIPELINE_MOUNT_PATH, "data");
 
+  try {
+    if (!fs.existsSync(dataDir)) {
+      console.warn(`[BACKEND] Inventory directory not found at: ${dataDir}`);
+      return res.status(200).json({
+        success: true,
+        inventories: [],
+        message: "Inventory directory not found.",
+      });
+    }
+
+    const files = await fs.promises.readdir(dataDir);
+    // Filter for common inventory file extensions
+    const inventoryFiles = files.filter((file) => /\.(ya?ml|ini)$/i.test(file));
+
+    res.json({ success: true, inventories: inventoryFiles });
+  } catch (error) {
+    console.error("[BACKEND] Failed to list inventory files:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to list inventory files",
+      error: error.message,
+    });
+  }
+});
+//=================================================================
 // Add endpoint to check client status (for debugging)
 app.get("/api/websocket/clients/:clientId/status", (req, res) => {
   const { clientId } = req.params;

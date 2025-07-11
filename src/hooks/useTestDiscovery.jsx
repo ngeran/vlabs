@@ -12,23 +12,50 @@ export function useTestDiscovery(scriptId, environment = "development") {
   useEffect(() => {
     // Don't fetch if there's no scriptId
     if (!scriptId) {
+      console.log("useTestDiscovery: No scriptId provided, skipping fetch");
       setCategorizedTests({});
       return;
     }
 
+    console.log(
+      `useTestDiscovery: Starting fetch for scriptId: ${scriptId}, environment: ${environment}`,
+    );
+
     const fetchTests = async () => {
       setLoading(true);
       setError(null);
+
       try {
+        const requestBody = JSON.stringify({ scriptId, environment });
+        console.log("useTestDiscovery: Request body:", requestBody);
+
         const response = await fetch(
           `${API_BASE_URL}/api/scripts/discover-tests`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ scriptId, environment }),
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: requestBody,
           },
         );
+
+        console.log("useTestDiscovery: Response status:", response.status);
+        console.log(
+          "useTestDiscovery: Response headers:",
+          Object.fromEntries(response.headers.entries()),
+        );
+
+        // Check if response is ok
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("useTestDiscovery: HTTP error response:", errorText);
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
         const data = await response.json();
+        console.log("useTestDiscovery: Response data:", data);
 
         if (!data.success) {
           throw new Error(data.message || "Failed to discover tests.");
@@ -37,8 +64,12 @@ export function useTestDiscovery(scriptId, environment = "development") {
         // The API returns tests in a flat structure, we can categorize them here if needed,
         // or assume the backend provides a categorized structure. For now, let's use the backend's structure.
         setCategorizedTests(data.discovered_tests || {});
+        console.log("useTestDiscovery: Successfully set categorized tests");
       } catch (err) {
-        console.error(`Error discovering tests for ${scriptId}:`, err);
+        console.error(
+          `useTestDiscovery: Error discovering tests for ${scriptId}:`,
+          err,
+        );
         setError(err.message);
         setCategorizedTests({});
       } finally {

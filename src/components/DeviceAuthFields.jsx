@@ -1,40 +1,27 @@
 // ====================================================================================
-// COMPONENT: DeviceAuthFields.jsx - FINAL CORRECTED VERSION
-// This version fixes the critical bug in how the onParamChange prop is called.
+// COMPONENT: DeviceAuthFields.jsx - ENHANCED WITH BETTER ERROR HANDLING
 // ====================================================================================
 
-// ====================================================================================
-// SECTION 1: IMPORTS & DEPENDENCIES
-// ====================================================================================
 import React, { useState, useEffect } from "react";
 import { List, Keyboard } from "lucide-react";
 
-// ====================================================================================
-// SECTION 2: API CONSTANTS
-// ====================================================================================
 const API_BASE_URL = "http://localhost:3001";
 
-// ====================================================================================
-// SECTION 3: MAIN COMPONENT DEFINITION
-// ====================================================================================
-/**
- * @description A smart component for handling device targeting and authentication.
- * @param {object} props - Component props.
- * @param {object} props.parameters - The current state object for all form parameters.
- * @param {(name: string, value: any) => void} props.onParamChange - Callback to update ONE parameter in the parent's state.
- */
 export default function DeviceAuthFields({ parameters, onParamChange }) {
-  // ----------------------------------------------------------------------------------
-  // Subsection 3.1: State Management
-  // ----------------------------------------------------------------------------------
   const [inputMode, setInputMode] = useState("manual");
   const [inventories, setInventories] = useState([]);
   const [loadingInv, setLoadingInv] = useState(false);
   const [errorInv, setErrorInv] = useState(null);
 
-  // ----------------------------------------------------------------------------------
-  // Subsection 3.2: Data Fetching Effect
-  // ----------------------------------------------------------------------------------
+  // Initialize input mode based on existing parameters
+  useEffect(() => {
+    if (parameters.inventory_file) {
+      setInputMode("inventory");
+    } else if (parameters.hostname) {
+      setInputMode("manual");
+    }
+  }, [parameters.inventory_file, parameters.hostname]);
+
   useEffect(() => {
     async function fetchInventories() {
       setLoadingInv(true);
@@ -61,42 +48,47 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
     fetchInventories();
   }, []);
 
-  // ----------------------------------------------------------------------------------
-  // Subsection 3.3: Event Handlers
-  // ----------------------------------------------------------------------------------
-
-  /**
-   * ✨ THIS IS THE FIX ✨
-   * @description Handles any change in the input or select fields.
-   * It now calls the parent's handler with the correct (name, value) signature.
-   */
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Correctly call the parent's state update function with two arguments.
+    console.log(`DeviceAuthFields: Setting ${name} = "${value}"`);
+
+    // Always call with the exact name and value
     onParamChange(name, value);
   };
 
-  /**
-   * ✨ THIS IS THE FIX ✨
-   * @description Handles clicks on the 'Manual Entry' vs 'Inventory File' toggle.
-   * It now correctly calls the parent's handler to clear the conflicting field.
-   */
   const handleModeChange = (mode) => {
+    console.log(`DeviceAuthFields: Changing mode to ${mode}`);
     setInputMode(mode);
+
     if (mode === "manual") {
-      // Tell the parent to REMOVE the 'inventory_file' key by passing undefined.
+      // Clear inventory_file and ensure hostname is ready
       onParamChange("inventory_file", undefined);
+      // Don't auto-set hostname to empty string, let user fill it
     } else {
-      // Tell the parent to REMOVE the 'hostname' key by passing undefined.
+      // Clear hostname and ensure inventory_file is ready
       onParamChange("hostname", undefined);
+      // Don't auto-set inventory_file, let user select it
     }
   };
 
-  // ----------------------------------------------------------------------------------
-  // Subsection 3.4: Main Render Logic (JSX)
-  // ----------------------------------------------------------------------------------
+  // Validation helpers
+  const hasValidHostname =
+    parameters.hostname && parameters.hostname.trim() !== "";
+  const hasValidInventoryFile =
+    parameters.inventory_file && parameters.inventory_file.trim() !== "";
+  const hasValidUsername =
+    parameters.username && parameters.username.trim() !== "";
+  const hasValidPassword =
+    parameters.password && parameters.password.trim() !== "";
+
   return (
     <div className="space-y-6">
+      {/* Debug info - remove this in production */}
+      <div className="bg-gray-100 p-3 rounded text-xs">
+        <strong>Debug Info:</strong>
+        <pre>{JSON.stringify(parameters, null, 2)}</pre>
+      </div>
+
       {/* Target Mode Selector Toggle */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -127,7 +119,7 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
             htmlFor="hostname"
             className="block text-sm font-medium text-slate-700 mb-1"
           >
-            Target Hostname(s)
+            Target Hostname(s) *
           </label>
           <input
             type="text"
@@ -136,9 +128,14 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
             value={parameters.hostname || ""}
             onChange={handleChange}
             placeholder="e.g., router1, 10.0.0.1"
-            className="mt-1 block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500"
+            className={`mt-1 block w-full border rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 ${
+              hasValidHostname ? "border-slate-300" : "border-red-300"
+            }`}
             required
           />
+          {!hasValidHostname && (
+            <p className="text-sm text-red-600 mt-1">Hostname is required</p>
+          )}
         </div>
       ) : (
         <div>
@@ -146,7 +143,7 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
             htmlFor="inventory_file"
             className="block text-sm font-medium text-slate-700 mb-1"
           >
-            Select Inventory File
+            Select Inventory File *
           </label>
           {errorInv && <p className="text-sm text-red-600 mt-1">{errorInv}</p>}
           <select
@@ -155,7 +152,9 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
             value={parameters.inventory_file || ""}
             onChange={handleChange}
             disabled={loadingInv || inventories.length === 0}
-            className="mt-1 block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
+            className={`mt-1 block w-full border rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 ${
+              hasValidInventoryFile ? "border-slate-300" : "border-red-300"
+            }`}
             required
           >
             <option value="">
@@ -171,6 +170,11 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
               </option>
             ))}
           </select>
+          {!hasValidInventoryFile && (
+            <p className="text-sm text-red-600 mt-1">
+              Please select an inventory file
+            </p>
+          )}
         </div>
       )}
 
@@ -182,7 +186,7 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
               htmlFor="username"
               className="block text-sm font-medium text-slate-700 mb-1"
             >
-              Username
+              Username *
             </label>
             <input
               type="text"
@@ -190,16 +194,21 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
               name="username"
               value={parameters.username || ""}
               onChange={handleChange}
-              className="mt-1 block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500"
+              className={`mt-1 block w-full border rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 ${
+                hasValidUsername ? "border-slate-300" : "border-red-300"
+              }`}
               required
             />
+            {!hasValidUsername && (
+              <p className="text-sm text-red-600 mt-1">Username is required</p>
+            )}
           </div>
           <div className="w-full md:flex-1">
             <label
               htmlFor="password"
               className="block text-sm font-medium text-slate-700 mb-1"
             >
-              Password
+              Password *
             </label>
             <input
               type="password"
@@ -207,9 +216,14 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
               name="password"
               value={parameters.password || ""}
               onChange={handleChange}
-              className="mt-1 block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500"
+              className={`mt-1 block w-full border rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 ${
+                hasValidPassword ? "border-slate-300" : "border-red-300"
+              }`}
               required
             />
+            {!hasValidPassword && (
+              <p className="text-sm text-red-600 mt-1">Password is required</p>
+            )}
           </div>
         </div>
       </div>

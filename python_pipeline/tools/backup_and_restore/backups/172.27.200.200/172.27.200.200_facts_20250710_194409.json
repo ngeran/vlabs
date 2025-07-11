@@ -1,0 +1,54 @@
+{
+    "current_re": [
+        "master",
+        "node",
+        "fwdd",
+        "member",
+        "pfem",
+        "backup",
+        "fpc0",
+        "re0",
+        "fpc0.pic0"
+    ],
+    "domain": null,
+    "fqdn": "MLRENGBSMSRX01",
+    "switch_style": "VLAN_L2NG",
+    "HOME": "/var/home/admin",
+    "srx_cluster": false,
+    "srx_cluster_id": null,
+    "srx_cluster_redundancy_group": null,
+    "RE_hw_mi": false,
+    "serialnumber": "CX1923AN0400",
+    "2RE": false,
+    "master": "RE0",
+    "RE0": {
+        "mastership_state": "master",
+        "status": "OK",
+        "model": "RE-SRX320-POE",
+        "last_reboot_reason": "0x1:power cycle/failure",
+        "up_time": "2 days, 4 hours, 11 minutes, 18 seconds"
+    },
+    "RE1": null,
+    "re_info": {
+        "default": {
+            "0": {
+                "mastership_state": "master",
+                "status": "OK",
+                "model": "RE-SRX320-POE",
+                "last_reboot_reason": "0x1:power cycle/failure"
+            },
+            "default": {
+                "mastership_state": "master",
+                "status": "OK",
+                "model": "RE-SRX320-POE",
+                "last_reboot_reason": "0x1:power cycle/failure"
+            }
+        }
+    },
+    "re_master": {
+        "default": "0"
+    },
+    "junos_info": {
+        "re0": {
+            "text": "24.2R1-S2.5",
+            "object": 

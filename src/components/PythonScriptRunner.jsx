@@ -1,10 +1,5 @@
 // ====================================================================================
-// PAGE: PythonScriptRunner.jsx - FINAL COMPLETE VERSION
-//
-// This is the primary UI component for the entire Script Runner application.
-// It orchestrates the overall layout, state management, and interaction logic.
-// Its core design principle is to be a generic "host" that dynamically renders
-// the appropriate UI for any selected script based on its metadata.
+// PAGE: PythonScriptRunner.jsx - FINAL STREAMING VERSION
 // ====================================================================================
 
 // ====================================================================================
@@ -40,12 +35,9 @@ import { useWebSocket, useScriptRunnerStream } from "../hooks/useWebSocket.jsx";
 const API_BASE_URL = "http://localhost:3001";
 
 // ====================================================================================
-// SECTION 3: HELPER COMPONENTS (Defined locally for clarity)
+// SECTION 3: HELPER COMPONENTS
 // ====================================================================================
 
-/**
- * @description A slide-out drawer for displaying the history of script runs.
- */
 function HistoryDrawer({ isOpen, onClose, history, allScripts = [] }) {
   useEffect(() => {
     const handleEsc = (event) => {
@@ -121,11 +113,6 @@ function HistoryDrawer({ isOpen, onClose, history, allScripts = [] }) {
   );
 }
 
-/**
- * @description A dedicated sidebar area for script-specific options, like the
- *              JSNAPy test selector. It only renders content if the selected
- *              script has a relevant capability flag in its metadata.
- */
 function ScriptOptionsSidebar({ script, parameters, setParameters }) {
   const hasSidebarOptions = script?.capabilities?.dynamicDiscovery;
 
@@ -135,17 +122,12 @@ function ScriptOptionsSidebar({ script, parameters, setParameters }) {
         <h3 className="text-lg font-semibold text-slate-800 flex items-center border-b border-slate-200 pb-3">
           <Layers size={18} className="mr-2 text-slate-500" /> Script Options
         </h3>
-        {hasSidebarOptions ? (
-          <ScriptOptionsRenderer
-            script={script}
-            parameters={parameters}
-            setParameters={setParameters}
-          />
-        ) : (
-          <p className="text-sm text-slate-500 italic">
-            This script has no special sidebar options.
-          </p>
-        )}
+        {/* This renderer will now handle the JSNAPy options correctly */}
+        <ScriptOptionsRenderer
+          script={script}
+          parameters={parameters}
+          setParameters={setParameters}
+        />
       </div>
     </aside>
   );
@@ -163,11 +145,21 @@ function PythonScriptRunner() {
   const [loadingScripts, setLoadingScripts] = useState(true);
   const [selectedScriptId, setSelectedScriptId] = useState("");
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
-  const [topLevelError, setTopLevelError] = useState(null);
   const [scriptParameters, setScriptParameters] = useState({});
+
   const wsContext = useWebSocket({ autoConnect: true });
-  const streamRunner = useScriptRunnerStream(wsContext);
-  const isActionInProgress = streamRunner.isRunning;
+  const {
+    runScript,
+    progressEvents,
+    finalResult,
+    error,
+    fullLog,
+    isRunning,
+    isComplete,
+    resetState: resetStreamState,
+  } = useScriptRunnerStream(wsContext);
+
+  const isActionInProgress = isRunning;
 
   // ----------------------------------------------------------------------------------
   // Subsection 4.2: Data Fetching and Effects
@@ -182,7 +174,7 @@ function PythonScriptRunner() {
         if (!data.success) throw new Error(data.message);
         setAllScripts(data.scripts || []);
       } catch (err) {
-        setTopLevelError(`Error loading scripts: ${err.message}`);
+        toast.error(`Error loading scripts: ${err.message}`);
       } finally {
         setLoadingScripts(false);
       }
@@ -191,14 +183,14 @@ function PythonScriptRunner() {
   }, []);
 
   useEffect(() => {
-    if (isHistoryDrawerOpen || streamRunner.isComplete) {
+    if (isHistoryDrawerOpen || isComplete) {
       fetch(`${API_BASE_URL}/api/history/list`)
         .then((res) => res.json())
         .then((data) => {
           if (data.success) setHistoryItems(data.history || []);
         });
     }
-  }, [isHistoryDrawerOpen, streamRunner.isComplete]);
+  }, [isHistoryDrawerOpen, isComplete]);
 
   // ----------------------------------------------------------------------------------
   // Subsection 4.3: Memoized Derived State
@@ -214,25 +206,28 @@ function PythonScriptRunner() {
 
   const genericParametersToRender = useMemo(() => {
     if (!selectedScript?.parameters) return [];
-    const handledByAuthComponent = [
+
+    // Define parameters that are handled by specialized components
+    const handledBySpecialComponent = [
       "hostname",
       "inventory_file",
       "username",
       "password",
+      "tests", // Handled by ScriptOptionsRenderer for scripts with dynamicDiscovery
     ];
+
     return selectedScript.parameters.filter((param) => {
-      if (
-        selectedScript.capabilities?.deviceAuth &&
-        handledByAuthComponent.includes(param.name)
-      ) {
+      // Hide if handled by a special UI component
+      if (handledBySpecialComponent.includes(param.name)) {
         return false;
       }
+
+      // Handle conditional visibility
       if (param.show_if) {
         const { name, value: conditionValue } = param.show_if;
-        if (currentParameters[name] !== conditionValue) {
-          return false;
-        }
+        return currentParameters[name] === conditionValue;
       }
+
       return true;
     });
   }, [selectedScript, currentParameters]);
@@ -243,33 +238,35 @@ function PythonScriptRunner() {
   const handleReset = useCallback(() => {
     setSelectedScriptId("");
     setScriptParameters({});
-    setTopLevelError(null);
-    streamRunner.resetState();
-  }, [streamRunner]);
+    resetStreamState();
+  }, [resetStreamState]);
 
   const handleScriptChange = useCallback(
     (id) => {
       setSelectedScriptId(id);
-      streamRunner.resetState();
+      resetStreamState();
       const script = allScripts.find((s) => s.id === id);
       if (script?.parameters) {
         const defaults = {};
         script.parameters.forEach((p) => {
           if (p.default !== undefined) defaults[p.name] = p.default;
         });
-        setScriptParameters((prev) => ({ ...prev, [id]: defaults }));
+        setScriptParameters((prev) => ({
+          ...prev,
+          [id]: { ...defaults, ...(prev[id] || {}) },
+        }));
       }
     },
-    [allScripts, streamRunner],
+    [allScripts, resetStreamState],
   );
 
-  // The single, unified handler for individual parameter changes.
   const handleParamChange = useCallback(
     (name, value) => {
       if (!selectedScriptId) return;
       setScriptParameters((prev) => {
-        const newScriptParams = { ...(prev[selectedScriptId] || {}) };
-        if (value === undefined) {
+        const currentScriptParams = prev[selectedScriptId] || {};
+        const newScriptParams = { ...currentScriptParams };
+        if (value === undefined || value === null) {
           delete newScriptParams[name];
         } else {
           newScriptParams[name] = value;
@@ -280,7 +277,6 @@ function PythonScriptRunner() {
     [selectedScriptId],
   );
 
-  // Handler for components that need to update the entire parameters object.
   const updateCurrentScriptParameters = useCallback(
     (newParams) => {
       if (!selectedScriptId) return;
@@ -293,17 +289,51 @@ function PythonScriptRunner() {
   );
 
   const handleRunScript = async () => {
-    setTopLevelError(null);
-    try {
-      console.log(
-        "Sending these complete parameters to backend:",
-        currentParameters,
+    // Standard validation
+    const requiredAuthFields = ["username", "password"];
+    const missingAuth = requiredAuthFields.filter(
+      (field) =>
+        !currentParameters[field] ||
+        String(currentParameters[field]).trim() === "",
+    );
+    if (missingAuth.length > 0) {
+      return toast.error(`Missing required fields: ${missingAuth.join(", ")}`);
+    }
+
+    const hasHostname =
+      currentParameters.hostname && currentParameters.hostname.trim() !== "";
+    const hasInventory =
+      currentParameters.inventory_file &&
+      currentParameters.inventory_file.trim() !== "";
+    if (!hasHostname && !hasInventory) {
+      return toast.error(
+        "Please provide a target hostname or an inventory file.",
       );
-      await streamRunner.runScript({
+    }
+
+    // JSNAPy-specific validation
+    if (
+      selectedScript.capabilities?.dynamicDiscovery &&
+      (!currentParameters.tests || currentParameters.tests.length === 0)
+    ) {
+      return toast.error(
+        "Please select at least one test from the sidebar options.",
+      );
+    }
+
+    // Convert tests array to comma-separated string for the script
+    const paramsToSend = { ...currentParameters };
+    if (Array.isArray(paramsToSend.tests)) {
+      paramsToSend.tests = paramsToSend.tests.join(",");
+    }
+
+    try {
+      await runScript({
         scriptId: selectedScriptId,
-        parameters: currentParameters,
+        parameters: paramsToSend,
       });
     } catch (error) {
+      console.error("Script execution error:", error);
       toast.error(`Could not run script: ${error.message}`);
     }
   };
@@ -355,12 +385,14 @@ function PythonScriptRunner() {
                 </div>
 
                 <ErrorBoundary>
+                  {/* --- ✨ SIMPLIFIED AND CORRECTED: Render based on capability --- */}
                   {selectedScript.capabilities?.deviceAuth && (
                     <DeviceAuthFields
                       parameters={currentParameters}
-                      onParamChange={handleParamChange} // Pass the correct handler
+                      onParamChange={handleParamChange}
                     />
                   )}
+                  {/* --- END OF CORRECTION --- */}
 
                   <div className="border-t border-slate-200 pt-6 mt-6">
                     <h3 className="text-lg font-semibold text-slate-800 mb-4">
@@ -369,7 +401,7 @@ function PythonScriptRunner() {
                     <DynamicScriptForm
                       parametersToRender={genericParametersToRender}
                       formValues={currentParameters}
-                      onParamChange={handleParamChange} // Pass the correct handler
+                      onParamChange={handleParamChange}
                     />
                   </div>
 
@@ -392,12 +424,15 @@ function PythonScriptRunner() {
                 </ErrorBoundary>
               </div>
 
-              {(streamRunner.isRunning || streamRunner.isComplete) && (
-                <ScriptOutputDisplay
-                  output={streamRunner.output}
-                  error={streamRunner.error}
-                />
-              )}
+              <ScriptOutputDisplay
+                script={selectedScript}
+                progressEvents={progressEvents}
+                finalResult={finalResult}
+                error={error}
+                fullLog={fullLog}
+                isRunning={isRunning}
+                isComplete={isComplete}
+              />
             </main>
           </div>
         )}

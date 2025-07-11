@@ -1,17 +1,17 @@
 # python_pipeline/tools/jsnapy_runner/metadata.yml
 
-displayName: "JSNAPy Test Runner"
+displayName: "JSNAPy Runner"
 description: "Executes JSNAPy snapshot tests against devices to validate operational state."
 
 # --- THIS IS THE FIX ---
 # This line assigns the script to the category that our navigation bar
 # uses for the "Network Automation" dropdown menu.
 category: "Validation & Testing"
-
-# This capability flag tells the UI to render the special test selector 
-# component in the sidebar for this script.
+# This flag tells PythonScriptRunner to render the specialized DeviceAuthFields component.
 capabilities:
+  deviceAuth: true
   dynamicDiscovery: true
+  canSaveReport: true # <-- ADDED: This flag enables the "Save Report" button in the UI
 
 # Parameters required by this script's UI.
 parameters:

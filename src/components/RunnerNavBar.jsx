@@ -35,7 +35,7 @@ function DropdownMenu({ label, scripts, onSelectScript }) {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-4 py-1.5 rounded-full hover:bg-white/60 font-mono text-xs uppercase font-bold text-slate-600 hover:text-slate-900 transition-colors"
+        className="flex items-center gap-1.5 px-4 py-1.5 rounded-md hover:bg-white/60 font-mono text-xs uppercase font-bold text-slate-600 hover:text-slate-900 transition-colors"
       >
         <span>{label}</span>
         <ChevronDown
@@ -109,7 +109,7 @@ function RunnerNavBar({
               Script Runner
             </h1>
             <div
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
                 isWsConnected
                   ? "bg-green-100 text-green-800"
                   : "bg-red-100 text-red-800 animate-pulse"
@@ -126,7 +126,7 @@ function RunnerNavBar({
           </div>
 
           {/* --- Right Side: Controls with the correct layout --- */}
-          <div className="flex items-center gap-1 bg-slate-200/70 rounded-full p-1.5 shadow-sm">
+          <div className="flex items-center gap-1 bg-slate-200/70 rounded-md p-1.5 shadow-sm">
             {/* Step 1: Map over menuData to create the DROPDOWN menus */}
             {menuData.map(({ label, scripts }) => (
               <DropdownMenu

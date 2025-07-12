@@ -1,123 +1,64 @@
-#!/usr/bin/env python3
-"""
-Template Rendering Utility for Juniper Configuration Templates
-This script uses Jinja2 to render configuration templates with provided parameters.
-"""
+# python_pipeline/tools/configuration/utils/render_template.py
 
+import argparse
 import json
-import sys
-from jinja2 import Environment, BaseLoader, TemplateError
-from jinja2.exceptions import TemplateNotFound, TemplateSyntaxError, UndefinedError
-
-class StringTemplateLoader(BaseLoader):
-    """Custom Jinja2 loader that loads templates from strings."""
-    
-    def __init__(self, template_string):
-        self.template_string = template_string
-    
-    def get_source(self, environment, template):
-        return self.template_string, None, lambda: True
-
-def render_template(template_content, parameters):
-    """
-    Render a Jinja2 template with the provided parameters.
-    
-    Args:
-        template_content (str): The Jinja2 template content
-        parameters (dict): Parameters to pass to the template
-    
-    Returns:
-        dict: Result containing rendered config or error information
-    """
-    try:
-        # Create Jinja2 environment with custom loader
-        env = Environment(
-            loader=StringTemplateLoader(template_content),
-            trim_blocks=True,
-            lstrip_blocks=True,
-            keep_trailing_newline=True
-        )
-        
-        # Add custom filters if needed
-        env.filters['upper'] = str.upper
-        env.filters['lower'] = str.lower
-        
-        # Load and render template
-        template = env.get_template('')
-        rendered_config = template.render(**parameters)
-        
-        return {
-            "success": True,
-            "rendered_config": rendered_config,
-            "error": None
-        }
-        
-    except TemplateSyntaxError as e:
-        return {
-            "success": False,
-            "rendered_config": None,
-            "error": f"Template syntax error: {str(e)}"
-        }
-    except UndefinedError as e:
-        return {
-            "success": False,
-            "rendered_config": None,
-            "error": f"Undefined variable in template: {str(e)}"
-        }
-    except TemplateError as e:
-        return {
-            "success": False,
-            "rendered_config": None,
-            "error": f"Template rendering error: {str(e)}"
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "rendered_config": None,
-            "error": f"Unexpected error: {str(e)}"
-        }
+# --- We no longer need StrictUndefined, so it's removed from the import ---
+from jinja2 import Environment, exceptions
 
 def main():
-    """Main function to handle input and output."""
+    """
+    Renders a Jinja2 template based on command-line arguments and
+    prints a structured JSON object to stdout.
+    """
+    parser = argparse.ArgumentParser(description="Render a Jinja2 template.")
+    parser.add_argument(
+        "--template-content",
+        required=True,
+        help="The raw Jinja2 template content as a string."
+    )
+    parser.add_argument(
+        "--parameters",
+        required=True,
+        help="A JSON string representing the parameters for the template."
+    )
+    args = parser.parse_args()
+
     try:
-        # Read input from stdin
-        input_data = json.loads(sys.stdin.read())
-        
-        template_content = input_data.get('template_content', '')
-        parameters = input_data.get('parameters', {})
-        template_id = input_data.get('template_id', 'unknown')
-        
-        if not template_content:
-            result = {
-                "success": False,
-                "rendered_config": None,
-                "error": "No template content provided"
-            }
-        else:
-            # Render the template
-            result = render_template(template_content, parameters)
-        
-        # Add metadata
-        result['template_id'] = template_id
-        result['parameters_used'] = parameters
-        
-        # Output result as JSON
-        print(json.dumps(result, indent=2))
-        
-    except json.JSONDecodeError as e:
-        error_result = {
-            "success": False,
-            "rendered_config": None,
-            "error": f"Invalid JSON input: {str(e)}"
+        parameters = json.loads(args.parameters)
+
+        # --- ✨✨✨ THE FIX ✨✨✨ ---
+        # We REMOVE the `undefined=StrictUndefined` line.
+        # This reverts to the default, lenient behavior where missing
+        # variables are rendered as empty strings.
+        env = Environment(
+            trim_blocks=True,
+            lstrip_blocks=True
+        )
+        template = env.from_string(args.template_content)
+
+        # Render the configuration. This will now succeed even with missing optional vars.
+        rendered_config = template.render(parameters)
+
+        result = {
+            "success": True,
+            "rendered_config": rendered_config
         }
-        print(json.dumps(error_result, indent=2))
+        print(json.dumps(result))
+
+    except json.JSONDecodeError:
+        error_result = {"success": False, "error": "Invalid JSON format for --parameters argument."}
+        print(json.dumps(error_result))
+
+    except exceptions.TemplateError as e:
+        # This will now only catch more serious syntax errors in the template itself,
+        # not undefined variable errors.
+        error_result = {"success": False, "error": f"Template syntax error: {str(e)}"}
+        print(json.dumps(error_result))
+
     except Exception as e:
-        error_result = {
-            "success": False,
-            "rendered_config": None,
-            "error": f"Script error: {str(e)}"
-        }
-        print(json.dumps(error_result, indent=2))
+        error_message = f"An unexpected error occurred: {type(e).__name__} - {str(e)}"
+        error_result = {"success": False, "error": error_message}
+        print(json.dumps(error_result))
 
 if __name__ == "__main__":
     main()

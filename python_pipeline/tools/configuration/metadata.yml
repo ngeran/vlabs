@@ -5,9 +5,13 @@ description: "Generate a device configuration from a Jinja2 template and apply i
 # --- THIS IS THE CRITICAL LINE ---
 category: "Configuration"
 
+
 # This capability flag tells the UI to render the special two-step workflow for this script.
 capabilities:
   templateGeneration: true
+# This flag tells PythonScriptRunner to render the specialized DeviceAuthFields component.
+  deviceAuth: true
+
 
 # The parameters for this workflow are often handled by the specialized UI,
 # but you could define common ones here if needed.
@@ -17,4 +21,3 @@ parameters:
     type: "text"
     required: true
     placeholder: "e.g., vmx-1"
-

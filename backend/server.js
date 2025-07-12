@@ -447,31 +447,25 @@ app.get("/api/templates/:templateId", async (req, res) => {
   }
 });
 
+//========================================================================
 app.post("/api/templates/generate", async (req, res) => {
   try {
     const { templateId, parameters } = req.body;
-    if (!templateId)
-      return res
-        .status(400)
-        .json({ success: false, message: "templateId is required" });
+    if (!templateId) {
+      return res.status(400).json({ success: false, message: "templateId is required" });
+    }
+
     const templatesConfig = getTemplatesConfig();
-    if (!templatesConfig || !templatesConfig.templates)
-      return res.status(500).json({
-        success: false,
-        message: "Templates configuration not found or malformed.",
-      });
     const templateDef = templatesConfig.templates[templateId];
-    if (!templateDef)
-      return res.status(404).json({
-        success: false,
-        message: `Template with ID "${templateId}" not found.`,
-      });
+    if (!templateDef) {
+      return res.status(404).json({ success: false, message: `Template with ID "${templateId}" not found.` });
+    }
+
     const templateContent = getTemplateContent(templateDef.template_file);
-    if (!templateContent)
-      return res.status(500).json({
-        success: false,
-        message: `Failed to read template file "${templateDef.template_file}".`,
-      });
+    if (!templateContent) {
+      return res.status(500).json({ success: false, message: `Failed to read template file "${templateDef.template_file}".` });
+    }
+
     const renderScriptPath = path.join(
       SCRIPT_MOUNT_POINT_IN_CONTAINER,
       "tools",
@@ -479,59 +473,69 @@ app.post("/api/templates/generate", async (req, res) => {
       "utils",
       "render_template.py",
     );
-    const renderData = {
-      template_content: templateContent,
-      parameters: parameters || {},
-      template_id: templateId,
-    };
+
+    // --- ✨✨✨ THIS IS THE FIX ✨✨✨ ---
+    // We now build an array of command-line arguments instead of using stdin.
     const dockerArgs = [
       "run",
-      "--rm",
-      "-i",
-      "-v",
-      `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
-      "vlabs-python-runner",
-      "python",
-      renderScriptPath,
+      "--rm", // Use --rm to automatically clean up the container
+      "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`, // Mount the volume
+      "vlabs-python-runner", // The docker image name
+      "python",              // The command to run
+      renderScriptPath,      // The path to the script to execute
+      "--template-content", templateContent, // Pass template content as an argument
+      "--parameters", JSON.stringify(parameters || {}), // Pass parameters as a JSON string argument
     ];
+
     const child = spawn("docker", dockerArgs);
-    let stdoutData = "",
-      stderrData = "";
+
+    let stdoutData = "";
+    let stderrData = "";
+
     child.stdout.on("data", (data) => {
       stdoutData += data.toString();
     });
     child.stderr.on("data", (data) => {
       stderrData += data.toString();
     });
+
     child.on("close", (code) => {
-      if (code !== 0)
+      // If the script exited with an error code, send the stderr back to the frontend.
+      if (code !== 0) {
+        console.error(`[BACKEND] Template rendering script failed with code ${code}:`, stderrData);
         return res.status(500).json({
           success: false,
           message: `Template rendering failed: ${stderrData}`,
+          error: stderrData, // Ensure 'error' key is also populated
         });
+      }
+
+      // If the script succeeded, parse its JSON output.
       try {
         const result = JSON.parse(stdoutData);
-        res.json({
-          success: true,
-          generated_config: result.rendered_config,
-          template_id: templateId,
-          parameters_used: parameters,
-          generation_time: new Date().toISOString(),
-          debug_info: {
-            template_file: templateDef.template_file,
-            template_content_length: templateContent.length,
-            output_length: result.rendered_config?.length || 0,
-          },
-        });
+        if (result.success) {
+          res.json({
+            success: true,
+            generated_config: result.rendered_config, // Use the key from the python script
+            // ... include other metadata if needed
+          });
+        } else {
+           res.status(500).json({ success: false, message: result.error, error: result.error });
+        }
       } catch (parseError) {
+        console.error(`[BACKEND] Failed to parse renderer output:`, parseError, `Raw output:`, stdoutData);
         res.status(500).json({
           success: false,
           message: "Failed to parse template rendering output.",
+          error: stdoutData, // Send the raw output for debugging
         });
       }
     });
-    child.stdin.write(JSON.stringify(renderData));
-    child.stdin.end();
+
+    // We no longer write to stdin, so this block is removed.
+    // child.stdin.write(JSON.stringify(renderData));
+    // child.stdin.end();
+
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -539,7 +543,7 @@ app.post("/api/templates/generate", async (req, res) => {
     });
   }
 });
-
+//========================================================================
 app.post("/api/report/generate", (req, res) => {
   const { filename, jsonData } = req.body;
   if (!filename || !jsonData)

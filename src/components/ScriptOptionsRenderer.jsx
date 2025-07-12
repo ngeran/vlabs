@@ -6,9 +6,9 @@ import TestSelector from "./TestSelector";
 
 /**
  * @description A helper component that encapsulates the logic for scripts with discoverable tests.
- * It uses the useTestDiscovery hook to fetch data and renders the TestSelector component.
+ * IT NOW USES THE GRANULAR `onParamChange` for more robust state updates.
  */
-function DiscoverableTestOptions({ script, parameters, setParameters }) {
+function DiscoverableTestOptions({ script, parameters, onParamChange }) {
   // Use our generic hook to fetch tests for the currently selected script.
   const { categorizedTests, loading, error } = useTestDiscovery(
     script.id,
@@ -21,25 +21,23 @@ function DiscoverableTestOptions({ script, parameters, setParameters }) {
       ? currentTests.filter((id) => id !== testId)
       : [...currentTests, testId];
 
-    // Update the parent state by creating a new parameters object
-    setParameters({ ...parameters, tests: newSelection });
+    // ✨ FIX: Use the granular change handler for the 'tests' parameter.
+    onParamChange("tests", newSelection);
   };
 
   const handleSelectAll = () => {
     const allTestNames = Object.values(categorizedTests)
       .flat()
       .map((t) => t.id);
-    setParameters({ ...parameters, tests: allTestNames });
+    onParamChange("tests", allTestNames);
   };
 
   const handleClearAll = () => {
-    setParameters({ ...parameters, tests: [] });
+    onParamChange("tests", []);
   };
 
   if (loading)
-    return (
-      <p className="text-xs text-slate-500 italic">Discovering tests...</p>
-    );
+    return <p className="text-xs text-slate-500 italic">Discovering tests...</p>;
   if (error)
     return <p className="text-xs font-semibold text-red-600">Error: {error}</p>;
 
@@ -75,7 +73,7 @@ function DiscoverableTestOptions({ script, parameters, setParameters }) {
  * @description The main renderer component. Acts as a switchboard to decide which
  * script-specific options component to render based on the selected script's metadata.
  */
-function ScriptOptionsRenderer({ script, parameters, setParameters }) {
+function ScriptOptionsRenderer({ script, parameters, onParamChange }) {
   // Don't render anything if no script is selected.
   if (!script) {
     return null;
@@ -87,7 +85,8 @@ function ScriptOptionsRenderer({ script, parameters, setParameters }) {
       <DiscoverableTestOptions
         script={script}
         parameters={parameters}
-        setParameters={setParameters}
+        // ✨ FIX: Pass the correct handler down.
+        onParamChange={onParamChange}
       />
     );
   }

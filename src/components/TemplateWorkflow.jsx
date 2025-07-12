@@ -5,8 +5,9 @@
 // ROLE: A self-contained, specialized UI for the Configuration Templating tool.
 //
 // DESCRIPTION: This component orchestrates the entire workflow for discovering, generating, and
-//              applying device configurations from templates. This version includes the fix for
-//              the missing form section.
+//              applying device configurations from templates. This version restores the
+//              original, correct logic by using the specialized `useTemplateApplication` hook
+//              for the apply step, rather than the generic script runner.
 //
 // =================================================================================================
 
@@ -19,18 +20,22 @@ import toast from "react-hot-toast";
 import PulseLoader from "react-spinners/PulseLoader";
 import { Loader, AlertTriangle, Play, ShieldCheck, ChevronRight, BookOpen, Info } from "lucide-react";
 
-// --- Local Custom Components & Hooks ---
+// --- Local Custom Hooks ---
+// These hooks handle the API calls for template discovery and generation.
 import { useTemplateDiscovery, useTemplateDetail, useTemplateGeneration } from "../hooks/useTemplateDiscovery";
-import { useScriptRunnerStream } from "../hooks/useWebSocket";
-import ScriptOutputDisplay from "./ScriptOutputDisplay";
+// This is the specialized hook for the real-time "Apply to Device" step.
+import { useTemplateApplication } from "../hooks/useWebSocket";
+// This is the specialized UI component for displaying the apply progress.
+import TemplateApplyProgress from "./TemplateApplyProgress";
 
 // =================================================================================================
-// SECTION 2: HELPER COMPONENT - The Accordion Menu
+// SECTION 2: HELPER COMPONENT - The Accordion Menu for Template Selection
 // =================================================================================================
 
 function TemplateAccordionMenu({ categorizedTemplates, selectedTemplateId, onSelectTemplate, disabled }) {
   const [openCategories, setOpenCategories] = useState([]);
 
+  // Automatically open all categories when templates are first loaded.
   useEffect(() => {
     setOpenCategories(Object.keys(categorizedTemplates));
   }, [categorizedTemplates]);
@@ -76,38 +81,50 @@ function TemplateWorkflow({ wsContext }) {
   // -----------------------------------------------------------------------------------------------
   // Subsection 3.1: State Management
   // -----------------------------------------------------------------------------------------------
-
+  // State for tracking which template is selected from the sidebar.
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  // State to hold the configuration text after it's been generated.
   const [generatedConfig, setGeneratedConfig] = useState(null);
+  // State to hold any errors that occur during the generation step.
   const [generationError, setGenerationError] = useState(null);
+  // State for the connection and credential form fields.
   const [targetHost, setTargetHost] = useState("");
   const [username, setUsername] = useState("root");
   const [password, setPassword] = useState("");
+  // State to hold the values for the template's dynamic variables.
   const [dynamicParameters, setDynamicParameters] = useState({});
 
   // -----------------------------------------------------------------------------------------------
   // Subsection 3.2: Custom Hooks
   // -----------------------------------------------------------------------------------------------
-
+  // Hook for discovering the list of all available templates.
   const { categorizedTemplates, loading: loadingTemplates, error: templatesError } = useTemplateDiscovery();
+  // Hook for fetching the detailed parameters of the currently selected template.
   const { template, loading: loadingTemplateDetails } = useTemplateDetail(selectedTemplateId);
+  // Hook that provides the function to generate a config preview.
   const { generateConfig, loading: isGenerating } = useTemplateGeneration();
-  const { runScript, resetState: resetRunnerState, ...runnerState } = useScriptRunnerStream(wsContext);
 
-  const isBusy = isGenerating || runnerState.isRunning || loadingTemplates || loadingTemplateDetails;
+  // ✨ THE FIX: Use the correct, specialized hook for the "Apply" action.
+  // This hook is designed to handle the WebSocket events for template application progress.
+  const templateRunner = useTemplateApplication(wsContext);
+
+  // A single, reliable flag to know if ANY background process is active.
+  const isBusy = isGenerating || templateRunner.isApplying || loadingTemplates || loadingTemplateDetails;
 
   // -----------------------------------------------------------------------------------------------
   // Subsection 3.3: Callbacks and Event Handlers
   // -----------------------------------------------------------------------------------------------
 
+  // Called when the user selects a new template from the sidebar.
   const handleTemplateChange = useCallback((id) => {
     if (isBusy) return;
     setSelectedTemplateId(id);
     setGeneratedConfig(null);
     setGenerationError(null);
     setDynamicParameters({});
-    resetRunnerState();
+    templateRunner.resetState(); // Reset the progress display from the previous run.
 
+    // Pre-fill the form with default values from the template's metadata.
     const newTemplate = Object.values(categorizedTemplates).flat().find(t => t.id === id);
     if (newTemplate?.parameters) {
       const defaults = {};
@@ -116,17 +133,18 @@ function TemplateWorkflow({ wsContext }) {
       });
       setDynamicParameters(defaults);
     }
-  }, [categorizedTemplates, resetRunnerState, isBusy]);
+  }, [categorizedTemplates, templateRunner, isBusy]);
 
+  // Called whenever a dynamic template parameter value changes.
   const handleParamChange = useCallback((name, value) => {
     setDynamicParameters(prev => ({ ...prev, [name]: value }));
   }, []);
 
-  // ✨✨✨ FIX #1: IMPLEMENT THE handleGenerate FUNCTION ✨✨✨
+  // Called when the "1. Generate Preview" button is clicked.
   const handleGenerate = async () => {
     setGeneratedConfig(null);
     setGenerationError(null);
-    resetRunnerState();
+    templateRunner.resetState(); // Ensure the old progress is cleared.
 
     if (!selectedTemplateId) {
       toast.error("Please select a template first.");
@@ -140,7 +158,7 @@ function TemplateWorkflow({ wsContext }) {
     const result = await generateConfig(selectedTemplateId, dynamicParameters);
 
     if (result && result.success) {
-      setGeneratedConfig(result.rendered_config);
+      setGeneratedConfig(result.generated_config);
       toast.success("Configuration preview generated successfully!");
     } else {
       const errorMessage = result?.error || "An unknown error occurred during generation.";
@@ -149,7 +167,8 @@ function TemplateWorkflow({ wsContext }) {
     }
   };
 
-  // ✨✨✨ FIX #2: IMPLEMENT THE handleApply FUNCTION ✨✨✨
+  // ✨ THE FIX: Called when the "2. Apply to Device" button is clicked.
+  // This function now uses the correct `applyTemplate` function from the `useTemplateApplication` hook.
   const handleApply = async () => {
     if (!generatedConfig) {
         toast.error("Please generate a configuration preview first before applying.");
@@ -160,15 +179,15 @@ function TemplateWorkflow({ wsContext }) {
         return;
     }
 
-    const scriptPayload = {
-      host: targetHost,
-      username,
-      password,
-      config_payload: generatedConfig,
-    };
-
-    // The script ID 'apply_configuration' must match what your backend expects
-    await runScript("apply_configuration", scriptPayload);
+    // This calls the specialized function which the backend understands for this workflow.
+    // It does NOT use the generic `runScript`.
+    await templateRunner.applyTemplate({
+      templateId: selectedTemplateId,
+      renderedConfig: generatedConfig,
+      targetHostname: targetHost,
+      username: username,
+      password: password,
+    });
   };
 
   // -----------------------------------------------------------------------------------------------
@@ -180,7 +199,7 @@ function TemplateWorkflow({ wsContext }) {
 
   return (
     <div className="flex flex-col md:flex-row gap-8">
-      {/* --- LEFT SIDEBAR --- */}
+      {/* --- LEFT SIDEBAR FOR TEMPLATE SELECTION --- */}
       <aside className="w-full md:w-72 lg:w-80 flex-shrink-0">
         <div className="sticky top-24 space-y-6 bg-white p-6 rounded-xl shadow-lg shadow-slate-200/50">
            <h3 className="text-lg font-semibold text-slate-800 flex items-center border-b border-slate-200 pb-3">
@@ -204,7 +223,7 @@ function TemplateWorkflow({ wsContext }) {
           </div>
         ) : (
           <>
-            {/* SECTION FOR PARAMETERS FORM */}
+            {/* SECTION FOR PARAMETERS & CONNECTION FORM */}
             <section className="bg-white p-6 sm:p-8 rounded-xl shadow-lg shadow-slate-200/50">
               <header className="border-b border-slate-200 pb-4 mb-6">
                 <h2 className="text-2xl font-bold text-slate-800">{template?.name || "Loading..."}</h2>
@@ -257,13 +276,15 @@ function TemplateWorkflow({ wsContext }) {
                 </button>
                 <ChevronRight className="text-slate-400 hidden sm:block" />
                 <button onClick={handleApply} disabled={isBusy || !generatedConfig} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-slate-400">
-                  {runnerState.isRunning ? <PulseLoader color="#fff" size={8}/> : <Play size={18}/>}
+                  {/* The loading indicator for this button is now correctly tied to the templateRunner's state. */}
+                  {templateRunner.isApplying ? <PulseLoader color="#fff" size={8}/> : <Play size={18}/>}
                   2. Apply to Device
                 </button>
               </div>
               <div className="mt-6">
                 {generationError && <div className="p-3 my-4 bg-red-50 text-red-700 rounded-md">{generationError}</div>}
-                {generatedConfig && !runnerState.isRunning && (
+                {/* Only show the preview if the apply step is NOT running. */}
+                {generatedConfig && !templateRunner.isApplying && !templateRunner.isComplete && (
                   <div>
                     <h3 className="font-semibold mb-2">Configuration Preview:</h3>
                     <pre className="bg-slate-900 text-white p-4 rounded-md text-xs overflow-auto max-h-96">{generatedConfig}</pre>
@@ -274,10 +295,12 @@ function TemplateWorkflow({ wsContext }) {
           </>
         )}
 
-        {/* The output display appears here */}
-        {(runnerState.isRunning || runnerState.isComplete) && (
-          <ScriptOutputDisplay {...runnerState} />
-        )}
+        {/* ✨ THE FIX: The output display is now the specialized progress component. */}
+        {/* It is driven by the state from the `useTemplateApplication` hook. */}
+        <TemplateApplyProgress
+            applicationState={templateRunner}
+            onReset={templateRunner.resetState}
+        />
       </main>
     </div>
   );

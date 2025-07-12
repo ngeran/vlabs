@@ -317,7 +317,7 @@ function PythonScriptRunner() {
     templateRunner.resetState();
     const result = await generateConfig(currentParameters.templateId, currentParameters.templateParams || {});
     if (result.success) {
-      setGeneratedConfig(result.generated_config);
+      setGeneratedConfig(result.rendered_config);
       toast.success("Configuration Preview Generated!");
     } else {
       setTopLevelError(`Generation Error: ${result.error || "Unknown error"}`);

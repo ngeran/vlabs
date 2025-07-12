@@ -1,13 +1,28 @@
 // ====================================================================================
 //
-// PAGE: PythonScriptRunner.jsx (FIXED - With Proper Error Handling)
+// PAGE: PythonScriptRunner.jsx
 //
+// ROLE: A self-contained, metadata-driven UI for executing Python scripts.
+//
+// DESCRIPTION: This component serves as the main user interface for selecting and
+//              running various tools. It dynamically generates forms based on a
+//              script's `metadata.yml` file, including support for conditionally
+//              showing fields and moving primary action controls to the sidebar
+//              for a cleaner user experience.
+//
+// ====================================================================================
+
+
+// ====================================================================================
+// SECTION 1: HEADER & IMPORTS
+//
+// This section imports all necessary libraries, components, and custom hooks.
 // ====================================================================================
 
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import PulseLoader from "react-spinners/PulseLoader";
 import toast from "react-hot-toast";
-import { PlayCircle, Layers, History, X, Clock, CheckCircle, ServerCrash, FileCode, Wrench, Send } from "lucide-react";
+import { PlayCircle, Layers, History } from "lucide-react";
 
 // --- Local Custom Components ---
 import RunnerNavBar from "./RunnerNavBar.jsx";
@@ -15,282 +30,247 @@ import ScriptOutputDisplay from "./ScriptOutputDisplay.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import DynamicScriptForm from "./DynamicScriptForm.jsx";
 import DeviceAuthFields from "./DeviceAuthFields.jsx";
-import TemplateApplyProgress from "./TemplateApplyProgress.jsx";
 import TestSelector from "./TestSelector.jsx";
+// This component is now used in the sidebar to render individual form elements.
+import ScriptParameterInput from "./ScriptParameterInput.jsx";
 
 // --- Local Custom Hooks ---
 import { useTestDiscovery } from "../hooks/useTestDiscovery.jsx";
-import { useTemplateDiscovery, useTemplateGeneration } from "../hooks/useTemplateDiscovery.jsx";
+import { useTemplateGeneration } from "../hooks/useTemplateDiscovery.jsx";
 import { useWebSocket, useTemplateApplication, useScriptRunnerStream } from "../hooks/useWebSocket.jsx";
 
-// ====================================================================================
-// HELPER FUNCTIONS
-// ====================================================================================
-
-/**
- * Safe JSON parse with intelligent debugging
- */
-const safeJSONParse = (text, url = 'unknown') => {
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    console.group(`🔍 JSON Parse Error Debug - ${url}`);
-    console.error('❌ Parse Error:', error.message);
-    console.log('📝 Response Length:', text.length);
-    console.log('🔤 First 200 chars:', text.substring(0, 200));
-    console.log('🔤 Last 200 chars:', text.substring(Math.max(0, text.length - 200)));
-    console.log('🔍 Response Type Detection:');
-
-    if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-      console.log('  📄 Response appears to be HTML (likely error page)');
-    } else if (text.trim().startsWith('Cannot GET') || text.trim().startsWith('Cannot POST')) {
-      console.log('  🚫 Response is Express.js "Cannot GET/POST" error');
-    } else if (text.trim() === '') {
-      console.log('  🫥 Response is completely empty');
-    } else if (text.trim().startsWith('Error:') || text.trim().startsWith('TypeError:')) {
-      console.log('  💥 Response appears to be a plain text error message');
-    } else if (text.includes('nginx') || text.includes('Apache')) {
-      console.log('  🌐 Response appears to be web server error page');
-    } else {
-      console.log('  ❓ Response type unknown - might be malformed JSON');
-    }
-
-    console.groupEnd();
-    return null;
-  }
-};
-
-/**
- * Safe fetch with comprehensive error handling and debugging
- */
-const safeFetch = async (url, options = {}) => {
-  console.group(`🌐 API Request Debug - ${url}`);
-  console.log('📤 Request Options:', options);
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
-
-    console.log('📥 Response Status:', response.status, response.statusText);
-    console.log('📥 Response Headers:', Object.fromEntries(response.headers.entries()));
-
-    // Check if response is ok
-    if (!response.ok) {
-      console.error(`❌ HTTP Error: ${response.status} ${response.statusText}`);
-      const errorText = await response.text();
-      console.log('❌ Error Response Body:', errorText);
-      console.groupEnd();
-      throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-    }
-
-    // Get response text first
-    const text = await response.text();
-    console.log('📝 Raw Response Length:', text.length);
-
-    // Check if response is empty
-    if (!text.trim()) {
-      console.warn('⚠️ Empty response received');
-      console.groupEnd();
-      return { success: false, message: 'Empty response' };
-    }
-
-    // Try to parse as JSON
-    const data = safeJSONParse(text, url);
-    if (data === null) {
-      console.error('❌ Failed to parse JSON response');
-      console.groupEnd();
-      return { success: false, message: 'Invalid JSON response', rawResponse: text };
-    }
-
-    console.log('✅ Successfully parsed JSON:', data);
-    console.groupEnd();
-    return data;
-  } catch (error) {
-    console.error('💥 Fetch Error:', error);
-    console.error('🔍 Error Details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
-
-    // Check if it's a network error
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      console.error('🌐 Network Error - Check if server is running and accessible');
-    }
-
-    console.groupEnd();
-    return { success: false, message: error.message, error: error };
-  }
-};
 
 // ====================================================================================
-// CHILD COMPONENTS
+// SECTION 2: CHILD COMPONENTS
+//
+// Helper components that are logically scoped to this runner page.
 // ====================================================================================
 
 /**
- * @description Renders the appropriate options in the sidebar based on the script's capabilities.
+ * @description Renders the appropriate options in the sidebar. It now handles both
+ *              capability-driven options (like JSNAPy tests) AND general parameters
+ *              that have been flagged with `layout: 'sidebar'` in their metadata.
+ * @param {object} props - Component props.
+ * @param {object} props.script - The metadata for the selected script.
+ * @param {object} props.parameters - The current values for all form parameters.
+ * @param {function} props.onParamChange - The callback to update a parameter's value.
+ * @param {Array<object>} props.sidebarParameters - The filtered list of parameters to render in the sidebar.
  */
-function ScriptOptionsRenderer({ script, parameters, onParamChange, onTemplateSelected }) {
-  // Hook for Template Discovery
-  const templateDiscovery = useTemplateDiscovery();
-  // Hook for JSNAPy Test Discovery
+function ScriptOptionsRenderer({ script, parameters, onParamChange, sidebarParameters }) {
+  // Hook for JSNAPy Test Discovery (only fetches if script has the capability)
   const testDiscovery = useTestDiscovery(script?.id, parameters?.environment);
 
   if (!script) return null;
 
-  // --- Workflow #1: Template Generation ---
-  if (script.capabilities?.templateGeneration) {
-    if (templateDiscovery.loading) return <p className="text-sm text-slate-500 italic">Discovering templates...</p>;
-    if (templateDiscovery.error) return <p className="text-sm font-semibold text-red-600">Error: {templateDiscovery.error.message}</p>;
+  const hasSidebarParams = sidebarParameters && sidebarParameters.length > 0;
+  const hasDynamicTestOptions = script.capabilities?.dynamicDiscovery;
 
-    const handleTemplateSelect = (templateId) => {
-      const templateObject = Object.values(templateDiscovery.categorizedTemplates).flat().find((t) => t.id === templateId);
-      onTemplateSelected(templateId, templateObject);
-    };
+  return (
+    <div className="space-y-4">
+      {/* --- Part 1: General Sidebar Parameters --- */}
+      {/* Render any parameters that are explicitly designated for the sidebar via metadata. */}
+      {hasSidebarParams && (
+        <div className="space-y-4">
+          {sidebarParameters.map(param => (
+            <ScriptParameterInput
+              key={param.name}
+              param={param}
+              value={parameters[param.name]}
+              onChange={onParamChange}
+            />
+          ))}
+        </div>
+      )}
 
-    return (
-      <div className="space-y-2">
-        {Object.entries(templateDiscovery.categorizedTemplates).map(([category, templates]) => (
-          <div key={category}>
-            <h4 className="font-semibold text-slate-600 text-sm mt-3 mb-1">{category}</h4>
-            {templates.map(template => (
-              <label key={template.id} className="flex items-center text-sm font-medium text-slate-700 cursor-pointer p-2 rounded hover:bg-slate-100">
-                <input type="radio" name="selectedTemplate" value={template.id} checked={parameters.templateId === template.id} onChange={() => handleTemplateSelect(template.id)} className="h-4 w-4 text-blue-600"/>
-                <span className="ml-2">{template.name}</span>
-              </label>
-            ))}
-          </div>
-        ))}
-      </div>
-    );
-  }
+      {/* Add a visual separator if both general and capability-specific options exist. */}
+      {hasSidebarParams && hasDynamicTestOptions && (
+        <hr className="!my-5 border-t border-slate-200" />
+      )}
 
-  // --- Workflow #2: JSNAPy Dynamic Test Discovery ---
-  if (script.capabilities?.dynamicDiscovery) {
-    if (testDiscovery.loading) return <p className="text-sm text-slate-500 italic">Discovering tests...</p>;
-    if (testDiscovery.error) return <p className="text-sm font-semibold text-red-600">Error: {testDiscovery.error}</p>;
+      {/* --- Part 2: Capability-Driven Sidebar UI --- */}
+      {/* Render UI for dynamic test discovery if the script supports it. */}
+      {hasDynamicTestOptions && (
+        <>
+            {testDiscovery.loading && <p className="text-sm text-slate-500 italic">Discovering tests...</p>}
+            {testDiscovery.error && <p className="text-sm font-semibold text-red-600">Error: {testDiscovery.error}</p>}
+            <TestSelector
+              categorizedTests={testDiscovery.categorizedTests}
+              selectedTests={parameters.tests || []}
+              onTestToggle={(testId) => {
+                const currentTests = parameters.tests || [];
+                const newSelection = currentTests.includes(testId)
+                  ? currentTests.filter((id) => id !== testId)
+                  : [...currentTests, testId];
+                onParamChange("tests", newSelection);
+              }}
+            />
+        </>
+      )}
 
-    const handleTestToggle = (testId) => {
-      const currentTests = parameters.tests || [];
-      const newSelection = currentTests.includes(testId)
-        ? currentTests.filter((id) => id !== testId)
-        : [...currentTests, testId];
-      onParamChange("tests", newSelection);
-    };
-
-    return (
-      <TestSelector
-        categorizedTests={testDiscovery.categorizedTests}
-        selectedTests={parameters.tests || []}
-        onTestToggle={handleTestToggle}
-      />
-    );
-  }
-
-  // --- Default Case ---
-  return <p className="text-xs text-slate-500 italic">This script has no additional options.</p>;
+      {/* --- Default Case --- */}
+      {/* Display a message if the script has no special sidebar UI. */}
+      {!hasSidebarParams && !hasDynamicTestOptions && (
+        <p className="text-xs text-slate-500 italic">This script has no additional sidebar options.</p>
+      )}
+    </div>
+  );
 }
 
+
 // ====================================================================================
-// MAIN COMPONENT
+// SECTION 3: API & CONSTANTS
 // ====================================================================================
 
 const API_BASE_URL = "http://localhost:3001";
 
+
+// ====================================================================================
+// SECTION 4: MAIN COMPONENT - PythonScriptRunner
+// ====================================================================================
+
 function PythonScriptRunner() {
-  // --- State Management ---
+
+  // ==================================================================================
+  // 4.1: State Management
+  //
+  // All `useState` hooks that manage the component's internal state.
+  // ==================================================================================
+
   const [allScripts, setAllScripts] = useState([]);
   const [selectedScriptId, setSelectedScriptId] = useState("");
+  // Stores the form values for ALL scripts, keyed by script ID.
   const [scriptParameters, setScriptParameters] = useState({});
-  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
-  const [historyItems, setHistoryItems] = useState([]);
-  const [selectedTemplateDetails, setSelectedTemplateDetails] = useState(null);
-  const [generatedConfig, setGeneratedConfig] = useState(null);
   const [topLevelError, setTopLevelError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- Hooks ---
-  const wsContext = useWebSocket({ autoConnect: true });
-  const { generateConfig, loading: isGenerating } = useTemplateGeneration();
-  const templateRunner = useTemplateApplication(wsContext);
-  const scriptRunner = useScriptRunnerStream(wsContext);
-  const isActionInProgress = isGenerating || templateRunner.isApplying || scriptRunner.isRunning;
+  // ==================================================================================
+  // 4.2: Custom Hooks
+  //
+  // Initialization of custom hooks that abstract away complex logic like
+  // WebSocket connections and API action calls.
+  // ==================================================================================
 
-  // --- Data Fetching & Effects ---
+  // Manages the primary WebSocket connection and its status.
+  const wsContext = useWebSocket({ autoConnect: true });
+  // Provides the `runScript` function and manages the real-time output stream.
+  const scriptRunner = useScriptRunnerStream(wsContext);
+  // A flag to determine if any backend process is active to disable UI elements.
+  const isActionInProgress = scriptRunner.isRunning;
+
+
+  // ==================================================================================
+  // 4.3: Data Fetching & Effects
+  //
+  // `useEffect` hooks for actions that need to run on component mount or when
+  // dependencies change, such as fetching initial data from the API.
+  // ==================================================================================
+
   useEffect(() => {
+    // Fetches the list of all available scripts from the backend when the component mounts.
     const fetchScripts = async () => {
-      console.log('🚀 Starting script fetch process...');
       setIsLoading(true);
       setTopLevelError(null);
-
       try {
-        console.log('🔍 Attempting to fetch from:', `${API_BASE_URL}/api/scripts/list`);
-        const data = await safeFetch(`${API_BASE_URL}/api/scripts/list`);
-
-        console.log('📊 Fetch result:', data);
-
+        const response = await fetch(`${API_BASE_URL}/api/scripts/list`);
+        if (!response.ok) throw new Error("Network response was not ok. Is the server running?");
+        const data = await response.json();
         if (data && data.success && Array.isArray(data.scripts)) {
-          console.log('✅ Successfully loaded scripts:', data.scripts.length);
+          // Filter out any scripts marked as hidden in their metadata.
           setAllScripts(data.scripts.filter(s => !s.hidden));
         } else {
-          console.error('❌ Invalid scripts data structure:', data);
-          const errorMsg = data?.message || "Failed to load scripts - invalid response format";
-          toast.error(errorMsg);
-          setTopLevelError(`API Error: ${errorMsg}`);
-          setAllScripts([]);
+          throw new Error(data.message || "Failed to load scripts in a valid format.");
         }
       } catch (error) {
-        console.error('💥 Critical error during script fetch:', error);
-        const errorMsg = "Failed to load scripts. Please check your connection and server status.";
-        toast.error(errorMsg);
-        setTopLevelError(`Connection Error: ${error.message}`);
-        setAllScripts([]);
+        toast.error("Failed to load scripts. Check server connection.");
+        setTopLevelError(error.message);
       } finally {
         setIsLoading(false);
-        console.log('🏁 Script fetch process completed');
       }
     };
-
     fetchScripts();
-  }, []);
+  }, []); // Empty dependency array means this runs only once on mount.
 
-  useEffect(() => {
-    templateRunner.resetState();
-    scriptRunner.resetState();
-  }, []);
 
-  // --- Memoized Derived State ---
+  // ==================================================================================
+  // 4.4: Memoized Derived State
+  //
+  // `useMemo` hooks to calculate derived data. This is more efficient than
+  // recalculating on every render.
+  // ==================================================================================
+
+  // Finds the full metadata object for the currently selected script.
   const selectedScript = useMemo(() => allScripts.find(s => s.id === selectedScriptId), [allScripts, selectedScriptId]);
-  const isTemplateWorkflow = useMemo(() => selectedScript?.capabilities?.templateGeneration === true, [selectedScript]);
+
+  // Retrieves the current form values for the selected script.
   const currentParameters = useMemo(() => scriptParameters[selectedScriptId] || {}, [selectedScriptId, scriptParameters]);
 
-  const genericParametersToRender = useMemo(() => {
-    if (!selectedScript?.parameters || isTemplateWorkflow) return [];
-    const specialParams = ["hostname", "inventory_file", "username", "password", "tests", "templateId", "templateParams"];
-    return selectedScript.parameters.filter(param => !specialParams.includes(param.name));
-  }, [selectedScript, isTemplateWorkflow]);
+  // FIX: Creates a list of parameters that should be rendered in the SIDEBAR.
+  // It filters all script parameters to find only those with `layout: 'sidebar'`.
+  const sidebarParametersToRender = useMemo(() => {
+    if (!selectedScript?.parameters) return [];
+    return selectedScript.parameters.filter(p => p.layout === 'sidebar');
+  }, [selectedScript]);
 
-  // --- Event Handlers ---
-  const handleReset = useCallback(() => {
-    setSelectedScriptId("");
-    setScriptParameters({});
-    setGeneratedConfig(null);
+  // FIX: Creates a list of parameters for the MAIN content area.
+  // It filters out sidebar parameters, hard-coded special parameters, and applies `show_if` logic.
+  const mainParametersToRender = useMemo(() => {
+    if (!selectedScript?.parameters) return [];
+
+    return selectedScript.parameters.filter(param => {
+      // Exclude if it's meant for the sidebar.
+      if (param.layout === 'sidebar') return false;
+      // Exclude special parameters handled by dedicated components (like DeviceAuthFields).
+      const specialParams = ["hostname", "inventory_file", "username", "password", "tests"];
+      if (specialParams.includes(param.name)) return false;
+      // Respect the `show_if` condition for dynamic visibility based on sidebar controls.
+      if (param.show_if) {
+        const controllingParamValue = currentParameters[param.show_if.name];
+        return controllingParamValue === param.show_if.value;
+      }
+      // If not excluded, it belongs in the main form.
+      return true;
+    });
+  }, [selectedScript, currentParameters]);
+
+
+  // ==================================================================================
+  // 4.5: Event Handlers & Callbacks
+  //
+  // `useCallback` hooks to create stable functions for event handlers,
+  // preventing unnecessary re-renders of child components.
+  // ==================================================================================
+
+  // Resets all state related to a script run.
+  const handleReset = useCallback((clearScriptId = true) => {
+    const scriptIdToClear = selectedScriptId;
+    if (clearScriptId) {
+      setSelectedScriptId("");
+    }
+    setScriptParameters(prev => ({ ...prev, [scriptIdToClear]: {} }));
     setTopLevelError(null);
-    setSelectedTemplateDetails(null);
-    templateRunner.resetState();
     scriptRunner.resetState();
-  }, [templateRunner, scriptRunner]);
+  }, [selectedScriptId, scriptRunner]);
 
+  // Handles changing the selected script.
   const handleScriptChange = useCallback((id) => {
-    handleReset();
+    handleReset(false); // Reset states but don't clear the new ID.
     setSelectedScriptId(id);
-  }, [handleReset]);
+    const script = allScripts.find(s => s.id === id);
 
+    // IMPORTANT: Pre-populates the form with any default values from the script's metadata.
+    // This is what makes "Perform Backup" the default selection.
+    if (script?.parameters) {
+      const defaults = {};
+      script.parameters.forEach(p => {
+        if (p.default !== undefined) {
+          defaults[p.name] = p.default;
+        }
+      });
+      setScriptParameters(prev => ({ ...prev, [id]: defaults }));
+    }
+  }, [allScripts, handleReset]);
+
+  // A generic handler for any form input change.
   const handleParamChange = useCallback((name, value) => {
     if (!selectedScriptId) return;
     setScriptParameters(prev => ({
@@ -299,66 +279,40 @@ function PythonScriptRunner() {
     }));
   }, [selectedScriptId]);
 
-  const handleTemplateSelected = useCallback((templateId, templateObject) => {
-    setGeneratedConfig(null);
-    setScriptParameters(prev => ({ ...prev, [selectedScriptId]: { ...prev[selectedScriptId], templateId, templateParams: {} } }));
-    setSelectedTemplateDetails(templateObject);
-  }, [selectedScriptId]);
 
-  const handleTemplateParamChange = useCallback((paramName, value) => {
-    setGeneratedConfig(null);
-    handleParamChange("templateParams", { ...(currentParameters.templateParams || {}), [paramName]: value });
-  }, [currentParameters, handleParamChange]);
-
-  // --- Action Handlers ---
-  const handleGenerateConfig = async () => {
-    setGeneratedConfig(null);
-    setTopLevelError(null);
-    templateRunner.resetState();
-    const result = await generateConfig(currentParameters.templateId, currentParameters.templateParams || {});
-    if (result.success) {
-      setGeneratedConfig(result.rendered_config);
-      toast.success("Configuration Preview Generated!");
-    } else {
-      setTopLevelError(`Generation Error: ${result.error || "Unknown error"}`);
-    }
-  };
-
-  const handleApplyConfig = async () => {
-    if (!generatedConfig) return toast.error("Please generate a config first.");
-    setTopLevelError(null);
-    await templateRunner.applyTemplate({
-      templateId: selectedScript.id,
-      renderedConfig: generatedConfig,
-      targetHostname: currentParameters.hostname,
-      username: currentParameters.username,
-      password: currentParameters.password,
-    });
-  };
+  // ==================================================================================
+  // 4.6: Action Handlers
+  //
+  // Functions that initiate backend processes.
+  // ==================================================================================
 
   const handleRunStandardScript = async () => {
     setTopLevelError(null);
     scriptRunner.resetState();
     const paramsToSend = { ...currentParameters };
+    // Convert array of selected tests to a comma-separated string if needed.
     if (Array.isArray(paramsToSend.tests)) {
       paramsToSend.tests = paramsToSend.tests.join(',');
     }
     await scriptRunner.runScript({ scriptId: selectedScriptId, parameters: paramsToSend });
   };
 
-  // --- Loading State ---
+
+  // ==================================================================================
+  // 4.7: Main Render Logic
+  //
+  // The JSX that defines the component's structure and appearance.
+  // ==================================================================================
+
+  // Renders a loading spinner while fetching the initial script list.
   if (isLoading) {
     return (
       <div className="bg-slate-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <PulseLoader color="#3b82f6" size={12} />
-          <p className="mt-4 text-slate-600">Loading scripts...</p>
-        </div>
+        <div className="text-center"><PulseLoader color="#3b82f6" size={12} /><p className="mt-4 text-slate-600">Loading scripts...</p></div>
       </div>
     );
   }
 
-  // --- Main Render ---
   return (
     <div className="bg-slate-50 min-h-screen">
       <RunnerNavBar
@@ -366,58 +320,42 @@ function PythonScriptRunner() {
         selectedScriptId={selectedScriptId}
         onScriptChange={handleScriptChange}
         isActionInProgress={isActionInProgress}
-        onReset={handleReset}
-        onViewHistory={() => setIsHistoryDrawerOpen(true)}
-        historyItemCount={historyItems.length}
+        onReset={() => handleReset(true)}
+        onViewHistory={() => { /* History functionality can be added here */ }}
+        historyItemCount={0}
         isWsConnected={wsContext.isConnected}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Renders a welcome message if no script is selected yet. */}
         {!selectedScriptId ? (
           <div className="text-center py-24">
             <h2 className="text-2xl font-semibold text-slate-600">Select a tool to begin.</h2>
+            {/* Renders an error message if script loading failed. */}
             {allScripts.length === 0 && !isLoading && (
-              <div className="mt-8 max-w-2xl mx-auto">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-red-800 mb-4">🚨 No Scripts Available</h3>
-                  <p className="text-red-700 mb-4">
-                    Unable to load scripts from the API. This could be due to:
-                  </p>
-                  <ul className="text-left text-red-700 space-y-2 mb-4">
-                    <li>• Server not running on <code className="bg-red-100 px-2 py-1 rounded">{API_BASE_URL}</code></li>
-                    <li>• Network connectivity issues</li>
-                    <li>• CORS configuration problems</li>
-                    <li>• API endpoint returning invalid data</li>
-                  </ul>
-                  <p className="text-sm text-red-600">
-                    Check the browser console for detailed debugging information.
-                  </p>
-                  {topLevelError && (
-                    <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded">
-                      <strong>Error Details:</strong> {topLevelError}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <div className="mt-8 max-w-2xl mx-auto"><div className="bg-red-50 border border-red-200 rounded-lg p-6"><h3 className="text-lg font-semibold text-red-800">No Scripts Available</h3><p className="text-red-700 mt-2">Unable to load scripts from the API. Please ensure the backend server is running and accessible at <code className="bg-red-100 p-1 rounded">{API_BASE_URL}</code>.</p>{topLevelError && (<div className="mt-4 p-3 bg-red-100 border-red-300 rounded"><strong>Error Details:</strong> {topLevelError}</div>)}</div></div>
             )}
           </div>
         ) : (
           <ErrorBoundary>
+            {/* The main two-column layout for the runner page. */}
             <div className="flex flex-col md:flex-row gap-8">
+
+              {/* --- LEFT SIDEBAR FOR SCRIPT OPTIONS --- */}
               <aside className="w-full md:w-72 lg:w-80 flex-shrink-0">
                 <div className="sticky top-24 space-y-6 bg-white p-6 rounded-xl shadow-lg shadow-slate-200/50">
-                  <h3 className="text-lg font-semibold text-slate-800 flex items-center border-b border-slate-200 pb-3">
-                    <Layers size={18} className="mr-2 text-slate-500" /> Script Options
-                  </h3>
+                  <h3 className="text-lg font-semibold text-slate-800 flex items-center border-b border-slate-200 pb-3"><Layers size={18} className="mr-2 text-slate-500" /> Script Options</h3>
+                  {/* The sidebar renderer receives the filtered list of sidebar-specific parameters. */}
                   <ScriptOptionsRenderer
                     script={selectedScript}
                     parameters={currentParameters}
-                    onTemplateSelected={handleTemplateSelected}
                     onParamChange={handleParamChange}
+                    sidebarParameters={sidebarParametersToRender}
                   />
                 </div>
               </aside>
 
+              {/* --- MAIN CONTENT AREA --- */}
               <main className="flex-1 space-y-8">
                 <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg shadow-slate-200/50">
                   <header className="border-b border-slate-200 pb-4 mb-6">
@@ -426,61 +364,40 @@ function PythonScriptRunner() {
                   </header>
 
                   <div className="space-y-6">
+                    {/* Renders device connection fields if the script has `deviceAuth` capability. */}
                     {selectedScript.capabilities?.deviceAuth && (
                       <DeviceAuthFields parameters={currentParameters} onParamChange={handleParamChange} />
                     )}
 
-                    {!isTemplateWorkflow && (
-                      <div className="border-t border-slate-200 pt-6">
-                        <h3 className="text-lg font-semibold text-slate-800 mb-4">Action Details</h3>
-                        <DynamicScriptForm parametersToRender={genericParametersToRender} formValues={currentParameters} onParamChange={handleParamChange}/>
-                      </div>
-                    )}
-
-                    {isTemplateWorkflow && selectedTemplateDetails && (
-                      <div className="border-t border-slate-200 pt-6">
-                        <h3 className="text-lg font-semibold text-slate-800 mb-4">Template Variables for <span className="text-blue-600">{selectedTemplateDetails.name}</span></h3>
-                        {selectedTemplateDetails.parameters.map(param => (
-                          <div key={param.name} className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">{param.label || param.name} {param.required && <span className="text-red-500">*</span>}</label>
-                            <input type={param.type || 'text'} placeholder={param.placeholder || ''} value={(currentParameters.templateParams || {})[param.name] || ""} onChange={(e) => handleTemplateParamChange(param.name, e.target.value)} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/>
-                            {param.description && <p className="mt-1 text-xs text-slate-500">{param.description}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {/* Renders the dynamic form for the main content area. */}
+                    <div className="border-t border-slate-200 pt-6">
+                      <h3 className="text-lg font-semibold text-slate-800 mb-4">Action Details</h3>
+                      {/* This form receives the filtered list of main parameters. It will render
+                          nothing if the list is empty (e.g., for the default "Perform Backup" action). */}
+                      <DynamicScriptForm
+                        parametersToRender={mainParametersToRender}
+                        formValues={currentParameters}
+                        onParamChange={handleParamChange}
+                      />
+                    </div>
                   </div>
 
+                  {/* The main action button to run the script. */}
                   <div className="mt-8 border-t pt-6">
-                    {isTemplateWorkflow ? (
-                      <div className="space-y-4">
-                        <button type="button" onClick={handleGenerateConfig} disabled={isActionInProgress || !currentParameters.templateId} className="w-full flex items-center justify-center p-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:bg-slate-400">
-                          {isGenerating ? <PulseLoader color="#fff" size={8} /> : <><Wrench size={20} className="mr-2" /> 1. Generate Config</>}
-                        </button>
-                        {generatedConfig && (
-                          <button type="button" onClick={handleApplyConfig} disabled={isActionInProgress} className="w-full flex items-center justify-center p-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-400">
-                            {templateRunner.isApplying ? <PulseLoader color="#fff" size={8} /> : <><Send size={20} className="mr-2" /> 2. Apply to Device</>}
-                          </button>
-                        )}
-                      </div>
-                    ) : (
                       <button type="button" onClick={handleRunStandardScript} disabled={isActionInProgress} className="w-full flex items-center justify-center p-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-400">
                         {scriptRunner.isRunning ? <PulseLoader color="#fff" size={8} /> : <><PlayCircle size={20} className="mr-2" /> Run Script</>}
                       </button>
-                    )}
+                      {topLevelError && (<div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-sm">{topLevelError}</div>)}
                   </div>
-                  {topLevelError && (<div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-sm">{topLevelError}</div>)}
                 </div>
 
-                {generatedConfig && !templateRunner.isApplying && !templateRunner.isComplete && (
-                  <div className="mt-10 border border-green-300 rounded-lg p-6 lg:p-8 bg-green-50 shadow-md">
-                    <h3 className="text-xl font-semibold mb-4 text-green-800 flex items-center"><FileCode size={20} className="mr-2" /> Generated Preview</h3>
-                    <pre className="bg-slate-900 text-white p-4 rounded-md text-sm overflow-x-auto max-h-96"><code>{generatedConfig}</code></pre>
-                  </div>
-                )}
-
-                <TemplateApplyProgress applicationState={templateRunner} onReset={templateRunner.resetState} />
-                {(scriptRunner.isRunning || scriptRunner.isComplete) && <ScriptOutputDisplay {...scriptRunner} />}
+                {/* The output display area, which only appears when a script is running or has completed. */}
+                {(scriptRunner.isRunning || scriptRunner.isComplete) &&
+                  <ScriptOutputDisplay
+                    {...scriptRunner}
+                    script={selectedScript} // Pass the script object to check for `enableReportSaving` capability.
+                  />
+                }
               </main>
             </div>
           </ErrorBoundary>

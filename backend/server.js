@@ -88,18 +88,27 @@ wss.on("connection", (ws) => {
     console.error(`[WebSocket] Error for client ${clientId}:`, error);
     clients.delete(clientId);
   });
-
+    // --- ADD THIS BLOCK ---
+  // This is the missing piece. It handles messages coming FROM the client.
   ws.on("message", (message) => {
     try {
       const data = JSON.parse(message);
+
+      // Respond to heartbeat pings to keep the connection alive
       if (data.type === "ping") {
         ws.send(JSON.stringify({ type: "pong" }));
+        return; // Don't process pings any further
       }
+
+      // You can add other server-side message handlers here in the future
+      // For example: if (data.type === 'register') { ... }
     } catch (e) {
-      // Ignore non-JSON messages
+      // Don't log errors for non-JSON messages if you don't expect them
+      // console.error('[WebSocket] Error parsing message:', message.toString(), e);
     }
   });
-});
+  // --- END OF ADDED BLOCK ---
+  });
 
 
 // ====================================================================================

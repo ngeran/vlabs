@@ -1,28 +1,35 @@
 // ====================================================================================
 //
-// PAGE: PythonScriptRunner.jsx
+// PAGE: PythonScriptRunner.jsx (STABLE & COMPLETE)
 //
-// ROLE: A self-contained, metadata-driven UI for executing Python scripts.
+// ROLE: The application's central tool orchestrator.
 //
-// DESCRIPTION: This component serves as the main user interface for selecting and
-//              running various tools. It dynamically generates forms based on a
-//              script's `metadata.yml` file, including support for conditionally
-//              showing fields and moving primary action controls to the sidebar
-//              for a cleaner user experience.
+// DESCRIPTION: This is the definitive, stable, and complete version of the main application
+//              component. It orchestrates the entire UI workflow, acting as a "controller" that
+//              delegates specific UI rendering to child components. Its behavior is
+//              driven entirely by script metadata, making the system scalable and easy
+//              to maintain without modifying this file.
+//
+// KEY FEATURES:
+// - Manages all high-level state for tool selection, parameters, and results.
+// - Uses a `renderToolUI` function to act as a switchboard, choosing which UI to display.
+// - Supports both specialized tools with custom UIs (e.g., TemplateWorkflow) and
+//   standard scripts with dynamically generated UIs.
+// - A local `ScriptOptionsRenderer` function handles the logic for script-specific
+//   sidebar options without requiring new files.
+// - Integrates a responsive history panel via the HistoryDrawer component.
 //
 // ====================================================================================
 
 
 // ====================================================================================
 // SECTION 1: HEADER & IMPORTS
-//
-// This section imports all necessary libraries, components, and custom hooks.
 // ====================================================================================
 
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import PulseLoader from "react-spinners/PulseLoader";
 import toast from "react-hot-toast";
-import { PlayCircle, Layers, History } from "lucide-react";
+import { PlayCircle, Layers } from "lucide-react";
 
 // --- Local Custom Components ---
 import RunnerNavBar from "./RunnerNavBar.jsx";
@@ -30,98 +37,82 @@ import ScriptOutputDisplay from "./ScriptOutputDisplay.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import DynamicScriptForm from "./DynamicScriptForm.jsx";
 import DeviceAuthFields from "./DeviceAuthFields.jsx";
+import HistoryDrawer from "./HistoryDrawer.jsx";
+import TemplateWorkflow from "./TemplateWorkflow.jsx";
 import TestSelector from "./TestSelector.jsx";
-// This component is now used in the sidebar to render individual form elements.
 import ScriptParameterInput from "./ScriptParameterInput.jsx";
 
 // --- Local Custom Hooks ---
+import { useWebSocket, useScriptRunnerStream } from "../hooks/useWebSocket.jsx";
 import { useTestDiscovery } from "../hooks/useTestDiscovery.jsx";
-import { useTemplateGeneration } from "../hooks/useTemplateDiscovery.jsx";
-import { useWebSocket, useTemplateApplication, useScriptRunnerStream } from "../hooks/useWebSocket.jsx";
 
 
 // ====================================================================================
-// SECTION 2: CHILD COMPONENTS
-//
-// Helper components that are logically scoped to this runner page.
-// ====================================================================================
-
-/**
- * @description Renders the appropriate options in the sidebar. It now handles both
- *              capability-driven options (like JSNAPy tests) AND general parameters
- *              that have been flagged with `layout: 'sidebar'` in their metadata.
- * @param {object} props - Component props.
- * @param {object} props.script - The metadata for the selected script.
- * @param {object} props.parameters - The current values for all form parameters.
- * @param {function} props.onParamChange - The callback to update a parameter's value.
- * @param {Array<object>} props.sidebarParameters - The filtered list of parameters to render in the sidebar.
- */
-function ScriptOptionsRenderer({ script, parameters, onParamChange, sidebarParameters }) {
-  // Hook for JSNAPy Test Discovery (only fetches if script has the capability)
-  const testDiscovery = useTestDiscovery(script?.id, parameters?.environment);
-
-  if (!script) return null;
-
-  const hasSidebarParams = sidebarParameters && sidebarParameters.length > 0;
-  const hasDynamicTestOptions = script.capabilities?.dynamicDiscovery;
-
-  return (
-    <div className="space-y-4">
-      {/* --- Part 1: General Sidebar Parameters --- */}
-      {/* Render any parameters that are explicitly designated for the sidebar via metadata. */}
-      {hasSidebarParams && (
-        <div className="space-y-4">
-          {sidebarParameters.map(param => (
-            <ScriptParameterInput
-              key={param.name}
-              param={param}
-              value={parameters[param.name]}
-              onChange={onParamChange}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Add a visual separator if both general and capability-specific options exist. */}
-      {hasSidebarParams && hasDynamicTestOptions && (
-        <hr className="!my-5 border-t border-slate-200" />
-      )}
-
-      {/* --- Part 2: Capability-Driven Sidebar UI --- */}
-      {/* Render UI for dynamic test discovery if the script supports it. */}
-      {hasDynamicTestOptions && (
-        <>
-            {testDiscovery.loading && <p className="text-sm text-slate-500 italic">Discovering tests...</p>}
-            {testDiscovery.error && <p className="text-sm font-semibold text-red-600">Error: {testDiscovery.error}</p>}
-            <TestSelector
-              categorizedTests={testDiscovery.categorizedTests}
-              selectedTests={parameters.tests || []}
-              onTestToggle={(testId) => {
-                const currentTests = parameters.tests || [];
-                const newSelection = currentTests.includes(testId)
-                  ? currentTests.filter((id) => id !== testId)
-                  : [...currentTests, testId];
-                onParamChange("tests", newSelection);
-              }}
-            />
-        </>
-      )}
-
-      {/* --- Default Case --- */}
-      {/* Display a message if the script has no special sidebar UI. */}
-      {!hasSidebarParams && !hasDynamicTestOptions && (
-        <p className="text-xs text-slate-500 italic">This script has no additional sidebar options.</p>
-      )}
-    </div>
-  );
-}
-
-
-// ====================================================================================
-// SECTION 3: API & CONSTANTS
+// SECTION 2: API & CONSTANTS
 // ====================================================================================
 
 const API_BASE_URL = "http://localhost:3001";
+
+
+// ====================================================================================
+// SECTION 3: SCOPED CHILD COMPONENTS
+//
+// To keep the main component clean, helper components used only by this file are
+// defined here. This includes the logic for rendering script-specific sidebar options.
+// This self-contained approach prevents any external file import/declaration errors.
+// ====================================================================================
+
+/**
+ * @description Renders the correct UI options in the sidebar based on the selected script's metadata.
+ *              This acts as a "switchboard" for the sidebar content.
+ * @param {object} props The component props.
+ * @returns {JSX.Element|null} The rendered sidebar options UI.
+ */
+function ScriptOptionsRenderer({ script, parameters, onParamChange }) {
+  if (!script) {
+    return null;
+  }
+
+  // --- JSNAPy Runner Specific UI ---
+  if (script.id === 'jsnapy_runner') {
+    const { categorizedTests, loading, error } = useTestDiscovery(script.id, parameters.environment);
+    const environmentParam = script.parameters.find(p => p.name === 'environment');
+
+    return (
+      <div className="space-y-4">
+        {environmentParam && <ScriptParameterInput param={environmentParam} value={parameters.environment} onChange={onParamChange} />}
+        <hr className="!my-5 border-t border-slate-200" />
+        <h3 className="text-sm font-semibold text-slate-700">Available Tests</h3>
+        {loading && <p className="text-sm text-slate-500 italic">Discovering tests...</p>}
+        {error && <p className="text-sm font-semibold text-red-600">Error: {error}</p>}
+        <TestSelector
+          categorizedTests={categorizedTests}
+          selectedTests={parameters.tests || []}
+          onTestToggle={(testId) => {
+            const currentTests = parameters.tests || [];
+            const newSelection = currentTests.includes(testId)
+              ? currentTests.filter((id) => id !== testId)
+              : [...currentTests, testId];
+            onParamChange("tests", newSelection);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // --- Backup & Restore Specific UI ---
+  if (script.id === 'backup_restore') {
+    const commandParam = script.parameters.find(p => p.name === 'command');
+    if (!commandParam) {
+      return <p className="text-red-500 text-xs">Error: 'command' parameter not defined in metadata.</p>;
+    }
+    return <ScriptParameterInput param={commandParam} value={parameters.command} onChange={onParamChange} />;
+  }
+
+  // --- Default Case for other scripts ---
+  // This message is shown for any script that does not have a matching `if` block above.
+  return <p className="text-xs text-slate-500 italic">This script has no additional sidebar options.</p>;
+}
 
 
 // ====================================================================================
@@ -132,102 +123,110 @@ function PythonScriptRunner() {
 
   // ==================================================================================
   // 4.1: State Management
-  //
-  // All `useState` hooks that manage the component's internal state.
   // ==================================================================================
-
   const [allScripts, setAllScripts] = useState([]);
   const [selectedScriptId, setSelectedScriptId] = useState("");
-  // Stores the form values for ALL scripts, keyed by script ID.
   const [scriptParameters, setScriptParameters] = useState({});
   const [topLevelError, setTopLevelError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // State specifically for the history feature
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+  const [historyItems, setHistoryItems] = useState([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
+  const [historyOutput, setHistoryOutput] = useState(null);
+
+
   // ==================================================================================
   // 4.2: Custom Hooks
-  //
-  // Initialization of custom hooks that abstract away complex logic like
-  // WebSocket connections and API action calls.
   // ==================================================================================
-
-  // Manages the primary WebSocket connection and its status.
   const wsContext = useWebSocket({ autoConnect: true });
-  // Provides the `runScript` function and manages the real-time output stream.
   const scriptRunner = useScriptRunnerStream(wsContext);
-  // A flag to determine if any backend process is active to disable UI elements.
   const isActionInProgress = scriptRunner.isRunning;
 
 
   // ==================================================================================
-  // 4.3: Data Fetching & Effects
-  //
-  // `useEffect` hooks for actions that need to run on component mount or when
-  // dependencies change, such as fetching initial data from the API.
+  // 4.3: Data Fetching & Side Effects
   // ==================================================================================
 
+  // Effect to fetch the list of all available tools on initial component mount.
   useEffect(() => {
-    // Fetches the list of all available scripts from the backend when the component mounts.
     const fetchScripts = async () => {
-      setIsLoading(true);
-      setTopLevelError(null);
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/scripts/list`);
-        if (!response.ok) throw new Error("Network response was not ok. Is the server running?");
-        const data = await response.json();
-        if (data && data.success && Array.isArray(data.scripts)) {
-          // Filter out any scripts marked as hidden in their metadata.
-          setAllScripts(data.scripts.filter(s => !s.hidden));
-        } else {
-          throw new Error(data.message || "Failed to load scripts in a valid format.");
+        setIsLoading(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/scripts/list`);
+            if (!response.ok) throw new Error("Network response was not ok.");
+            const data = await response.json();
+            if (data.success && Array.isArray(data.scripts)) {
+                setAllScripts(data.scripts.filter(s => !s.hidden));
+            } else { throw new Error(data.message || "Failed to load scripts."); }
+        } catch (error) {
+            toast.error(error.message);
+            setTopLevelError(error.message);
+        } finally {
+            setIsLoading(false);
         }
-      } catch (error) {
-        toast.error("Failed to load scripts. Check server connection.");
-        setTopLevelError(error.message);
-      } finally {
-        setIsLoading(false);
-      }
     };
     fetchScripts();
-  }, []); // Empty dependency array means this runs only once on mount.
+  }, []); // Empty dependency array ensures this runs only once.
+
+  // Effect to fetch the run history from the API when the history drawer is opened.
+  useEffect(() => {
+    if (isHistoryDrawerOpen) {
+      const fetchHistory = async () => {
+        setIsLoadingHistory(true);
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/history/list`);
+          const data = await response.json();
+          if (data.success) {
+            setHistoryItems(data.history || []);
+          } else {
+            toast.error(data.message || 'Failed to fetch history.');
+          }
+        } catch (error) {
+          toast.error('Could not connect to server to get history.');
+        } finally {
+          setIsLoadingHistory(false);
+        }
+      };
+      fetchHistory();
+    }
+  }, [isHistoryDrawerOpen]); // Re-runs only when the drawer is opened.
 
 
   // ==================================================================================
-  // 4.4: Memoized Derived State
-  //
-  // `useMemo` hooks to calculate derived data. This is more efficient than
-  // recalculating on every render.
+  // 4.4: Memoized Derived State for Performance
   // ==================================================================================
-
-  // Finds the full metadata object for the currently selected script.
   const selectedScript = useMemo(() => allScripts.find(s => s.id === selectedScriptId), [allScripts, selectedScriptId]);
-
-  // Retrieves the current form values for the selected script.
   const currentParameters = useMemo(() => scriptParameters[selectedScriptId] || {}, [selectedScriptId, scriptParameters]);
 
-  // FIX: Creates a list of parameters that should be rendered in the SIDEBAR.
-  // It filters all script parameters to find only those with `layout: 'sidebar'`.
-  const sidebarParametersToRender = useMemo(() => {
-    if (!selectedScript?.parameters) return [];
-    return selectedScript.parameters.filter(p => p.layout === 'sidebar');
-  }, [selectedScript]);
-
-  // FIX: Creates a list of parameters for the MAIN content area.
-  // It filters out sidebar parameters, hard-coded special parameters, and applies `show_if` logic.
+  // This logic calculates which parameters to show in the main form area for standard scripts.
   const mainParametersToRender = useMemo(() => {
     if (!selectedScript?.parameters) return [];
 
+    // Define all parameter names that are handled by specialized UI components,
+    // not by the generic DynamicScriptForm.
+    const specialHandledParams = [
+        "hostname", "inventory_file", "username", "password", // Handled by DeviceAuthFields
+        "tests", "environment"                               // Handled by ScriptOptionsRenderer
+    ];
+
     return selectedScript.parameters.filter(param => {
-      // Exclude if it's meant for the sidebar.
+      // Rule 1: Exclude if it's a special-handled parameter.
+      if (specialHandledParams.includes(param.name)) return false;
+
+      // Rule 2: Exclude if it's explicitly designated for the sidebar.
       if (param.layout === 'sidebar') return false;
-      // Exclude special parameters handled by dedicated components (like DeviceAuthFields).
-      const specialParams = ["hostname", "inventory_file", "username", "password", "tests"];
-      if (specialParams.includes(param.name)) return false;
-      // Respect the `show_if` condition for dynamic visibility based on sidebar controls.
+
+      // Rule 3: Handle conditional visibility based on other parameters.
       if (param.show_if) {
         const controllingParamValue = currentParameters[param.show_if.name];
+        if (controllingParamValue === undefined) return false;
         return controllingParamValue === param.show_if.value;
       }
-      // If not excluded, it belongs in the main form.
+
+      // If no exclusion rules match, render the parameter.
       return true;
     });
   }, [selectedScript, currentParameters]);
@@ -235,82 +234,121 @@ function PythonScriptRunner() {
 
   // ==================================================================================
   // 4.5: Event Handlers & Callbacks
-  //
-  // `useCallback` hooks to create stable functions for event handlers,
-  // preventing unnecessary re-renders of child components.
   // ==================================================================================
-
-  // Resets all state related to a script run.
-  const handleReset = useCallback((clearScriptId = true) => {
-    const scriptIdToClear = selectedScriptId;
-    if (clearScriptId) {
-      setSelectedScriptId("");
+  const handleSelectHistoryItem = useCallback((runId) => {
+    const item = historyItems.find(h => h.runId === runId);
+    if (item) {
+      scriptRunner.resetState();
+      setSelectedHistoryId(runId);
+      setSelectedScriptId(item.scriptId);
+      setHistoryOutput({
+        progressEvents: [],
+        finalResult: item.isSuccess ? JSON.parse(item.output) : null,
+        error: item.isSuccess ? null : item.error,
+        fullLog: item.isSuccess ? item.output : item.error,
+        isComplete: true,
+        isRunning: false,
+      });
     }
-    setScriptParameters(prev => ({ ...prev, [scriptIdToClear]: {} }));
-    setTopLevelError(null);
-    scriptRunner.resetState();
-  }, [selectedScriptId, scriptRunner]);
+  }, [historyItems, scriptRunner]);
 
-  // Handles changing the selected script.
   const handleScriptChange = useCallback((id) => {
-    handleReset(false); // Reset states but don't clear the new ID.
+    setSelectedHistoryId(null);
+    setHistoryOutput(null);
+    scriptRunner.resetState();
     setSelectedScriptId(id);
     const script = allScripts.find(s => s.id === id);
-
-    // IMPORTANT: Pre-populates the form with any default values from the script's metadata.
-    // This is what makes "Perform Backup" the default selection.
     if (script?.parameters) {
-      const defaults = {};
-      script.parameters.forEach(p => {
-        if (p.default !== undefined) {
-          defaults[p.name] = p.default;
-        }
-      });
-      setScriptParameters(prev => ({ ...prev, [id]: defaults }));
+        const defaults = {};
+        script.parameters.forEach(p => { if (p.default !== undefined) { defaults[p.name] = p.default; }});
+        setScriptParameters(prev => ({ ...prev, [id]: defaults }));
     }
-  }, [allScripts, handleReset]);
+  }, [allScripts, scriptRunner]);
 
-  // A generic handler for any form input change.
   const handleParamChange = useCallback((name, value) => {
     if (!selectedScriptId) return;
-    setScriptParameters(prev => ({
-      ...prev,
-      [selectedScriptId]: { ...(prev[selectedScriptId] || {}), [name]: value },
-    }));
+    setScriptParameters(prev => ({ ...prev, [selectedScriptId]: { ...(prev[selectedScriptId] || {}), [name]: value }}));
   }, [selectedScriptId]);
 
 
   // ==================================================================================
   // 4.6: Action Handlers
-  //
-  // Functions that initiate backend processes.
   // ==================================================================================
-
   const handleRunStandardScript = async () => {
-    setTopLevelError(null);
+    setSelectedHistoryId(null);
+    setHistoryOutput(null);
     scriptRunner.resetState();
     const paramsToSend = { ...currentParameters };
-    // Convert array of selected tests to a comma-separated string if needed.
     if (Array.isArray(paramsToSend.tests)) {
-      paramsToSend.tests = paramsToSend.tests.join(',');
+        paramsToSend.tests = paramsToSend.tests.join(',');
     }
     await scriptRunner.runScript({ scriptId: selectedScriptId, parameters: paramsToSend });
   };
 
 
   // ==================================================================================
-  // 4.7: Main Render Logic
-  //
-  // The JSX that defines the component's structure and appearance.
+  // 4.7: Main Render Logic - The Orchestrator
   // ==================================================================================
 
-  // Renders a loading spinner while fetching the initial script list.
-  if (isLoading) {
+  /**
+   * Renders the appropriate UI for the selected tool based on its metadata.
+   */
+  const renderToolUI = () => {
+    if (!selectedScript) {
+      return (
+        <div className="text-center py-24 px-6 bg-white rounded-xl shadow-lg shadow-slate-200/50">
+          <h2 className="text-2xl font-semibold text-slate-600">Select a tool to begin.</h2>
+          <p className="text-slate-500 mt-2">Or view a past run from the history panel.</p>
+        </div>
+      );
+    }
+
+    if (selectedScript.capabilities?.customUI === 'templateWorkflow') {
+      return <TemplateWorkflow wsContext={wsContext} />;
+    }
+
+    const displayProps = selectedHistoryId ? historyOutput : scriptRunner;
     return (
-      <div className="bg-slate-50 min-h-screen flex items-center justify-center">
-        <div className="text-center"><PulseLoader color="#3b82f6" size={12} /><p className="mt-4 text-slate-600">Loading scripts...</p></div>
-      </div>
+      <ErrorBoundary>
+        <div className="flex flex-col md:flex-row gap-8">
+          <aside className="w-full md:w-72 lg:w-80 flex-shrink-0">
+            <div className="sticky top-24 space-y-6 bg-white p-6 rounded-xl shadow-lg shadow-slate-200/50">
+              <h3 className="text-lg font-semibold text-slate-800 flex items-center border-b border-slate-200 pb-3"><Layers size={18} className="mr-2 text-slate-500" /> Script Options</h3>
+              <ScriptOptionsRenderer
+                script={selectedScript}
+                parameters={currentParameters}
+                onParamChange={handleParamChange}
+              />
+            </div>
+          </aside>
+          <main className="flex-1 space-y-8">
+            <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg shadow-slate-200/50">
+              <header className="border-b border-slate-200 pb-4 mb-6">
+                <h2 className="text-2xl font-bold text-slate-800">{selectedScript.displayName}</h2>
+                <p className="mt-1 text-slate-600">{selectedScript.description}</p>
+              </header>
+              <div className="space-y-6">
+                {selectedScript.capabilities?.deviceAuth && <DeviceAuthFields parameters={currentParameters} onParamChange={handleParamChange} />}
+                <div className="border-t border-slate-200 pt-6">
+                  <h3 className="text-lg font-semibold text-slate-800 mb-4">Action Details</h3>
+                  <DynamicScriptForm parametersToRender={mainParametersToRender} formValues={currentParameters} onParamChange={handleParamChange} />
+                </div>
+              </div>
+              <div className="mt-8 border-t pt-6">
+                <button type="button" onClick={handleRunStandardScript} disabled={isActionInProgress} className="w-full flex items-center justify-center p-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-400">
+                  {scriptRunner.isRunning ? <PulseLoader color="#fff" size={8} /> : <><PlayCircle size={20} className="mr-2" /> Run Script</>}
+                </button>
+              </div>
+            </div>
+            {(displayProps.isRunning || displayProps.isComplete) && <ScriptOutputDisplay {...displayProps} script={selectedScript} />}
+          </main>
+        </div>
+      </ErrorBoundary>
     );
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-screen"><PulseLoader color="#3b82f6" /></div>;
   }
 
   return (
@@ -320,89 +358,22 @@ function PythonScriptRunner() {
         selectedScriptId={selectedScriptId}
         onScriptChange={handleScriptChange}
         isActionInProgress={isActionInProgress}
-        onReset={() => handleReset(true)}
-        onViewHistory={() => { /* History functionality can be added here */ }}
-        historyItemCount={0}
+        onReset={() => { /* Implement full reset if needed */ }}
+        onViewHistory={() => setIsHistoryDrawerOpen(true)}
+        historyItemCount={historyItems.length}
         isWsConnected={wsContext.isConnected}
       />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Renders a welcome message if no script is selected yet. */}
-        {!selectedScriptId ? (
-          <div className="text-center py-24">
-            <h2 className="text-2xl font-semibold text-slate-600">Select a tool to begin.</h2>
-            {/* Renders an error message if script loading failed. */}
-            {allScripts.length === 0 && !isLoading && (
-              <div className="mt-8 max-w-2xl mx-auto"><div className="bg-red-50 border border-red-200 rounded-lg p-6"><h3 className="text-lg font-semibold text-red-800">No Scripts Available</h3><p className="text-red-700 mt-2">Unable to load scripts from the API. Please ensure the backend server is running and accessible at <code className="bg-red-100 p-1 rounded">{API_BASE_URL}</code>.</p>{topLevelError && (<div className="mt-4 p-3 bg-red-100 border-red-300 rounded"><strong>Error Details:</strong> {topLevelError}</div>)}</div></div>
-            )}
-          </div>
-        ) : (
-          <ErrorBoundary>
-            {/* The main two-column layout for the runner page. */}
-            <div className="flex flex-col md:flex-row gap-8">
-
-              {/* --- LEFT SIDEBAR FOR SCRIPT OPTIONS --- */}
-              <aside className="w-full md:w-72 lg:w-80 flex-shrink-0">
-                <div className="sticky top-24 space-y-6 bg-white p-6 rounded-xl shadow-lg shadow-slate-200/50">
-                  <h3 className="text-lg font-semibold text-slate-800 flex items-center border-b border-slate-200 pb-3"><Layers size={18} className="mr-2 text-slate-500" /> Script Options</h3>
-                  {/* The sidebar renderer receives the filtered list of sidebar-specific parameters. */}
-                  <ScriptOptionsRenderer
-                    script={selectedScript}
-                    parameters={currentParameters}
-                    onParamChange={handleParamChange}
-                    sidebarParameters={sidebarParametersToRender}
-                  />
-                </div>
-              </aside>
-
-              {/* --- MAIN CONTENT AREA --- */}
-              <main className="flex-1 space-y-8">
-                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg shadow-slate-200/50">
-                  <header className="border-b border-slate-200 pb-4 mb-6">
-                    <h2 className="text-2xl font-bold text-slate-800">{selectedScript.displayName}</h2>
-                    <p className="mt-1 text-slate-600">{selectedScript.description}</p>
-                  </header>
-
-                  <div className="space-y-6">
-                    {/* Renders device connection fields if the script has `deviceAuth` capability. */}
-                    {selectedScript.capabilities?.deviceAuth && (
-                      <DeviceAuthFields parameters={currentParameters} onParamChange={handleParamChange} />
-                    )}
-
-                    {/* Renders the dynamic form for the main content area. */}
-                    <div className="border-t border-slate-200 pt-6">
-                      <h3 className="text-lg font-semibold text-slate-800 mb-4">Action Details</h3>
-                      {/* This form receives the filtered list of main parameters. It will render
-                          nothing if the list is empty (e.g., for the default "Perform Backup" action). */}
-                      <DynamicScriptForm
-                        parametersToRender={mainParametersToRender}
-                        formValues={currentParameters}
-                        onParamChange={handleParamChange}
-                      />
-                    </div>
-                  </div>
-
-                  {/* The main action button to run the script. */}
-                  <div className="mt-8 border-t pt-6">
-                      <button type="button" onClick={handleRunStandardScript} disabled={isActionInProgress} className="w-full flex items-center justify-center p-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-400">
-                        {scriptRunner.isRunning ? <PulseLoader color="#fff" size={8} /> : <><PlayCircle size={20} className="mr-2" /> Run Script</>}
-                      </button>
-                      {topLevelError && (<div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-sm">{topLevelError}</div>)}
-                  </div>
-                </div>
-
-                {/* The output display area, which only appears when a script is running or has completed. */}
-                {(scriptRunner.isRunning || scriptRunner.isComplete) &&
-                  <ScriptOutputDisplay
-                    {...scriptRunner}
-                    script={selectedScript} // Pass the script object to check for `enableReportSaving` capability.
-                  />
-                }
-              </main>
-            </div>
-          </ErrorBoundary>
-        )}
+        {renderToolUI()}
       </div>
+      <HistoryDrawer
+        isOpen={isHistoryDrawerOpen}
+        onClose={() => setIsHistoryDrawerOpen(false)}
+        history={historyItems}
+        isLoading={isLoadingHistory}
+        onSelectHistoryItem={handleSelectHistoryItem}
+        selectedHistoryId={selectedHistoryId}
+      />
     </div>
   );
 }

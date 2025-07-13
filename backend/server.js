@@ -217,6 +217,14 @@ function ensureOutputDirectory() {
   return outputDir;
 }
 
+// Helper function to ensure a directory exists.
+function ensureDirectoryExists(dirPath) {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+        console.log(`[BACKEND] Created directory: ${dirPath}`);
+    }
+}
+
 // ✨ RESTORED Lab Management Helper
 const getDockerComposeStatus = (labPath) => {
   return new Promise((resolve) => {
@@ -441,6 +449,48 @@ app.post("/api/scripts/run", (req, res) => {
     res.status(500).json({ success: false, message: "An unexpected error occurred while running the script." });
   }
 });
+// --- THIS IS THE GENERIC ENDPOINT ---
+/**
+ * @description Generates and saves a report from script result data to a
+ *              metadata-specified path. This endpoint is now completely generic.
+ */
+app.post("/api/report/generate", async (req, res) => {
+    // FIX: Destructure the generic `savePath` from the request body.
+    const { savePath, jsonData } = req.body;
+
+    if (!jsonData || !savePath) {
+        return res.status(400).json({ success: false, message: "jsonData and savePath are required." });
+    }
+
+    try {
+        // --- Generic Save Logic ---
+
+        // Construct the full, absolute path for the destination directory inside the container.
+        const destinationDir = path.join(PYTHON_PIPELINE_MOUNT_PATH, savePath);
+        ensureDirectoryExists(destinationDir);
+
+        // Create a unique filename.
+        // We can try to get the hostname from the results for a more descriptive name.
+        const hostname = jsonData.results_by_host?.[0]?.hostname || 'generic-report';
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const filename = `${hostname}_${timestamp}.json`; // Always save as JSON now.
+        const filepath = path.join(destinationDir, filename);
+
+        // Write the full JSON data to the file.
+        fs.writeFileSync(filepath, JSON.stringify(jsonData, null, 2), "utf8");
+
+        console.log(`[BACKEND] Saved report to: ${filepath}`);
+        return res.json({ success: true, message: `Results saved to ${filename}` });
+
+    } catch (error) {
+        console.error("[BACKEND] Error saving report:", error);
+        return res.status(500).json({
+            success: false,
+            message: "An internal error occurred while saving the report.",
+            error: error.message
+        });
+    }
+});
 
 // ====================================================================================
 // SECTION 8: EXECUTION ENDPOINTS
@@ -574,7 +624,7 @@ app.post("/api/scripts/run-stream", (req, res) => {
 
   res.status(202).json({ success: true, message: "Script execution started.", runId });
 
-  const dockerArgs = ["run", "--rm", "--network=host", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`, "vlabs-python-runner", "python", "-u", scriptPath];
+  const dockerArgs = ["run", "--rm", "--network=host", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,"-v", `${path.join(PYTHON_PIPELINE_PATH_ON_HOST, "tools", "backup_and_restore", "backups")}:/app/backups` ,"vlabs-python-runner", "python", "-u", scriptPath];
   if (parameters) {
     for (const [key, value] of Object.entries(parameters)) {
         if (value === null || value === undefined || value === "") continue;

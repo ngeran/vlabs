@@ -158,7 +158,7 @@ function TemplateWorkflow({ wsContext }) {
     const result = await generateConfig(selectedTemplateId, dynamicParameters);
 
     if (result && result.success) {
-      setGeneratedConfig(result.generated_config);
+      setGeneratedConfig(result.rendered_config);
       toast.success("Configuration preview generated successfully!");
     } else {
       const errorMessage = result?.error || "An unknown error occurred during generation.";

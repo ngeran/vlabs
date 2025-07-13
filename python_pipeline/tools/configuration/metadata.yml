@@ -11,13 +11,16 @@ capabilities:
   templateGeneration: true
 # This flag tells PythonScriptRunner to render the specialized DeviceAuthFields component.
   deviceAuth: true
+# Custom UI
+  customUI: "templateWorkflow"
+
 
 
 # The parameters for this workflow are often handled by the specialized UI,
 # but you could define common ones here if needed.
-parameters:
-  - name: "hostname"
-    label: "Target Hostname"
-    type: "text"
-    required: true
-    placeholder: "e.g., vmx-1"
+#parameters:
+#  - name: "hostname"
+#    label: "Target Hostname"
+#    type: "text"
+#    required: true
+#   placeholder: "e.g., vmx-1"

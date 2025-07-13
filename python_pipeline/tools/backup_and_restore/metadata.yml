@@ -9,6 +9,7 @@ category: "Device Management"
 capabilities:
   deviceAuth: true
   enableReportSaving: false
+  sidebarComponent: "BackupRestoreOptions"
 
 # --- Parameters: This list defines the form fields in the UI ---
 parameters:

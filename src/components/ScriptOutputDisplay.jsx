@@ -326,15 +326,23 @@ export default function ScriptOutputDisplay({
   isRunning,
   isComplete,
   fullLog,
-  script, // <-- FIX: Accept the selected script object as a prop.
+  script,
   showDebug = false,
 }) {
+  // --- DEBUGGING LINE ---
+  // Log the entire script object when this component renders.
+  console.log("[DEBUG] Script prop received by ScriptOutputDisplay:", script);
+  // --- END DEBUGGING LINE --
   const [isSaving, setIsSaving] = useState(false);
 
+
+  // FIX: Read the entire saveButton configuration object from the script's metadata.
+  const saveButtonConfig = script?.capabilities?.saveButton;
   // FIX: Determine if the "Save Report" button should be shown.
   // This is based on the `enableReportSaving` capability in the script's metadata.
   // If the capability is not defined, it defaults to false.
   const canSaveReport = script?.capabilities?.enableReportSaving === true;
+
 
   const handleSaveReport = async () => {
     if (!finalResult) {
@@ -348,7 +356,11 @@ export default function ScriptOutputDisplay({
       const response = await fetch(`${API_BASE_URL}/api/report/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: defaultFilename, jsonData: finalResult }),
+        // FIX: The request body now sends the generic `savePath` from the metadata.
+        body: JSON.stringify({
+          savePath: saveButtonConfig.savePath, // e.g., "tools/results/jsnapy_test_results"
+          jsonData: finalResult,
+        }),
       });
       const data = await response.json();
       if (!response.ok || !data.success) {
@@ -382,6 +394,12 @@ export default function ScriptOutputDisplay({
 
   // STATE 2: Script is complete.
   if (isComplete) {
+     // --- DEBUGGING LINE ---
+    console.log("[DEBUG] Final Render Check:", {
+        canSaveReport: canSaveReport,
+        isSuccess: finalResult?.success,
+    });
+    // --- END DEBUGGING LINE --
     // SUB-STATE 2a: The script completed with a top-level failure.
     if (error && !finalResult?.success) {
       return (
@@ -410,7 +428,8 @@ export default function ScriptOutputDisplay({
               className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:bg-slate-200"
             >
               <Save size={16} />
-              {isSaving ? "Saving..." : "Save Formatted Report"}
+              {/* FIX: The button label is now dynamic from the metadata. */}
+              {isSaving ? "Saving..." : (saveButtonConfig.label || "Save Report")}
             </button>
           </div>
         )}

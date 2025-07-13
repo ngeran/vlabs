@@ -11,9 +11,13 @@ scripts:
   - id: config_templating
     path: "tools/configuration"
     metadataFile: "metadata.yml"
-    
+
   - id: backup_restore
     path: "tools/backup_and_restore"
+    metadataFile: "metadata.yml"
+
+  - id: code_upgrade
+    path: "tools/code_upgrade"
     metadataFile: "metadata.yml"
 
   # To add a new script, just add a new entry here.

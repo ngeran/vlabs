@@ -11,7 +11,13 @@ category: "Validation & Testing"
 capabilities:
   deviceAuth: true
   dynamicDiscovery: true
-  canSaveReport: true # <-- ADDED: This flag enables the "Save Report" button in the UI
+  enableReportSaving: true # <-- ADDED: This flag enables the "Save Report" button in the UI
+  sidebarComponent: "JsnapyOptions"
+  saveButton:
+    enabled: true
+    label: "Save JSNAPy Results"
+    # This path is relative to the `/python_pipeline` mount point.
+    savePath: "tools/results/jsnapy_test_results"
 
 # Parameters required by this script's UI.
 parameters:

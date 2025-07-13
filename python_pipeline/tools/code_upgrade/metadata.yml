@@ -1,0 +1,14 @@
+# --- Basic Information ---
+displayName: "Device Code Upgrade"
+description: "A tool that will upgrade or downgrade the device code."
+category: "Device Management"
+
+# --- Capabilities ---
+capabilities:
+  deviceAuth: true
+  enableReportSaving: false
+
+# --- Parameters: This list defines the form fields in the UI ---
+#parameters:
+  # --- This parameter will now be rendered in the sidebar ---
+ # - name: "command"

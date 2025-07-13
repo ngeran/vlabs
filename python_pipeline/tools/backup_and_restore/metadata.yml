@@ -1,19 +1,32 @@
 # python_pipeline/tools/backup_and_restore/metadata.yml
 
-# --- Basic Information ---
+# -----------------------------------
+# Basic Information
+# -----------------------------------
+# Display name for the tool in the UI
 displayName: "Device Backup & Restore"
+
+# Description shown in the UI to explain the tool's purpose
 description: "A tool to perform configuration backups from a device or restore a configuration to a device. The form will dynamically change based on the selected action."
+
+# Category for grouping in the UI
 category: "Device Management"
 
-# --- Capabilities ---
+# -----------------------------------
+# Capabilities
+# -----------------------------------
 capabilities:
+  # Indicates the tool requires device authentication credentials
   deviceAuth: true
+  # Disables report saving feature for this tool
   enableReportSaving: false
-  sidebarComponent: "BackupRestoreOptions"
 
-# --- Parameters: This list defines the form fields in the UI ---
+# -----------------------------------
+# Parameters
+# -----------------------------------
+# Defines form fields displayed in the UI for user input
 parameters:
-  # --- This parameter will now be rendered in the sidebar ---
+  # Action selection parameter (backup or restore)
   - name: "command"
     label: "Action to Perform"
     type: "radio"
@@ -22,20 +35,29 @@ parameters:
     options:
       - { value: "backup", label: "Perform Backup" }
       - { value: "restore", label: "Perform Restore" }
-    # FIX: Add this layout property to signal its location to the frontend.
     layout: "sidebar"
     description: "Choose whether to back up from or restore to the device."
 
-  # --- Restore-specific parameters ---
-  # These will remain in the main content area and will show/hide dynamically.
+  # Device IP selection for backup and restore operations
+  - name: "hostname"
+    label: "Device IP"
+    type: "text" # Text for manual entry in backup mode
+    required: true
+    dynamicOptionsEndpoint: "/api/backups/devices" # Used for restore mode dropdown
+    description: "Enter the device IP or hostname for backup, or select from available devices for restore."
+    layout: "main"
+
+  # Backup file selection for restore operation
   - name: "backup_file"
     label: "Backup File to Restore"
-    type: "text"
+    type: "select"
     required: true
-    placeholder: "e.g., /app/python-scripts/backups/172.27.200.200_set.set"
-    description: "Full path inside the container to the configuration file to be restored."
+    dynamicOptionsEndpoint: "/api/backups/devices"
+    description: "Select a configuration file to restore. Options depend on the selected device."
     show_if: { name: "command", value: "restore" }
+    layout: "main"
 
+  # Restore method selection
   - name: "type"
     label: "Restore Load Type"
     type: "enum"
@@ -47,10 +69,38 @@ parameters:
       - { value: "merge", label: "Merge" }
     description: "The method used to load the configuration onto the device."
     show_if: { name: "command", value: "restore" }
+    layout: "sidebar"
 
+  # Timeout for confirmed commit during restore
   - name: "confirmed_commit_timeout"
     label: "Confirmed Commit Timeout (minutes)"
     type: "number"
     default: 5
     description: "Timeout for confirmed commit. A value of 0 disables this safety feature."
     show_if: { name: "command", value: "restore" }
+    layout: "sidebar"
+
+  # Username for device authentication
+  - name: "username"
+    label: "Username"
+    type: "text"
+    required: true
+    description: "Username for device authentication."
+    layout: "main"
+
+  # Password for device authentication
+  - name: "password"
+    label: "Password"
+    type: "password"
+    required: true
+    description: "Password for device authentication."
+    layout: "main"
+
+  # Inventory file for inventory mode
+  - name: "inventory_file"
+    label: "Inventory File"
+    type: "select"
+    required: true
+    dynamicOptionsEndpoint: "/api/inventories/list"
+    description: "Select an inventory file containing device details."
+    layout: "main"

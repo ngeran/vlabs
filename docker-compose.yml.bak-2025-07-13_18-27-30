@@ -33,7 +33,7 @@ services:
       # Mount python_pipeline for script configs and output.
       - /home/nikos/github/ngeran/vlabs/python_pipeline:/python_pipeline
       # Mount backups directory for backup_restore script access.
-      - /home/nikos/github/ngeran/vlabs/python_pipeline/tools/backup_and_restore/backups:/backups
+      - /home/nikos/github/ngeran/vlabs/python_pipeline/tools/backup_and_restore/backups:/app/backups
     # Environment variables for path mapping.
     environment:
       # Absolute path on the host to the project root, used by server.js.
@@ -64,7 +64,7 @@ services:
     command: tail -f /dev/null
     # Mount backups directory for script access.
     volumes:
-      - /home/nikos/github/ngeran/vlabs/python_pipeline/tools/backup_and_restore/backups:/backups
+      - /home/nikos/github/ngeran/vlabs/python_pipeline/tools/backup_and_restore/backups:/app/backups
     # Connect to the custom network.
     networks:
       - vlabs-net

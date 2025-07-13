@@ -1,47 +1,57 @@
-// src/components/ScriptOptionsRenderer.jsx
+/**
+ * React component for rendering script-specific custom sidebar options.
+ * Delegates to BaselineScriptOptions for standard inputs or custom components for specialized scripts.
+ */
 
 import React from "react";
 import { useTestDiscovery } from "../hooks/useTestDiscovery";
 import TestSelector from "./TestSelector";
+import BaselineScriptOptions from "./BaselineScriptOptions";
+
+// -----------------------------------
+// Discoverable Test Options Component
+// -----------------------------------
 
 /**
- * @description A helper component that encapsulates the logic for scripts with discoverable tests.
- * IT NOW USES THE GRANULAR `onParamChange` for more robust state updates.
+ * Component for rendering test selection UI for scripts with dynamic test discovery.
+ * @param {Object} props - Component props.
+ * @param {Object} props.script - Script metadata.
+ * @param {Object} props.parameters - Current script parameters.
+ * @param {Function} props.onParamChange - Callback to update parameters.
  */
 function DiscoverableTestOptions({ script, parameters, onParamChange }) {
-  // Use our generic hook to fetch tests for the currently selected script.
-  const { categorizedTests, loading, error } = useTestDiscovery(
-    script.id,
-    parameters.environment,
-  );
+  const { categorizedTests, loading, error } = useTestDiscovery(script.id, parameters.environment);
 
+  /**
+   * Toggle a test's selection state.
+   * @param {string} testId - ID of the test to toggle.
+   */
   const handleTestToggle = (testId) => {
     const currentTests = parameters.tests || [];
     const newSelection = currentTests.includes(testId)
       ? currentTests.filter((id) => id !== testId)
       : [...currentTests, testId];
-
-    // ✨ FIX: Use the granular change handler for the 'tests' parameter.
     onParamChange("tests", newSelection);
   };
 
+  /**
+   * Select all available tests.
+   */
   const handleSelectAll = () => {
-    const allTestNames = Object.values(categorizedTests)
-      .flat()
-      .map((t) => t.id);
+    const allTestNames = Object.values(categorizedTests).flat().map((t) => t.id);
     onParamChange("tests", allTestNames);
   };
 
+  /**
+   * Clear all selected tests.
+   */
   const handleClearAll = () => {
     onParamChange("tests", []);
   };
 
-  if (loading)
-    return <p className="text-xs text-slate-500 italic">Discovering tests...</p>;
-  if (error)
-    return <p className="text-xs font-semibold text-red-600">Error: {error}</p>;
-
-  // Render the generic TestSelector UI component with the fetched data and handlers
+  // Render loading, error, or test selection UI
+  if (loading) return <p className="text-xs text-slate-500 italic">Discovering tests...</p>;
+  if (error) return <p className="text-xs font-semibold text-red-600">Error: {error}</p>;
   return (
     <>
       <TestSelector
@@ -50,18 +60,10 @@ function DiscoverableTestOptions({ script, parameters, onParamChange }) {
         onTestToggle={handleTestToggle}
       />
       <div className="mt-4 flex gap-4 border-t border-slate-200 pt-3">
-        <button
-          type="button"
-          onClick={handleSelectAll}
-          className="text-blue-600 hover:underline text-sm font-medium"
-        >
+        <button type="button" onClick={handleSelectAll} className="text-blue-600 hover:underline text-sm font-medium">
           Select All
         </button>
-        <button
-          type="button"
-          onClick={handleClearAll}
-          className="text-blue-600 hover:underline text-sm font-medium"
-        >
+        <button type="button" onClick={handleClearAll} className="text-blue-600 hover:underline text-sm font-medium">
           Clear All
         </button>
       </div>
@@ -69,33 +71,41 @@ function DiscoverableTestOptions({ script, parameters, onParamChange }) {
   );
 }
 
+// -----------------------------------
+// Main Script Options Renderer
+// -----------------------------------
+
 /**
- * @description The main renderer component. Acts as a switchboard to decide which
- * script-specific options component to render based on the selected script's metadata.
+ * Main component for rendering script-specific sidebar options.
+ * Uses BaselineScriptOptions for standard inputs or custom components for specialized scripts.
+ * @param {Object} props - Component props.
+ * @param {Object} props.script - Script metadata.
+ * @param {Object} props.parameters - Current script parameters.
+ * @param {Function} props.onParamChange - Callback to update parameters.
  */
 function ScriptOptionsRenderer({ script, parameters, onParamChange }) {
-  // Don't render anything if no script is selected.
-  if (!script) {
-    return null;
-  }
+  if (!script) return null;
 
-  // Check for the dynamicDiscovery capability. This will now correctly handle jsnapy_runner.
+  // Handle scripts with dynamic test discovery
   if (script.capabilities?.dynamicDiscovery) {
     return (
-      <DiscoverableTestOptions
-        script={script}
-        parameters={parameters}
-        // ✨ FIX: Pass the correct handler down.
-        onParamChange={onParamChange}
-      />
+      <DiscoverableTestOptions script={script} parameters={parameters} onParamChange={onParamChange} />
     );
   }
 
-  // If the script is selected but has no special sidebar options, render the default message.
+  // Handle custom sidebar components (extendable for future custom UIs)
+  if (script.capabilities?.sidebarComponent) {
+    // Example: Add custom component mappings here as needed
+    // if (script.capabilities.sidebarComponent === 'CustomComponent') return <CustomComponent ... />;
+    // For now, assume custom components like BackupRestoreOptions use BaselineScriptOptions
+    return (
+      <BaselineScriptOptions script={script} parameters={parameters} onParamChange={onParamChange} />
+    );
+  }
+
+  // Default to baseline options for all other scripts
   return (
-    <p className="text-xs text-slate-500 italic">
-      This script has no additional sidebar options.
-    </p>
+    <BaselineScriptOptions script={script} parameters={parameters} onParamChange={onParamChange} />
   );
 }
 

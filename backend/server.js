@@ -213,12 +213,62 @@ const getDockerComposeStatus = (labPath) => {
   });
 };
 
+const scanDirectory = (directoryPath) => {
+  const stats = fs.statSync(directoryPath);
+  const name = path.basename(directoryPath);
+  if (stats.isDirectory()) {
+    const children = fs.readdirSync(directoryPath).map(child =>
+      scanDirectory(path.join(directoryPath, child))
+    );
+    return { name, type: 'folder', children };
+  } else {
+    return { name, type: 'file' };
+  }
+};
+
 // ====================================================================================
 // SECTION 7: API ENDPOINTS
 // ====================================================================================
 // Description: Defines REST API endpoints for script, template, and lab management.
 // Purpose: Handles HTTP requests from the frontend for various operations.
+// =======TEST API curl http://localhost:3001/api/inventory-tree ======================
 
+app.get('/api/inventory-tree', (req, res) => {
+  const basePath = '/python_pipeline/tools/code_upgrade';
+  const upgradePath = path.join(basePath, 'upgrade_path', 'vendor');
+
+  console.log(`[INFO] API call to /api/inventory-tree received.`);
+  console.log(`[DEBUG] Attempting to scan directory at absolute container path: ${upgradePath}`);
+
+  try {
+    if (fs.existsSync(upgradePath)) {
+      console.log(`[SUCCESS] Directory found. Scanning...`);
+      const directoryTree = scanDirectory(upgradePath);
+      res.json(directoryTree);
+    } else {
+      console.error(`[ERROR] Directory NOT FOUND at path: ${upgradePath}`);
+      // Enhanced debugging
+      const debugInfo = {
+        path_searched: upgradePath,
+        base_mount_exists: fs.existsSync(basePath),
+        base_mount_contents: fs.existsSync(basePath) ? fs.readdirSync(basePath) : [],
+        upgrade_path_exists: fs.existsSync(path.join(basePath, 'upgrade_path')),
+        upgrade_path_contents: fs.existsSync(path.join(basePath, 'upgrade_path')) ?
+          fs.readdirSync(path.join(basePath, 'upgrade_path')) : []
+      };
+      console.error(`[DEBUG] Debug info:`, debugInfo);
+      res.status(404).json({
+        error: 'Directory not found on server.',
+        debug: debugInfo
+      });
+    }
+  } catch (error) {
+    console.error(`[FATAL] An error occurred during the scan: ${error.message}`);
+    res.status(500).json({ error: 'Failed to scan directory', details: error.message });
+  }
+});
+
+//=====================================================================================
 app.get("/api/scripts/list", (req, res) => {
   // Lists all scripts with their metadata for the script runner UI.
   try {

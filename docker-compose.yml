@@ -34,6 +34,8 @@ services:
       - ${PROJECT_ROOT}/python_pipeline:/python_pipeline
       # Mount backups directory for backup_restore script access.
       - ${PROJECT_ROOT}/python_pipeline/tools/backup_and_restore/backups:/backups
+       # Mount the specific upgrade path directory
+      - ${PROJECT_ROOT}/python_pipeline/tools/code_upgrade:/data_to_scan
     # Environment variables for path mapping.
     environment:
       # Absolute path on the host to the project root, used by server.js.

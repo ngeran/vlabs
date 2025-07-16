@@ -659,7 +659,7 @@ app.post("/api/scripts/run-stream", (req, res) => {
   const scriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, scriptDef.path, "run.py");
 
   res.status(202).json({ success: true, message: "Script execution started.", runId });
-  const dockerArgs = ["run", "--rm", "--network=host", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`, "-v", `${path.join(PYTHON_PIPELINE_PATH_ON_HOST, "tools", "backup_and_restore", "backups")}:/backups`, "vlabs-python-runner", "python", "-u", scriptPath];
+  const dockerArgs = ["run", "--rm", "--network=host", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`, "-v", `${path.join(PYTHON_PIPELINE_PATH_ON_HOST, "tools", "backup_and_restore", "backups")}:/backups`, "vlabs-python-runner","stdbuf", "-oL", "-eL", "python", "-u", scriptPath];
   if (parameters) {
     for (const [key, value] of Object.entries(parameters)) {
       if (value === null || value === undefined || value === "") continue;

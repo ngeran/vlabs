@@ -34,6 +34,7 @@ yarn-error.log*
 *.tgz
 .vs/
 .history/
+*.pyc
 
 # macOS
 .DS_Store

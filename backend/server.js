@@ -599,7 +599,7 @@ app.post("/api/templates/apply", (req, res) => {
     const runScriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, "tools", "configuration", "run.py");
     const dockerArgs = [
       "run", "--rm", "--network=host", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
-      "vlabs-python-runner", "python", "-u", runScriptPath,
+      "vlabs-python-runner","stdbuf", "-oL", "-eL",  "python", "-u", runScriptPath,
       '--template_id', templateId, '--rendered_config', renderedConfig, '--target_host', targetHostname,
       '--username', username, '--password', password,
     ];

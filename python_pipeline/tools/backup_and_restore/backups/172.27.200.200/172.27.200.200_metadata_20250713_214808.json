@@ -1,0 +1,14 @@
+{
+    "hostname": "172.27.200.200",
+    "backup_timestamp_utc": "2025-07-13T21:48:08.529149",
+    "backup_type": "full",
+    "files": {
+        "configuration": "/app/backups/172.27.200.200/172.27.200.200_config_20250713_214808.conf",
+        "facts": "/app/backups/172.27.200.200/172.27.200.200_facts_20250713_214808.json"
+    },
+    "device_facts_summary": {
+        "model": "SRX320-POE",
+        "version": "24.2R1-S2.5",
+        "serial_number": "CX1923AN0400"
+    }
+}

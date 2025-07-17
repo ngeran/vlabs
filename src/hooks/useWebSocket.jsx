@@ -1,639 +1,580 @@
-// src/hooks/useWebSocket.js
+// =================================================================================================
+//
+//  COMPREHENSIVE WEBSOCKET INTEGRATION HOOKS FOR REACT
+//  FILE: useWebSocket.jsx
+//
+// =================================================================================================
+//
+//  DESCRIPTION:
+//  This file provides a complete WebSocket integration solution for React applications. It includes
+//  multiple custom hooks designed to handle different real-time communication scenarios:
+//
+//  - `useWebSocket`: The core hook for managing the WebSocket connection lifecycle, including
+//    auto-reconnection, message handling, and connection health diagnostics.
+//
+//  - `useScriptRunnerStream`: A specialized hook built on top of `useWebSocket`. It handles the
+//    execution of backend scripts with real-time streaming of `stdout` and `stderr`, and is
+//    specifically designed to parse structured progress updates from the stream.
+//
+//  - `useTemplateApplication`: Another specialized hook for applying device configurations from
+//    templates, providing detailed, step-by-step progress tracking.
+//
+//  KEY FIXES IN THIS VERSION:
+//  - Implemented a robust stream buffering and parsing mechanism in `useScriptRunnerStream` to
+//    correctly handle real-time data chunks, ensuring that progress updates are displayed
+//    as they arrive, not all at the end.
+//
+// =================================================================================================
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import websocketService from "../services/websocketServices";
 
+// ================================================================================
+// SECTION 1: CONSTANTS AND CONFIGURATION
+// ================================================================================
+
 /**
- * Hook specifically for running generic scripts with real-time output streaming.
- * Connects to the `/api/scripts/run-stream` endpoint.
+ * Default configuration for the main WebSocket connection hook.
  */
-// Enhanced useWebSocket with debugging
-export const useScriptRunnerStream = (wsContext = {}, options = {}) => {
-  const { onStart, onOutput, onError, onEnd } = options;
-
-  const [runnerState, setRunnerState] = useState({
-    isRunning: false,
-    output: "",
-    error: "",
-    isComplete: false,
-    exitCode: null,
-    runId: null,
-  });
-
-  // ✨ REFACTORED: Use the passed-in context
-  const { isConnected, clientId, websocketService } = wsContext;
-
-  const resetState = useCallback(() => {
-    setRunnerState({
-      isRunning: false,
-      output: "",
-      error: "",
-      isComplete: false,
-      exitCode: null,
-      runId: null,
-    });
-  }, []);
-
-  const runScript = useCallback(
-    async (scriptData) => {
-      console.log("🔍 [DEBUG] runScript called with state:", {
-        isConnected,
-        clientId,
-        hasWebSocketService: !!websocketService,
-        connectionStatus: websocketService?.getStatus(),
-      });
-
-      if (!isConnected) {
-        console.error("❌ [ERROR] WebSocket not connected");
-        throw new Error("WebSocket not connected");
-      }
-
-      if (!clientId) {
-        console.error("❌ [ERROR] No client ID available");
-        throw new Error("No WebSocket client ID available");
-      }
-
-      // Verify the connection is actually valid
-      const status = websocketService.getStatus();
-      console.log("🔍 [DEBUG] WebSocket service status:", status);
-
-      if (!status.isConnected) {
-        console.error("❌ [ERROR] WebSocket service reports disconnected");
-        throw new Error("WebSocket connection lost");
-      }
-
-      // Additional debugging: Test if the client is known to the server
-      console.log("🔍 [DEBUG] Testing client registration with server...");
-      try {
-        const testResponse = await fetch(
-          `http://localhost:3001/api/websocket/clients/${clientId}/status`,
-          {
-            method: "GET",
-          },
-        );
-        console.log(
-          "🔍 [DEBUG] Client status check response:",
-          testResponse.status,
-        );
-        if (!testResponse.ok) {
-          console.warn(
-            "⚠️ [WARNING] Client not recognized by server, attempting reconnection...",
-          );
-          await websocketService.disconnect();
-          await websocketService.connect();
-          // Wait a bit for reconnection
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-      } catch (error) {
-        console.warn(
-          "⚠️ [WARNING] Could not verify client status:",
-          error.message,
-        );
-      }
-
-      resetState();
-      setRunnerState((prev) => ({ ...prev, isRunning: true }));
-
-      console.log(
-        "🚀 [DEBUG] Making POST request to run-stream with clientId:",
-        clientId,
-      );
-
-      try {
-        const response = await fetch(
-          "http://localhost:3001/api/scripts/run-stream",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...scriptData, wsClientId: clientId }),
-          },
-        );
-
-        console.log("📡 [DEBUG] Response status:", response.status);
-
-        const result = await response.json();
-        console.log("📡 [DEBUG] Response data:", result);
-
-        if (!response.ok) {
-          console.error("❌ [ERROR] Server response error:", result);
-          setRunnerState({
-            isRunning: false,
-            error: result.message,
-            isComplete: true,
-          });
-          throw new Error(result.message || "Failed to start script stream");
-        }
-
-        console.log("✅ [SUCCESS] Script started, runId:", result.runId);
-        setRunnerState((prev) => ({ ...prev, runId: result.runId }));
-        return result;
-      } catch (error) {
-        console.error("❌ [ERROR] Exception in runScript:", error);
-        setRunnerState((prev) => ({
-          ...prev,
-          isRunning: false,
-          error: error.message,
-          isComplete: true,
-        }));
-        throw error;
-      }
-    },
-    // ✨ REFACTORED: Dependencies now correctly reflect the shared context
-    [isConnected, clientId, websocketService, resetState],
-  );
-
-  useEffect(() => {
-    if (!websocketService) return; // Guard against initial render before context is ready
-
-    const unsubscribers = [];
-
-    unsubscribers.push(
-      websocketService.on("script_start", (data) => {
-        onStart?.(data);
-      }),
-    );
-    unsubscribers.push(
-      websocketService.on("script_output", (data) => {
-        if (data.runId === runnerState.runId) {
-          setRunnerState((prev) => ({
-            ...prev,
-            output: prev.output + data.output,
-          }));
-          onOutput?.(data);
-        }
-      }),
-    );
-    unsubscribers.push(
-      websocketService.on("script_error", (data) => {
-        if (data.runId === runnerState.runId) {
-          setRunnerState((prev) => ({
-            ...prev,
-            error: prev.error + data.error,
-          }));
-          onError?.(data);
-        }
-      }),
-    );
-    unsubscribers.push(
-      websocketService.on("script_end", (data) => {
-        if (data.runId === runnerState.runId) {
-          setRunnerState((prev) => ({
-            ...prev,
-            isRunning: false,
-            isComplete: true,
-            exitCode: data.exitCode,
-          }));
-          onEnd?.(data);
-        }
-      }),
-    );
-
-    return () => unsubscribers.forEach((unsub) => unsub());
-  }, [websocketService, runnerState.runId, onStart, onOutput, onError, onEnd]);
-
-  return { ...runnerState, runScript, resetState };
+const DEFAULT_WS_CONFIG = {
+  autoConnect: true,
+  wsUrl: "ws://localhost:3001",
+  reconnectInterval: 5000,
+  maxReconnectAttempts: 10,
 };
 
 /**
- * Custom hook for WebSocket integration with real-time updates
+ * Defines standardized event types for WebSocket communication to ensure
+ * consistency and prevent typos.
  */
-export const useWebSocket = (options = {}) => {
-  const {
-    autoConnect = true,
-    wsUrl = "ws://localhost:3001",
-    onConnect,
-    onDisconnect,
-    onError,
-    onMessage,
-  } = options;
+const WS_EVENTS = {
+  // Connection lifecycle events
+  CONNECTED: "connected",
+  DISCONNECTED: "disconnected",
+  CLIENT_ID: "client_id",
+  ERROR: "error",
+  MESSAGE: "message",
 
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectionError, setConnectionError] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [clientId, setClientId] = useState(null);
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  // Generic script execution events
+  SCRIPT_ERROR: "script_error",
+  SCRIPT_OUTPUT: "script_output",
+  SCRIPT_END: "script_end",
 
-  // Use refs to store latest callback references
-  const onConnectRef = useRef(onConnect);
-  const onDisconnectRef = useRef(onDisconnect);
-  const onErrorRef = useRef(onError);
-  const onMessageRef = useRef(onMessage);
+  // Specialized template application events
+  STATUS: "status",
+  PROGRESS: "progress",
+  COMMIT_PROGRESS: "commit_progress",
+  INFO: "info",
+  RESULT: "result",
+};
 
-  // Update refs when callbacks change
+/**
+ * Defines the possible states for a script execution lifecycle.
+ */
+const SCRIPT_STATES = {
+  IDLE: "idle",
+  RUNNING: "running",
+  COMPLETED: "completed",
+  FAILED: "failed",
+};
+
+// ================================================================================
+// SECTION 2: UTILITY FUNCTIONS
+// ================================================================================
+
+/**
+ * Safely parses a JSON string, returning null if parsing fails.
+ * This prevents the application from crashing due to malformed JSON.
+ * @param {string} jsonString - The JSON string to parse.
+ * @returns {Object|null} - The parsed JavaScript object or null on error.
+ */
+const safeJsonParse = (jsonString) => {
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.warn("Failed to parse JSON:", jsonString, error);
+    return null;
+  }
+};
+
+/**
+ * Extracts one or more JSON objects from a single line of text.
+ * This is useful for parsing stream data where a line might have a prefix
+ * (e.g., "JSON_PROGRESS: {...}").
+ * @param {string} line - The line of text to parse.
+ * @returns {Array} - An array of all successfully parsed JSON objects found in the line.
+ */
+const extractJsonFromLine = (line) => {
+  const results = [];
+  const trimmedLine = line.trim();
+  if (!trimmedLine) return results;
+
+  const firstBraceIndex = trimmedLine.indexOf("{");
+  if (firstBraceIndex === -1) return results;
+
+  const jsonPortion = trimmedLine.substring(firstBraceIndex);
+  const parsed = safeJsonParse(jsonPortion);
+  if (parsed) {
+    results.push(parsed);
+  }
+
+  return results;
+};
+
+/**
+ * Generates a simple unique identifier for tracking runs or events.
+ * @returns {string} - A unique identifier string.
+ */
+const generateUniqueId = () => {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
+
+// ================================================================================
+//
+// HOOK: useScriptRunnerStream
+//
+// ROLE: Manages real-time script execution via WebSockets. This hook is responsible
+//       for initiating a script run, listening to the `stderr` and `stdout`
+//       streams, parsing progress messages, and tracking the overall state
+//       from start to completion.
+//
+// ================================================================================
+export const useScriptRunnerStream = (wsContext = {}, options = {}) => {
+
+  // --------------------------------------------------------------------------------
+  // Subsection 2.1: State Management
+  // --------------------------------------------------------------------------------
+  const [state, setState] = useState({
+    isRunning: false,
+    isComplete: false,
+    currentState: SCRIPT_STATES.IDLE,
+    progressEvents: [],
+    finalResult: null,
+    error: null,
+    fullLog: "",
+    logLines: [],
+    runId: null,
+    startTime: null,
+    endTime: null,
+    exitCode: null,
+    totalProgressEvents: 0,
+    lastProgressTime: null,
+  });
+
+  // --------------------------------------------------------------------------------
+  // Subsection 2.2: Refs for Stream Buffering and Configuration
+  // --------------------------------------------------------------------------------
+
+  // ✨ KEY FIX: A ref to buffer incoming `stderr` data chunks.
+  // This is essential for correctly parsing streams, as a single message might be
+  // split across multiple WebSocket data events. This ref holds incomplete lines
+  // until they can be fully processed.
+  const stderrBuffer = useRef("");
+
+  const { isConnected, clientId, websocketService } = wsContext;
+  const config = {
+    apiEndpoint: "http://localhost:3001/api/scripts/run-stream",
+    enableDebugLogging: true, // Enabled for better diagnostics
+    maxLogLines: 1000,
+    ...options,
+  };
+
+
+  // --------------------------------------------------------------------------------
+  // Subsection 2.3: State and Execution Control Functions
+  // --------------------------------------------------------------------------------
+
+  /**
+   * Resets the hook's state to its initial, idle condition.
+   * Called before starting a new script run.
+   */
+  const resetState = useCallback(() => {
+    stderrBuffer.current = ""; // Also reset the buffer
+    setState({
+      isRunning: false, isComplete: false, currentState: SCRIPT_STATES.IDLE,
+      progressEvents: [], finalResult: null, error: null, fullLog: "",
+      logLines: [], runId: null, startTime: null, endTime: null, exitCode: null,
+      totalProgressEvents: 0, lastProgressTime: null,
+    });
+  }, []);
+
+  /**
+   * Centralized state update function.
+   * @param {Object} updates - A partial state object to merge into the current state.
+   */
+  const updateState = useCallback((updates) => {
+    setState((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  /**
+   * Initiates the execution of a backend script.
+   * @param {Object} scriptData - Contains the script ID and its parameters.
+   */
+  const runScript = useCallback(
+    async (scriptData) => {
+      if (!isConnected || !clientId) {
+        const errorMsg = "WebSocket is not connected. Cannot run script.";
+        updateState({ error: errorMsg, isComplete: true, currentState: SCRIPT_STATES.FAILED });
+        throw new Error(errorMsg);
+      }
+
+      const runId = generateUniqueId();
+      const startTime = new Date().toISOString();
+      resetState();
+      updateState({ isRunning: true, currentState: SCRIPT_STATES.RUNNING, runId, startTime });
+
+      if (config.enableDebugLogging) {
+        console.log("🚀 [SCRIPT_RUNNER] Starting script execution:", { runId, scriptData });
+      }
+
+      try {
+        const response = await fetch(config.apiEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...scriptData, wsClientId: clientId }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: `HTTP Error: ${response.status}` }));
+          throw new Error(errorData.message);
+        }
+
+        const result = await response.json();
+        updateState({ runId: result.runId || runId });
+        return result;
+
+      } catch (error) {
+        updateState({ isRunning: false, currentState: SCRIPT_STATES.FAILED, error: error.message, isComplete: true, endTime: new Date().toISOString() });
+        throw error;
+      }
+    },
+    [isConnected, clientId, resetState, updateState, config.apiEndpoint, config.enableDebugLogging]
+  );
+
+  // --------------------------------------------------------------------------------
+  // Subsection 2.4: WebSocket Event Handlers
+  // --------------------------------------------------------------------------------
+
+  /**
+   * ✨ KEY FIX: Handles incoming `stderr` data chunks from the WebSocket.
+   * This function implements a robust buffering mechanism to correctly parse a stream of data.
+   * It pieces together fragmented messages and processes each complete line individually.
+   * @param {Object} data - The message object from the WebSocket, containing the data chunk.
+   */
+  const handleScriptError = useCallback(
+    (data) => {
+      // Ignore messages that are not for the currently active run
+      if (data.runId !== state.runId) return;
+
+      const rawChunk = data.error || data.message || "";
+      const timestamp = new Date().toISOString();
+
+      // Append the newly received data chunk to our persistent buffer
+      stderrBuffer.current += rawChunk;
+
+      // A stream is processed line-by-line. Split the buffer by newlines.
+      const lines = stderrBuffer.current.split('\n');
+
+      // The last element in the array might be an incomplete line. We keep it
+      // in the buffer for the next data chunk to complete it.
+      stderrBuffer.current = lines.pop() || "";
+
+      // If we have one or more complete lines, process them now.
+      if (lines.length > 0) {
+          const newProgressEvents = [];
+          const newLogLines = [];
+
+          for (const line of lines) {
+              if (!line) continue; // Skip empty lines
+
+              newLogLines.push({ timestamp, line, type: "stderr" });
+
+              // Check if the line is a structured progress message
+              if (line.startsWith("JSON_PROGRESS:")) {
+                  const jsonContent = line.substring("JSON_PROGRESS:".length);
+                  // Use our utility to safely parse the JSON from the line
+                  const progressObjects = extractJsonFromLine(jsonContent);
+                  if (progressObjects.length > 0) {
+                      newProgressEvents.push(...progressObjects);
+                  }
+              }
+          }
+
+          // Batch state updates for performance
+          if (newProgressEvents.length > 0 || newLogLines.length > 0) {
+              setState((prev) => ({
+                  ...prev,
+                  fullLog: prev.fullLog + lines.join('\n') + '\n',
+                  logLines: [...prev.logLines, ...newLogLines].slice(-config.maxLogLines),
+                  progressEvents: [...prev.progressEvents, ...newProgressEvents],
+                  totalProgressEvents: prev.totalProgressEvents + newProgressEvents.length,
+                  lastProgressTime: timestamp,
+              }));
+
+              if (config.enableDebugLogging && newProgressEvents.length > 0) {
+                  console.log("📊 [SCRIPT_RUNNER] Parsed progress update(s):", newProgressEvents);
+              }
+          }
+      }
+    },
+    [state.runId, config.enableDebugLogging, config.maxLogLines]
+  );
+
+  /**
+   * Handles the final script output, which typically arrives from `stdout` when the
+   * script finishes. This is expected to be a single JSON object.
+   * @param {Object} data - The message object containing the final result.
+   */
+  const handleScriptOutput = useCallback(
+    (data) => {
+      if (data.runId !== state.runId) return;
+      const result = typeof data.output === "string" ? safeJsonParse(data.output) : data.output;
+      setState((prev) => ({ ...prev, finalResult: result }));
+    },
+    [state.runId]
+  );
+
+  /**
+   * Handles the script end event, which signals the completion of the process.
+   * @param {Object} data - The message object containing the exit code.
+   */
+  const handleScriptEnd = useCallback(
+    (data) => {
+      if (data.runId !== state.runId) return;
+      const endTime = new Date().toISOString();
+      const exitCode = data.exitCode || 0;
+
+      setState((prev) => {
+        const isSuccess = exitCode === 0 && prev.finalResult?.success !== false;
+        let finalError = prev.error;
+        if (!isSuccess && !finalError) {
+          finalError = prev.finalResult?.message || `Script exited with code ${exitCode}.`;
+        }
+
+        return {
+          ...prev,
+          isRunning: false,
+          isComplete: true,
+          endTime,
+          exitCode,
+          error: finalError,
+          currentState: isSuccess ? SCRIPT_STATES.COMPLETED : SCRIPT_STATES.FAILED,
+        };
+      });
+    },
+    [state.runId]
+  );
+
+  // --------------------------------------------------------------------------------
+  // Subsection 2.5: WebSocket Event Subscriptions
+  // --------------------------------------------------------------------------------
+
+  /**
+   * This effect subscribes to WebSocket events when a script run starts and
+   * cleans up the subscriptions when the run is over or the component unmounts.
+   */
   useEffect(() => {
-    onConnectRef.current = onConnect;
-    onDisconnectRef.current = onDisconnect;
-    onErrorRef.current = onError;
-    onMessageRef.current = onMessage;
-  }, [onConnect, onDisconnect, onError, onMessage]);
+    if (!websocketService || !state.runId) return;
 
-  // Connect to WebSocket
-  const connect = useCallback(async () => {
-    try {
-      console.log("🔌 [DEBUG] Attempting to connect to WebSocket:", wsUrl);
-      setConnectionError(null);
-      await websocketService.connect(wsUrl);
-      console.log("✅ [DEBUG] WebSocket connect() call completed");
-    } catch (error) {
-      console.error("❌ [ERROR] WebSocket connection failed:", error);
-      setConnectionError(error.message);
+    if (config.enableDebugLogging) {
+      console.log(`🔔 [SCRIPT_RUNNER] Subscribing to events for run: ${state.runId}`);
     }
-  }, [wsUrl]);
 
-  // Disconnect from WebSocket
+    const unsubscribers = [
+      websocketService.on(WS_EVENTS.SCRIPT_ERROR, handleScriptError),
+      websocketService.on(WS_EVENTS.SCRIPT_OUTPUT, handleScriptOutput),
+      websocketService.on(WS_EVENTS.SCRIPT_END, handleScriptEnd),
+    ];
+
+    return () => {
+      if (config.enableDebugLogging) {
+        console.log(`🧹 [SCRIPT_RUNNER] Unsubscribing from events for run: ${state.runId}`);
+      }
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [websocketService, state.runId, handleScriptError, handleScriptOutput, handleScriptEnd, config.enableDebugLogging]);
+
+  // --------------------------------------------------------------------------------
+  // Subsection 2.6: Computed Properties & Return Interface
+  // --------------------------------------------------------------------------------
+  const duration = state.startTime && state.endTime ? new Date(state.endTime).getTime() - new Date(state.startTime).getTime() : null;
+
+  return {
+    ...state,
+    duration,
+    runScript,
+    resetState,
+  };
+};
+
+// ================================================================================
+//
+// HOOK: useWebSocket
+//
+// ROLE: The main, core hook for managing the WebSocket connection itself. It handles
+//       connecting, disconnecting, sending messages, and listening for all
+//       inbound events, which it then dispatches to any subscribed listeners
+//       (like `useScriptRunnerStream`).
+//
+// ================================================================================
+export const useWebSocket = (options = {}) => {
+  const config = { ...DEFAULT_WS_CONFIG, ...options };
+  const [connectionState, setConnectionState] = useState({ isConnected: false, connectionError: null, clientId: null });
+  const [messages, setMessages] = useState([]);
+
+  const connect = useCallback(() => {
+    console.log("🔌 [WEBSOCKET] Initiating connection...");
+    websocketService.connect(config.wsUrl);
+  }, [config.wsUrl]);
+
   const disconnect = useCallback(() => {
+    console.log("🔌 [WEBSOCKET] Disconnecting...");
     websocketService.disconnect();
   }, []);
 
-  // Send message
-  const sendMessage = useCallback((message) => {
-    return websocketService.send(message);
+  const handleConnected = useCallback((data) => {
+    console.log("🟢 [WEBSOCKET] Connection established.", data);
+    setConnectionState({ isConnected: true, connectionError: null, clientId: data.clientId });
   }, []);
 
-  // Apply template with real-time updates
-  const applyTemplate = useCallback(async (templateData) => {
-    try {
-      return await websocketService.applyTemplate(templateData);
-    } catch (error) {
-      console.error("[useWebSocket] Apply template failed:", error);
-      throw error;
-    }
+  const handleClientId = useCallback((data) => {
+    console.log("🆔 [WEBSOCKET] Client ID assigned:", data.clientId);
+    setConnectionState(prev => ({ ...prev, clientId: data.clientId }));
   }, []);
 
-  // Test connection
-  const testConnection = useCallback(async (message) => {
-    try {
-      return await websocketService.testConnection(message);
-    } catch (error) {
-      console.error("[useWebSocket] Test connection failed:", error);
-      throw error;
-    }
+  const handleDisconnected = useCallback((data) => {
+    console.log("🔴 [WEBSOCKET] Connection lost.", data);
+    setConnectionState({ isConnected: false, connectionError: 'Disconnected', clientId: null });
   }, []);
 
-  // Get connection status
-  const getStatus = useCallback(() => {
-    return websocketService.getStatus();
+  const handleError = useCallback((data) => {
+    console.error("❌ [WEBSOCKET] Connection error:", data);
+    setConnectionState(prev => ({ ...prev, connectionError: data.error }));
   }, []);
 
-  // Set up event listeners
+  const handleMessage = useCallback((data) => {
+    setMessages(prev => [...prev, data]);
+  }, []);
+
   useEffect(() => {
-    const unsubscribers = [];
+    const unsubscribers = [
+      websocketService.on(WS_EVENTS.CONNECTED, handleConnected),
+      websocketService.on(WS_EVENTS.CLIENT_ID, handleClientId),
+      websocketService.on(WS_EVENTS.DISCONNECTED, handleDisconnected),
+      websocketService.on(WS_EVENTS.ERROR, handleError),
+      websocketService.on(WS_EVENTS.MESSAGE, handleMessage),
+    ];
 
-    // Connection events
-    unsubscribers.push(
-      websocketService.on("connected", (data) => {
-        console.log("🟢 [EVENT] WebSocket connected:", data);
-        setIsConnected(true);
-        // The clientId might be null here, it comes via 'client_id' event
-        // But if it exists (on reconnect), we set it.
-        if (data.clientId) {
-          setClientId(data.clientId);
-        }
-        setConnectionError(null);
-        setReconnectAttempts(0);
-        onConnectRef.current?.(data);
-      }),
-    );
-
-    // ✨ ADDED: Explicitly listen for the client_id event
-    unsubscribers.push(
-      websocketService.on("client_id", (data) => {
-        console.log("🆔 [EVENT] Received client ID:", data);
-        setClientId(data.clientId);
-      }),
-    );
-    unsubscribers.push(
-      websocketService.on("disconnected", (data) => {
-        console.log("🔴 [EVENT] WebSocket disconnected:", data);
-        setIsConnected(false);
-        // Keep clientId to help with debugging
-        onDisconnectRef.current?.(data);
-      }),
-    );
-
-    unsubscribers.push(
-      websocketService.on("error", (data) => {
-        console.error("❌ [EVENT] WebSocket error:", data);
-        setConnectionError(data.error);
-        onErrorRef.current?.(data);
-      }),
-    );
-
-    // Message events
-    unsubscribers.push(
-      websocketService.on("message", (data) => {
-        console.log("📨 [EVENT] WebSocket message:", data);
-        setMessages((prev) => [
-          ...prev,
-          { ...data, id: Date.now() + Math.random() },
-        ]);
-        onMessageRef.current?.(data);
-      }),
-    );
-
-    // Cleanup function
-    return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
-    };
-  }, []);
-
-  // Auto-connect on mount
-  useEffect(() => {
-    if (autoConnect) {
-      console.log("🔄 [DEBUG] Auto-connecting on mount");
+    if (config.autoConnect) {
       connect();
     }
 
-    // Cleanup on unmount
     return () => {
-      if (autoConnect) {
-        console.log("🔄 [DEBUG] Disconnecting on unmount");
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+      if (config.autoConnect) {
         disconnect();
       }
     };
-  }, [autoConnect, connect, disconnect]);
-
-  // Update reconnect attempts
-  useEffect(() => {
-    const updateReconnectAttempts = () => {
-      const status = websocketService.getStatus();
-      setReconnectAttempts(status.reconnectAttempts);
-    };
-
-    const interval = setInterval(updateReconnectAttempts, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [config.autoConnect, connect, disconnect, handleConnected, handleClientId, handleDisconnected, handleError, handleMessage]);
 
   return {
-    // Connection state
-    isConnected,
-    connectionError,
-    clientId,
-    reconnectAttempts,
-
-    // Messages
+    ...connectionState,
     messages,
-    clearMessages: () => setMessages([]),
-
-    // Actions
     connect,
     disconnect,
-    sendMessage,
-    applyTemplate,
-    testConnection,
-    getStatus,
-
-    // Service instance (for advanced usage)
+    sendMessage: websocketService.send,
+    applyTemplate: websocketService.applyTemplate,
+    getStatus: websocketService.getStatus,
     websocketService,
   };
 };
 
-/**
- * Hook specifically for template application with progress tracking
- */
-/**
- * ✨ REFACTORED: Hook specifically for template application with progress tracking.
- * It now accepts a shared WebSocket context.
- */
-export const useTemplateApplication = (wsContext = {}, options = {}) => {
-  const {
-    onStatusUpdate,
-    onProgressUpdate,
-    onCommitProgress,
-    onInfoUpdate,
-    onResult,
-    onError,
-  } = options;
 
+// ================================================================================
+//
+// HOOK: useTemplateApplication
+//
+// ROLE: A specialized hook for handling the "Apply Template" workflow. It listens
+//       for a specific set of progress events related to configuration deployment
+//       and provides a structured state for rendering the progress UI.
+//
+// ================================================================================
+export const useTemplateApplication = (wsContext = {}, options = {}) => {
   const [applicationState, setApplicationState] = useState({
     isApplying: false,
     isComplete: false,
-    currentStatus: null,
-    progress: { steps: [] },
-    commitProgress: null,
-    info: [],
+    progress: null,
     result: null,
     error: null,
-    startTime: null,
-    endTime: null,
+    duration: null,
   });
 
-  // ✨ REFACTORED: Use the passed-in context
   const { isConnected, clientId, websocketService } = wsContext;
+  const { onResult, onError, enableDebugLogging = false } = options;
 
-  // Reset application state
   const resetState = useCallback(() => {
-    setApplicationState({
-      isApplying: false,
-      currentStatus: null,
-      progress: { steps: [] },
-      commitProgress: null,
-      info: [],
-      result: null,
-      error: null,
-      startTime: null,
-      endTime: null,
-    });
+    setApplicationState({ isApplying: false, isComplete: false, progress: null, result: null, error: null, duration: null });
   }, []);
 
-  // Apply template
-  const applyTemplate = useCallback(
-    async (templateData) => {
-      if (!isConnected) {
-        throw new Error("WebSocket not connected");
-      }
+  const applyTemplate = useCallback(async (templateData) => {
+    if (!isConnected || !websocketService) {
+      throw new Error("WebSocket connection not available.");
+    }
+    resetState();
+    setApplicationState(prev => ({ ...prev, isApplying: true, startTime: performance.now() }));
+    try {
+      return await websocketService.applyTemplate({ ...templateData, wsClientId: clientId });
+    } catch (error) {
+      setApplicationState(prev => ({ ...prev, isApplying: false, isComplete: true, error: error.message }));
+      throw error;
+    }
+  }, [isConnected, clientId, websocketService, resetState]);
 
-      // Reset state and start application
-      resetState();
-      setApplicationState((prev) => ({
-        ...prev,
-        isApplying: true,
-        startTime: new Date().toISOString(),
-      }));
+  const handleProgressUpdate = useCallback((data) => {
+    const pythonPayload = data.data;
+    setApplicationState(prev => ({ ...prev, progress: pythonPayload }));
+  }, []);
 
-      try {
-        const result = await websocketService.applyTemplate(templateData);
-        return result;
-      } catch (error) {
-        setApplicationState((prev) => ({
-          ...prev,
-          isApplying: false,
-          isComplete: true,
-          error: error.message,
-          endTime: new Date().toISOString(),
-        }));
-        throw error;
-      }
-    },
-    [isConnected, websocketService, resetState],
-  );
+  const handleResult = useCallback((data) => {
+    const endTime = performance.now();
+    setApplicationState(prev => ({
+      ...prev,
+      isApplying: false,
+      isComplete: true,
+      result: data.data,
+      duration: endTime - (prev.startTime || endTime),
+    }));
+    onResult?.(data);
+  }, [onResult]);
 
-  // Set up event listeners for template application
+  const handleError = useCallback((data) => {
+    const endTime = performance.now();
+    setApplicationState(prev => ({
+      ...prev,
+      isApplying: false,
+      isComplete: true,
+      error: data.message,
+      duration: endTime - (prev.startTime || endTime),
+    }));
+    onError?.(data);
+  }, [onError]);
+
   useEffect(() => {
-    if (!websocketService) return; // Guard
+    if (!websocketService) return;
 
-    const unsubscribers = [];
+    const unsubscribers = [
+      websocketService.on(WS_EVENTS.PROGRESS, handleProgressUpdate),
+      websocketService.on(WS_EVENTS.RESULT, handleResult),
+      websocketService.on(WS_EVENTS.ERROR, handleError),
+    ];
 
-    // Status updates
-    unsubscribers.push(
-      websocketService.on("status", (data) => {
-        setApplicationState((prev) => ({
-          ...prev,
-          currentStatus: data.message,
-        }));
-        onStatusUpdate?.(data);
-      }),
-    );
-    // ======================================================================
-    // START OF THE FIX
-    // ======================================================================
-    unsubscribers.push(
-      websocketService.on("progress", (data) => {
-        // `data` is the WS message from the server: e.g., { type: 'progress', data: python_payload }
-        const pythonPayload = data.data; // This is the object from the Python script
-
-        // Guard against malformed messages
-        if (!pythonPayload || typeof pythonPayload.data?.step === "undefined") {
-          console.warn("Received malformed progress update, skipping:", data);
-          return;
-        }
-
-        const stepData = pythonPayload.data; // This is the actual step info object
-
-        // ✨ THIS IS THE KEY CHANGE ✨
-        // Use the functional update form of setApplicationState.
-        // The `prev` argument is guaranteed by React to be the latest state.
-        setApplicationState((prev) => {
-          // Create a fresh copy of the steps array from the most recent state
-          const newSteps = [...(prev.progress?.steps || [])];
-
-          // Find if this step number already exists
-          const stepIndex = newSteps.findIndex((s) => s.step === stepData.step);
-
-          if (stepIndex > -1) {
-            // Step exists: Merge the new data into the existing step object
-            // This handles updates like changing status from IN_PROGRESS to COMPLETED
-            newSteps[stepIndex] = { ...newSteps[stepIndex], ...stepData };
-          } else {
-            // Step is new: Push it to the array
-            newSteps.push(stepData);
-          }
-
-          // Always sort to ensure correct order, just in case messages arrive out of order
-          newSteps.sort((a, b) => a.step - b.step);
-
-          // Return the new state object
-          return {
-            ...prev,
-            currentStatus: pythonPayload.message, // Update the high-level status message
-            progress: {
-              ...prev.progress,
-              steps: newSteps,
-            },
-          };
-        });
-
-        onProgressUpdate?.(data);
-      }),
-    );
-    // ======================================================================
-    // END OF THE FIX
-    // ======================================================================
-
-    // Commit progress
-    unsubscribers.push(
-      websocketService.on("commit_progress", (data) => {
-        setApplicationState((prev) => ({
-          ...prev,
-          commitProgress: data.message,
-        }));
-        onCommitProgress?.(data);
-      }),
-    );
-
-    // Info updates
-    unsubscribers.push(
-      websocketService.on("info", (data) => {
-        setApplicationState((prev) => ({
-          ...prev,
-          info: [...prev.info, data],
-        }));
-        onInfoUpdate?.(data);
-      }),
-    );
-
-    // Results
-    unsubscribers.push(
-      websocketService.on("result", (data) => {
-        setApplicationState((prev) => ({
-          ...prev,
-          isApplying: false,
-          isComplete: true,
-          result: data.data,
-          endTime: new Date().toISOString(),
-        }));
-        onResult?.(data);
-      }),
-    );
-
-    // Errors
-    unsubscribers.push(
-      websocketService.on("error", (data) => {
-        setApplicationState((prev) => ({
-          ...prev,
-          isApplying: false,
-          isComplete: true,
-          error: data.message,
-          endTime: new Date().toISOString(),
-        }));
-        onError?.(data);
-      }),
-    );
-
-    // Cleanup other listeners that are part of the spec but not used in this flow
-    const otherListeners = ["status", "commit_progress", "info", "script_end"];
-    otherListeners.forEach((event) => {
-      const handler =
-        options[`on${event.charAt(0).toUpperCase() + event.slice(1)}`];
-      if (handler) {
-        unsubscribers.push(websocketService.on(event, handler));
-      }
-    });
-
-    return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
-    };
-    // ✨ FIX: Add all the destructured callbacks to the dependency array.
-    // This ensures that the listeners are always up-to-date.
-  }, [
-    websocketService,
-    onStatusUpdate,
-    onProgressUpdate,
-    onCommitProgress,
-    onInfoUpdate,
-    onResult,
-    onError,
-  ]);
+    return () => unsubscribers.forEach(unsubscriber => unsubscriber());
+  }, [websocketService, handleProgressUpdate, handleResult, handleError]);
 
   return {
-    // Connection state
-    isConnected,
-    clientId,
-
-    // Application state
     ...applicationState,
-
-    // Actions
     applyTemplate,
     resetState,
-    // Computed properties
-    duration:
-      applicationState.startTime && applicationState.endTime
-        ? new Date(applicationState.endTime).getTime() -
-          new Date(applicationState.startTime).getTime()
-        : null,
-
-    hasError: !!applicationState.error,
-    hasResult: !!applicationState.result,
   };
 };

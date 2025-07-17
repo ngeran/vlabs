@@ -31,8 +31,10 @@ yarn-error.log*
 *.iml
 *.iws
 *.ipr
+*.tgz
 .vs/
 .history/
+*.pyc
 
 # macOS
 .DS_Store
@@ -64,3 +66,7 @@ out/
 
 # Create React App specific
 build/
+
+# logs and fiels
+tools/backup_and_restore/backups
+tools/results

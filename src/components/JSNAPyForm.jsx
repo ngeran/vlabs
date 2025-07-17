@@ -1,34 +1,50 @@
 // src/components/JSNAPyForm.jsx
+
 import React from "react";
-import { useJsnapyTests } from "../hooks/useJsnapyTests";
+import { useTestDiscovery } from "../hooks/useTestDiscovery";
 import DeviceAuthFields from "./DeviceAuthFields";
+import TestSelector from "./TestSelector"; // Import the generic TestSelector
 
-export default function JSNAPyForm({ parameters, setParameters }) {
-  const { categorizedTests, loading, error } = useJsnapyTests();
+/**
+ * @description A form tailored for JSNAPy, combining device authentication
+ * with a dynamically discovered list of tests.
+ *
+ * @param {object} props - Component props.
+ * @param {object} props.parameters - The current parameter values for the form.
+ * @param {(name: string, value: any) => void} props.onParamChange - The callback to handle changes.
+ */
+export default function JSNAPyForm({ parameters, onParamChange }) {
+  // Use the generic test discovery hook, passing the correct scriptId
+  const { categorizedTests, loading, error } = useTestDiscovery(
+    "jsnapy_runner",
+    parameters.environment,
+  );
 
-  const handleTestToggle = (testName) => {
+  const handleTestToggle = (testId) => {
     const currentTests = parameters.tests || [];
-    const newTests = currentTests.includes(testName)
-      ? currentTests.filter((name) => name !== testName)
-      : [...currentTests, testName];
-    setParameters({ ...parameters, tests: newTests });
+    const newSelection = currentTests.includes(testId)
+      ? currentTests.filter((id) => id !== testId)
+      : [...currentTests, testId];
+
+    // Use the granular onParamChange for better state management
+    onParamChange("tests", newSelection);
   };
 
   const handleSelectAll = () => {
     const allTestNames = Object.values(categorizedTests)
       .flat()
       .map((t) => t.id);
-    setParameters({ ...parameters, tests: allTestNames });
+    onParamChange("tests", allTestNames);
   };
 
   const handleClearAll = () => {
-    setParameters({ ...parameters, tests: [] });
+    onParamChange("tests", []);
   };
 
   return (
     <div className="space-y-6">
       {/* 1. Render the common authentication and target fields */}
-      <DeviceAuthFields parameters={parameters} setParameters={setParameters} />
+      <DeviceAuthFields parameters={parameters} onParamChange={onParamChange} />
 
       <div className="border-t border-slate-200 my-6"></div>
 
@@ -44,38 +60,13 @@ export default function JSNAPyForm({ parameters, setParameters }) {
 
         {!loading && Object.keys(categorizedTests).length > 0 && (
           <div className="space-y-3 border border-slate-200 p-4 rounded-md bg-slate-50/50">
-            {Object.entries(categorizedTests).map(([category, tests]) => (
-              <details
-                key={category}
-                className="border rounded-md bg-white shadow-sm"
-                open
-              >
-                <summary className="cursor-pointer font-semibold p-3 hover:bg-slate-100 list-none flex justify-between items-center">
-                  {category}
-                  <span className="text-xs font-normal text-slate-500">
-                    {tests.length} tests
-                  </span>
-                </summary>
-                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-2 border-t">
-                  {tests.map((test) => (
-                    <label
-                      key={test.id}
-                      className="flex items-center"
-                      title={test.description}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={(parameters.tests || []).includes(test.id)}
-                        onChange={() => handleTestToggle(test.id)}
-                        className="form-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="ml-2 text-sm font-mono">{test.id}</span>
-                    </label>
-                  ))}
-                </div>
-              </details>
-            ))}
-            <div className="mt-4 flex gap-4">
+            {/* Use the generic TestSelector component for the UI */}
+            <TestSelector
+              categorizedTests={categorizedTests}
+              selectedTests={parameters.tests || []}
+              onTestToggle={handleTestToggle}
+            />
+            <div className="mt-4 flex gap-4 border-t border-slate-200 pt-3">
               <button
                 type="button"
                 onClick={handleSelectAll}

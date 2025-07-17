@@ -1,4 +1,4 @@
-# python_pipeline/tools/backup_and_restore/utils/shared_utils.py
+# python_pipeline/utils/shared_utils.py
 
 import json
 import logging
@@ -8,9 +8,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, Any, Optional
 
-# =================================================================
-# SHARED PROGRESS TRACKER CLASS
-# =================================================================
 class NotificationLevel(Enum):
     DEBUG = "DEBUG"
     INFO = "INFO"
@@ -26,10 +23,13 @@ class ProgressTracker:
         self.current_step_index = -1
         self.start_time = None
         self.step_start_time = None
+        self.current_operation = None
+        self.operation_name = None
         
     def start_operation(self, operation_name: str):
         self.start_time = time.time()
         self.operation_name = operation_name
+        self.current_operation = operation_name
         self._notify(
             level=NotificationLevel.INFO,
             message=f"Starting: {operation_name}",
@@ -38,6 +38,7 @@ class ProgressTracker:
         )
         
     def start_step(self, step_name: str, description: str = ""):
+        """Starts a new step in the operation."""
         self.current_step_index += 1
         self.step_start_time = time.time()
         step_info = {
@@ -58,6 +59,7 @@ class ProgressTracker:
         )
             
     def update_step(self, details: Optional[Dict] = None, message: Optional[str] = None):
+        """Updates the current step with new information."""
         if self.current_step_index < 0: return
         current = self.steps[self.current_step_index]
         if details:
@@ -70,6 +72,7 @@ class ProgressTracker:
         )
                 
     def complete_step(self, status: str = "COMPLETED", details: Optional[Dict] = None):
+        """Completes the current step."""
         if self.current_step_index < 0: return
         current = self.steps[self.current_step_index]
         current["status"] = status
@@ -77,27 +80,36 @@ class ProgressTracker:
         current["end_time"] = datetime.now().isoformat()
         if details:
             current["details"].update(details)
+            
         level = NotificationLevel.SUCCESS if status == "COMPLETED" else NotificationLevel.ERROR
+        message = f"Step {current['step']} {status.lower()}: {current['name']} ({current['duration']:.2f}s)"
+        if details and 'message' in details:
+            message = details['message'] # Allow custom message for simple completions
+
         self._notify(
             level=level,
-            message=f"Step {current['step']} {status.lower()}: {current['name']} ({current['duration']:.2f}s)",
+            message=message,
             event_type="STEP_COMPLETE",
             data=current
         )
             
     def complete_operation(self, status: str = "SUCCESS"):
+        """Completes the entire operation."""
+        if not self.current_operation: return
+        
         total_duration = time.time() - self.start_time if self.start_time else 0
         level = NotificationLevel.SUCCESS if status == "SUCCESS" else NotificationLevel.ERROR
         self._notify(
             level=level,
-            message=f"Operation completed in {total_duration:.2f}s with status: {status}",
+            message=f"Operation '{self.operation_name}' completed in {total_duration:.2f}s with status: {status}",
             event_type="OPERATION_COMPLETE",
             data={
-                "operation": getattr(self, 'operation_name', 'Unknown'),
+                "operation": self.operation_name,
                 "status": status,
                 "total_duration": total_duration
             }
         )
+        self.current_operation = None
 
     def _notify(self, level: NotificationLevel, message: str, event_type: str, data: Dict[Any, Any] = None):
         notification_data = {
@@ -110,21 +122,15 @@ class ProgressTracker:
         print(f"JSON_PROGRESS: {json.dumps(notification_data)}", file=sys.stderr, flush=True)
 
     def get_summary(self):
-        return {"operation": getattr(self, 'operation_name', 'Unknown'), "steps": self.steps}
+        return {"operation": self.operation_name, "steps": self.steps}
 
-# =================================================================
-# SHARED LOGGING SETUP FUNCTION
-# =================================================================
-def setup_logging(log_file='backup_restore.log'):
-    """Configures logging to a file and returns a logger instance."""
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
-    if root_logger.hasHandlers():
-        root_logger.handlers.clear()
-    
-    file_handler = logging.FileHandler(log_file, mode='a')
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    file_handler.setFormatter(formatter)
-    root_logger.addHandler(file_handler)
-    
-    return logging.getLogger(__name__)
+def setup_logging(level=logging.INFO):
+    """Sets up a basic logger that prints to stderr."""
+    logger = logging.getLogger()
+    if not logger.handlers:
+        logger.setLevel(level)
+        handler = logging.StreamHandler(sys.stderr)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', '%Y-%m-%d %H:%M:%S')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    return logger

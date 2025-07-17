@@ -1,61 +1,80 @@
 # vlabs/docker-compose.yml
+# Ensure this file is located at /home/nikos/github/ngeran/vlabs/docker-compose.yml
+# Verify by running: cat /home/nikos/github/ngeran/vlabs/docker-compose.yml
 
-# Specifies the Docker Compose file format version. Version 3.8 is modern and stable.
+# Specifies the Docker Compose file format version.
+# Version 3.8 is modern, stable, and compatible with our setup.
 version: '3.8'
 
-# Defines the services (containers) that make up your application.
+# Defines the services (containers) that make up the application.
 services:
 
-  # The Node.js backend service
+  # -----------------------------------
+  # SECTION 1: BACKEND SERVICE CONFIGURATION
+  # -----------------------------------
+  # The Node.js backend service handles API requests and WebSocket communication.
   backend:
     container_name: vlabs_backend
+    # Build the backend image using the Dockerfile in ./backend.
     build:
       context: ./backend
       dockerfile: Dockerfile
+    # Map port 3001 on the host to 3001 in the container for API access.
     ports:
-      # Maps port 3001 on the host machine to port 3001 in the container.
       - "3001:3001"
+    # Mounts for live code updates, Docker control, and file access.
     volumes:
-      # Mounts the local backend code into the container for live development changes.
-      - ./backend:/app
-      
-      # Mounts the Docker socket, allowing the backend to run Docker commands.
-      # This is essential for starting the python_runner container dynamically.
+      # Mount backend code for development.
+      - ${PROJECT_ROOT}/backend:/app
+      # Mount Docker socket to allow backend to run Docker commands.
       - /var/run/docker.sock:/var/run/docker.sock
-      
-      # Mounts the local public directory (for labs, navigation.yaml, etc.)
-      - ./public:/public
-      
-      # Mounts the entire python_pipeline into the backend container so it can
-      # read config files and write to the output directory.
-      - ./python_pipeline:/python_pipeline
+      # Mount public directory for lab definitions and navigation.yaml.
+      - ${PROJECT_ROOT}/public:/public
+      # Mount python_pipeline for script configs and output.
+      - ${PROJECT_ROOT}/python_pipeline:/python_pipeline
+      # Mount backups directory for backup_restore script access.
+      - ${PROJECT_ROOT}/python_pipeline/tools/backup_and_restore/backups:/backups
+       # Mount the specific upgrade path directory
+      - ${PROJECT_ROOT}/python_pipeline/tools/code_upgrade:/data_to_scan
+    # Environment variables for path mapping.
     environment:
-      # This provides the absolute path on the HOST machine to the project root.
-      # The server.js script needs this to construct the correct '-v' mount path
-      # for the dynamic `docker run` commands.
-      HOST_PROJECT_ROOT: "/home/nikos/github/ngeran/vlabs"
+      # Absolute path on the host to the project root, used by server.js.
+      HOST_PROJECT_ROOT: "${PROJECT_ROOT}"
+    # Restart policy to ensure service reliability.
     restart: unless-stopped
+    # Command to start the Node.js server.
     command: node server.js
+    # Ensure python_runner is built before backend starts.
+    depends_on:
+      - python_runner
+    # Connect to the custom network.
     networks:
       - vlabs-net
 
-  # The Python utility container service
+  # -----------------------------------
+  # SECTION 2: PYTHON RUNNER SERVICE CONFIGURATION
+  # -----------------------------------
+  # The Python utility container, used dynamically by the backend for script execution.
   python_runner:
     container_name: vlabs_python_runner
-    # This service is primarily used as a build target to create the image.
-    # The image is then run dynamically by the backend service.
-    image: vlabs-python-runner # Gives the built image a clean, predictable name
+    # Build the image with a predictable name for dynamic runs.
+    image: vlabs-python-runner
     build:
-      context: ./python_pipeline
+      context: ${PROJECT_ROOT}/python_pipeline
       dockerfile: Dockerfile
-    # This command keeps the container running but idle, which can be useful
-    # for debugging purposes (e.g., `docker exec -it vlabs_python_runner bash`).
-    # For a purely build-time image, this can be omitted.
+    # Keep container running for debugging (optional; can be removed for build-only).
     command: tail -f /dev/null
+    # Mount backups directory for script access.
+    volumes:
+      - ${PROJECT_ROOT}/python_pipeline/tools/backup_and_restore/backups:/backups
+    # Connect to the custom network.
     networks:
       - vlabs-net
 
-# Defines the custom network for the services.
+# -----------------------------------
+# SECTION 3: NETWORK CONFIGURATION
+# -----------------------------------
+# Defines a custom bridge network for communication between services.
 networks:
   vlabs-net:
     driver: bridge

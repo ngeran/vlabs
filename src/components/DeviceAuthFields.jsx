@@ -1,30 +1,35 @@
-// src/components/DeviceAuthFields.jsx
+// ====================================================================================
+// COMPONENT: DeviceAuthFields.jsx - ENHANCED WITH BETTER ERROR HANDLING
+// ====================================================================================
 
 import React, { useState, useEffect } from "react";
 import { List, Keyboard } from "lucide-react";
 
 const API_BASE_URL = "http://localhost:3001";
 
-/**
- * @description A smart component for handling device targeting and authentication.
- *              It allows switching between manual host entry and inventory file selection,
- *              and provides a compact, user-friendly layout for credentials.
- * @param {object} props - Component props.
- * @param {object} props.parameters - The current state of parameters for the script.
- * @param {function} props.onParamChange - The callback to update the parent's state.
- */
 export default function DeviceAuthFields({ parameters, onParamChange }) {
   const [inputMode, setInputMode] = useState("manual");
   const [inventories, setInventories] = useState([]);
   const [loadingInv, setLoadingInv] = useState(false);
   const [errorInv, setErrorInv] = useState(null);
 
+  // Initialize input mode based on existing parameters
   useEffect(() => {
-    const fetchInventories = async () => {
+    if (parameters.inventory_file) {
+      setInputMode("inventory");
+    } else if (parameters.hostname) {
+      setInputMode("manual");
+    }
+  }, [parameters.inventory_file, parameters.hostname]);
+
+  useEffect(() => {
+    async function fetchInventories() {
       setLoadingInv(true);
       setErrorInv(null);
       try {
         const response = await fetch(`${API_BASE_URL}/api/inventories/list`);
+        if (!response.ok)
+          throw new Error(`Server responded with ${response.status}`);
         const data = await response.json();
         if (data.success) {
           setInventories(data.inventories || []);
@@ -39,25 +44,52 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
       } finally {
         setLoadingInv(false);
       }
-    };
+    }
     fetchInventories();
   }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    onParamChange({ ...parameters, [name]: value });
+    console.log(`DeviceAuthFields: Setting ${name} = "${value}"`);
+
+    // Always call with the exact name and value
+    onParamChange(name, value);
   };
 
   const handleModeChange = (mode) => {
+    console.log(`DeviceAuthFields: Changing mode to ${mode}`);
     setInputMode(mode);
-    // No need to change the parameters when switching modes.
-    // Just change the local state that controls the UI.
-    // This prevents accidental deletion of data from the parent state.
+
+    if (mode === "manual") {
+      // Clear inventory_file and ensure hostname is ready
+      onParamChange("inventory_file", undefined);
+      // Don't auto-set hostname to empty string, let user fill it
+    } else {
+      // Clear hostname and ensure inventory_file is ready
+      onParamChange("hostname", undefined);
+      // Don't auto-set inventory_file, let user select it
+    }
   };
+
+  // Validation helpers
+  const hasValidHostname =
+    parameters.hostname && parameters.hostname.trim() !== "";
+  const hasValidInventoryFile =
+    parameters.inventory_file && parameters.inventory_file.trim() !== "";
+  const hasValidUsername =
+    parameters.username && parameters.username.trim() !== "";
+  const hasValidPassword =
+    parameters.password && parameters.password.trim() !== "";
 
   return (
     <div className="space-y-6">
-      {/* Target Mode Selector (unchanged) */}
+      {/* Debug info - remove this in production */}
+      <div className="bg-gray-100 p-3 rounded text-xs">
+        <strong>Debug Info:</strong>
+        <pre>{JSON.stringify(parameters, null, 2)}</pre>
+      </div>
+
+      {/* Target Mode Selector Toggle */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Target Mode
@@ -80,29 +112,30 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
         </div>
       </div>
 
-      {/* Conditional Inputs */}
+      {/* Conditional Input Area */}
       {inputMode === "manual" ? (
         <div>
           <label
             htmlFor="hostname"
             className="block text-sm font-medium text-slate-700 mb-1"
           >
-            Target Hostname(s)
+            Target Hostname(s) *
           </label>
-          {/* --- UI CHANGE #1: Use a single-line input instead of textarea --- */}
           <input
             type="text"
             id="hostname"
             name="hostname"
             value={parameters.hostname || ""}
             onChange={handleChange}
-            placeholder="e.g., router1, router2.cisco.com, 10.0.0.1"
-            className="mt-1 block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500"
+            placeholder="e.g., router1, 10.0.0.1"
+            className={`mt-1 block w-full border rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 ${
+              hasValidHostname ? "border-slate-300" : "border-red-300"
+            }`}
             required
           />
-          <p className="text-xs text-slate-500 mt-1">
-            Enter one or more hostnames/IPs, separated by commas.
-          </p>
+          {!hasValidHostname && (
+            <p className="text-sm text-red-600 mt-1">Hostname is required</p>
+          )}
         </div>
       ) : (
         <div>
@@ -110,7 +143,7 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
             htmlFor="inventory_file"
             className="block text-sm font-medium text-slate-700 mb-1"
           >
-            Select Inventory File
+            Select Inventory File *
           </label>
           {errorInv && <p className="text-sm text-red-600 mt-1">{errorInv}</p>}
           <select
@@ -119,7 +152,9 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
             value={parameters.inventory_file || ""}
             onChange={handleChange}
             disabled={loadingInv || inventories.length === 0}
-            className="mt-1 block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
+            className={`mt-1 block w-full border rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 ${
+              hasValidInventoryFile ? "border-slate-300" : "border-red-300"
+            }`}
             required
           >
             <option value="">
@@ -135,19 +170,23 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
               </option>
             ))}
           </select>
+          {!hasValidInventoryFile && (
+            <p className="text-sm text-red-600 mt-1">
+              Please select an inventory file
+            </p>
+          )}
         </div>
       )}
 
-      {/* Common Auth Fields */}
+      {/* Common Authentication Fields */}
       <div className="border-t border-slate-200 pt-6">
-        {/* --- UI CHANGE #2: Wrap username and password in a flex container --- */}
         <div className="flex flex-col md:flex-row md:gap-4">
           <div className="w-full md:flex-1 mb-4 md:mb-0">
             <label
               htmlFor="username"
               className="block text-sm font-medium text-slate-700 mb-1"
             >
-              Username
+              Username *
             </label>
             <input
               type="text"
@@ -155,16 +194,21 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
               name="username"
               value={parameters.username || ""}
               onChange={handleChange}
-              className="mt-1 block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500"
+              className={`mt-1 block w-full border rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 ${
+                hasValidUsername ? "border-slate-300" : "border-red-300"
+              }`}
               required
             />
+            {!hasValidUsername && (
+              <p className="text-sm text-red-600 mt-1">Username is required</p>
+            )}
           </div>
           <div className="w-full md:flex-1">
             <label
               htmlFor="password"
               className="block text-sm font-medium text-slate-700 mb-1"
             >
-              Password
+              Password *
             </label>
             <input
               type="password"
@@ -172,9 +216,14 @@ export default function DeviceAuthFields({ parameters, onParamChange }) {
               name="password"
               value={parameters.password || ""}
               onChange={handleChange}
-              className="mt-1 block w-full border border-slate-300 rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500"
+              className={`mt-1 block w-full border rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 ${
+                hasValidPassword ? "border-slate-300" : "border-red-300"
+              }`}
               required
             />
+            {!hasValidPassword && (
+              <p className="text-sm text-red-600 mt-1">Password is required</p>
+            )}
           </div>
         </div>
       </div>

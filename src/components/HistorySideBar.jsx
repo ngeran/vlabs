@@ -1,29 +1,9 @@
-// src/components/HistorySidebar.jsx
-import React, { useState, useEffect } from "react";
+// src/components/HistorySideBar.jsx
+import React from "react";
 import { History, Clock, ServerCrash, CheckCircle } from "lucide-react";
 
-const API_BASE_URL = "http://localhost:3001";
-
-function HistorySidebar({ onSelectHistoryItem }) {
-  const [history, setHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/history/list`);
-        const data = await response.json();
-        if (data.success) {
-          setHistory(data.history);
-        }
-      } catch (error) {
-        console.error("Failed to fetch history:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchHistory();
-  }, []);
+function HistorySideBar({ history, isLoading, onSelectHistoryItem }) {
+  console.log("[DIAG][HistorySideBar] Rendered with history count:", history.length);
 
   return (
     <aside className="hidden lg:block lg:w-72 flex-shrink-0">
@@ -66,4 +46,4 @@ function HistorySidebar({ onSelectHistoryItem }) {
   );
 }
 
-export default HistorySidebar;
+export default HistorySideBar;

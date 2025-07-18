@@ -20,6 +20,9 @@ const port = 3001;
 const runHistory = [];
 const MAX_HISTORY_ITEMS = 50;
 
+
+const { executeWithRealTimeUpdates } = require('./utils/executeWithRealTimeUpdates');
+
 // ====================================================================================
 // SECTION 2: GLOBAL EXCEPTION HANDLER
 // ====================================================================================
@@ -496,42 +499,68 @@ app.get("/api/labs/all-statuses", async (req, res) => {
   }
   res.json(statuses);
 });
+//  ===========================================================================
+//  ========================  JSNAPy TEST RUNNER  =============================
+//  ===========================================================================
+app.post("/api/scripts/run", async (req, res) => {
+  const { scriptId, parameters, wsClientId } = req.body;
+    // +++ ADD THIS LOG +++
+  console.log(`[DEBUG][API] /api/scripts/run called for scriptId: ${scriptId} with wsClientId: ${wsClientId}`);
 
-app.post("/api/scripts/run", (req, res) => {
-  // Legacy endpoint for synchronous script execution.
-  const { scriptId, parameters } = req.body;
-  const runId = Date.now().toString() + Math.random().toString(36).substring(2, 9);
-  if (!scriptId) return res.status(400).json({ success: false, message: "scriptId is required." });
+  // 1. Validate WebSocket Client ID
+  if (!wsClientId) {
+    return res.status(400).json({ success: false, message: "WebSocket Client ID is required for real-time updates." });
+  }
+  const clientWs = clients.get(wsClientId);
+  if (!clientWs || clientWs.readyState !== 1) {
+    return res.status(404).json({ success: false, message: "WebSocket client not found or is not open." });
+  }
+
+  // 2. Validate Script ID and find script definition
+  if (!scriptId) {
+    return res.status(400).json({ success: false, message: "scriptId is required." });
+  }
   const config = yaml.load(fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
   const scriptDef = config.scripts.find((s) => s.id === scriptId);
-  if (!scriptDef) return res.status(404).json({ success: false, message: "Script definition not found." });
+  if (!scriptDef) {
+    return res.status(404).json({ success: false, message: "Script definition not found." });
+  }
+
+  // 3. Immediately respond to the client to indicate the process has started
+  res.status(202).json({ success: true, message: `Script '${scriptId}' execution started.` });
+
+  // 4. Construct Docker arguments
   const scriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, scriptDef.path, "run.py");
-  const dockerArgs = ["run", "--rm", "--network=host", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`, "vlabs-python-runner", "python", scriptPath];
+
+  const dockerArgs = [
+    "run", "--rm", "--network=host",
+    "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+    "vlabs-python-runner",
+    // These are crucial for unbuffered output from Python
+    "stdbuf", "-oL", "-eL", "python", "-u",
+    scriptPath
+  ];
+
   if (parameters) {
     for (const [key, value] of Object.entries(parameters)) {
+      // The old logic for joining array is now handled in Python
       if (value !== undefined && value !== null && value !== "") {
         dockerArgs.push(`--${key}`);
         dockerArgs.push(String(value));
       }
     }
   }
-  try {
-    const child = spawn("docker", dockerArgs);
-    let stdout = "", stderr = "";
-    child.stdout.on("data", (data) => { stdout += data.toString(); });
-    child.stderr.on("data", (data) => { stderr += data.toString(); });
-    child.on("close", (code) => {
-      const result = { runId, timestamp: new Date().toISOString(), scriptId, parameters, isSuccess: code === 0, output: stdout, error: stderr };
-      runHistory.unshift(result);
-      if (runHistory.length > MAX_HISTORY_ITEMS) runHistory.pop();
-      if (code !== 0) return res.status(500).json({ success: false, message: `Script execution failed: ${stderr}`, output: stdout, error: stderr });
-      res.json({ success: true, output: stdout, error: stderr });
-    });
-  } catch (e) {
-    res.status(500).json({ success: false, message: "An unexpected error occurred while running the script." });
-  }
-});
+ // +++ ADD THIS CRITICAL LOG +++
+  // This shows us the exact command being run.
+  console.log('[DEBUG][API] Executing Docker command with args:', dockerArgs.join(' '));
 
+  // 5. Kick off the execution using the new real-time function
+  executeWithRealTimeUpdates('docker', dockerArgs, clientWs);
+});
+//  ===========================================================================================
+//  ================================= GENERATE REPORT  ========================================
+//  ===========================================================================================
+//
 app.post("/api/report/generate", (req, res) => {
   // Generates and saves a report from script results.
   const { savePath, jsonData } = req.body;
@@ -585,70 +614,39 @@ app.post("/api/templates/generate", (req, res) => {
     }
   });
 });
-
-app.post("/api/templates/apply", (req, res) => {
-  // Applies a rendered template to a target host.
+//  =========================================================================
+//  ============== APPLY RENDRED TEMPLATE TO TARGET HOST ====================
+//  =========================================================================
+app.post("/api/templates/apply", async (req, res) => {
   const { wsClientId, templateId, renderedConfig, targetHostname, username, password } = req.body;
   if (!wsClientId) return res.status(400).json({ success: false, message: "WebSocket Client ID is required." });
+
   const clientWs = clients.get(wsClientId);
   if (!clientWs || clientWs.readyState !== 1) return res.status(404).json({ success: false, message: "WebSocket client not found or not open." });
 
   res.status(202).json({ success: true, message: "Apply process started." });
 
-  try {
-    const runScriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, "tools", "configuration", "run.py");
-    const dockerArgs = [
-      "run", "--rm", "--network=host", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
-      "vlabs-python-runner","stdbuf", "-oL", "-eL",  "python", "-u", runScriptPath,
-      '--template_id', templateId, '--rendered_config', renderedConfig, '--target_host', targetHostname,
-      '--username', username, '--password', password,
-    ];
+  const runScriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, "tools", "configuration", "run.py");
+  const dockerArgs = [
+    "run", "--rm", "--network=host", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+    "vlabs-python-runner", "stdbuf", "-oL", "-eL", "python", "-u", runScriptPath,
+    '--template_id', templateId, '--rendered_config', renderedConfig, '--target_host', targetHostname,
+    '--username', username, '--password', password,
+  ];
 
-    const child = spawn("docker", dockerArgs);
-    let stderrBuffer = "";
-    child.stderr.on("data", (data) => {
-      stderrBuffer += data.toString();
-      const lines = stderrBuffer.split('\n');
-      stderrBuffer = lines.pop() || '';
-      for (const line of lines) {
-        if (line.trim().startsWith("JSON_PROGRESS:")) {
-          try {
-            const progressData = JSON.parse(line.substring(14).trim());
-            if (clientWs.readyState === 1) clientWs.send(JSON.stringify({ type: 'progress', ...progressData }));
-          } catch (e) {
-            console.error("[BACKEND] Failed to parse progress JSON:", line);
-          }
-        }
-      }
-    });
-
-    let stdoutBuffer = "";
-    child.stdout.on("data", (data) => { stdoutBuffer += data.toString(); });
-
-    child.on("close", (code) => {
-      if (code !== 0) return clientWs.readyState === 1 ? clientWs.send(JSON.stringify({ type: 'error', message: `Script exited with error code ${code}` })) : null;
-      try {
-        const jsonMatch = stdoutBuffer.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          if (clientWs.readyState === 1) clientWs.send(JSON.stringify({ type: 'result', data: JSON.parse(jsonMatch[0]) }));
-        } else { throw new Error("No JSON result found"); }
-      } catch (e) {
-        if (clientWs.readyState === 1) clientWs.send(JSON.stringify({ type: 'error', message: "Failed to parse final script output", error: e.message }));
-      }
-    });
-  } catch (error) {
-    if (clients.get(wsClientId)?.readyState === 1) {
-      clients.get(wsClientId).send(JSON.stringify({ type: "error", message: `Failed to start apply process: ${error.message}` }));
-    }
-  }
+  executeWithRealTimeUpdates('docker', dockerArgs, clientWs);
 });
 
+//  =========================================================================
+//  ==============   EXECUTE WITH REAL TIME STREAMING     ===================
+//  =========================================================================
+
 app.post("/api/scripts/run-stream", (req, res) => {
-  // Executes scripts with real-time streaming, including backup_restore.
   const { scriptId, parameters, wsClientId } = req.body;
   const runId = Date.now().toString() + Math.random().toString(36).substring(2, 9);
 
   if (!scriptId || !wsClientId) return res.status(400).json({ success: false, message: "scriptId and wsClientId are required." });
+
   const clientWs = clients.get(wsClientId);
   if (!clientWs || clientWs.readyState !== 1) return res.status(404).json({ success: false, message: `WebSocket client not found or not open: ${wsClientId}` });
 
@@ -657,44 +655,64 @@ app.post("/api/scripts/run-stream", (req, res) => {
   if (!scriptDef) return res.status(404).json({ success: false, message: `Script definition not found for ID: ${scriptId}` });
 
   const scriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, scriptDef.path, "run.py");
-
   res.status(202).json({ success: true, message: "Script execution started.", runId });
-  const dockerArgs = ["run", "--rm", "--network=host", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`, "-v", `${path.join(PYTHON_PIPELINE_PATH_ON_HOST, "tools", "backup_and_restore", "backups")}:/backups`, "vlabs-python-runner","stdbuf", "-oL", "-eL", "python", "-u", scriptPath];
+
+  const dockerArgs = [
+    "run", "--rm", "--network=host",
+    "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+    "-v", `${path.join(PYTHON_PIPELINE_PATH_ON_HOST, "tools", "backup_and_restore", "backups")}:/backups`,
+    "vlabs-python-runner", "stdbuf", "-oL", "-eL", "python", "-u", scriptPath
+  ];
+
   if (parameters) {
     for (const [key, value] of Object.entries(parameters)) {
       if (value === null || value === undefined || value === "") continue;
-      if (value === true) { dockerArgs.push(`--${key}`); }
-      else if (value !== false) { dockerArgs.push(`--${key}`); dockerArgs.push(String(value)); }
+      if (value === true) {
+        dockerArgs.push(`--${key}`);
+      } else if (value !== false) {
+        dockerArgs.push(`--${key}`);
+        dockerArgs.push(String(value));
+      }
     }
   }
+
   console.log(`[BACKEND] Executing docker command: docker ${dockerArgs.join(" ")}`);
 
-  const child = spawn("docker", dockerArgs);
-  let fullStdout = "", fullStderr = "";
+  // Send start notification
+  if (clientWs.readyState === 1) {
+    clientWs.send(JSON.stringify({ type: "script_start", runId, scriptId }));
+  }
 
-  const sendToClient = (type, data) => { if (clientWs.readyState === 1) clientWs.send(JSON.stringify({ type, ...data })); };
-  sendToClient("script_start", { runId, scriptId });
+  executeWithRealTimeUpdates('docker', dockerArgs, clientWs, {
+    onStdout: (data) => {
+      if (clientWs.readyState === 1) {
+        clientWs.send(JSON.stringify({ type: "script_output", runId, scriptId, output: data }));
+      }
+    },
+    onStderr: (data) => {
+      if (clientWs.readyState === 1) {
+        clientWs.send(JSON.stringify({ type: "script_error", runId, scriptId, error: data }));
+      }
+    },
+    onClose: (code, fullStdout, fullStderr) => {
+      let finalResult = null;
+      try { finalResult = JSON.parse(fullStdout); } catch(e) { /* Ignore */ }
 
-  child.stdout.on("data", (data) => {
-    fullStdout += data.toString();
-    sendToClient("script_output", { runId, scriptId, output: data.toString() });
-  });
+      if (finalResult && clientWs.readyState === 1) {
+        clientWs.send(JSON.stringify({ type: "script_output", runId, scriptId, output: finalResult }));
+      }
 
-  child.stderr.on("data", (data) => {
-    fullStderr += data.toString();
-    sendToClient("script_error", { runId, scriptId, error: data.toString() });
-  });
+      const historyRecord = {
+        runId, timestamp: new Date().toISOString(), scriptId, parameters,
+        isSuccess: code === 0, output: fullStdout, error: fullStderr
+      };
+      runHistory.unshift(historyRecord);
+      if (runHistory.length > MAX_HISTORY_ITEMS) runHistory.pop();
 
-  child.on("close", (code) => {
-    let finalResult = null;
-    try { finalResult = JSON.parse(fullStdout); } catch(e) { /* Ignore */ }
-
-    if (finalResult) sendToClient("script_output", { runId, scriptId, output: finalResult });
-    const historyRecord = { runId, timestamp: new Date().toISOString(), scriptId, parameters, isSuccess: code === 0, output: fullStdout, error: fullStderr };
-    runHistory.unshift(historyRecord);
-    if (runHistory.length > MAX_HISTORY_ITEMS) runHistory.pop();
-
-    sendToClient("script_end", { runId, scriptId, exitCode: code });
+      if (clientWs.readyState === 1) {
+        clientWs.send(JSON.stringify({ type: "script_end", runId, scriptId, exitCode: code }));
+      }
+    }
   });
 });
 

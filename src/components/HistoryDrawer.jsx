@@ -3,13 +3,15 @@ import React, { useEffect } from "react";
 import { X, History, Clock, ServerCrash, CheckCircle } from "lucide-react";
 
 function HistoryDrawer({
-  isOpen,
-  onClose,
   history,
   isLoading,
+  isOpen,
+  onClose,
   onSelectHistoryItem,
   selectedHistoryId,
 }) {
+  console.log("[DIAG][HistoryDrawer] Rendered with history count:", history.length);
+
   // Effect to handle the Escape key to close the drawer
   useEffect(() => {
     const handleEsc = (event) => {
@@ -61,9 +63,11 @@ function HistoryDrawer({
                     <button
                       onClick={() => {
                         onSelectHistoryItem(run.runId);
-                        onClose(); // Close the drawer after selection
+                        onClose();
                       }}
-                      className={`w-full text-left p-2 rounded-md hover:bg-slate-100 transition-colors ${selectedHistoryId === run.runId ? "bg-blue-50" : ""}`}
+                      className={`w-full text-left p-2 rounded-md hover:bg-slate-100 transition-colors ${
+                        selectedHistoryId === run.runId ? "bg-blue-50" : ""
+                      }`}
                     >
                       <div className="flex items-center justify-between font-medium text-sm text-slate-800">
                         <span className="truncate">{run.scriptId}</span>
@@ -75,9 +79,7 @@ function HistoryDrawer({
                       </div>
                       <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
                         <Clock size={12} />
-                        <span>
-                          {new Date(run.timestamp).toLocaleTimeString()}
-                        </span>
+                        <span>{new Date(run.timestamp).toLocaleTimeString()}</span>
                       </div>
                     </button>
                   </li>

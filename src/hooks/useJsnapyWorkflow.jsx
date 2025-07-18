@@ -1,7 +1,17 @@
 // src/hooks/useJsnapyWorkflow.jsx
 import { useReducer, useCallback, useEffect, useState } from 'react';
 
-// The reducer function is correct. No changes needed here.
+const API_BASE_URL = "http://localhost:3001";
+// FIX: Define the correct script ID as a constant to prevent future typos.
+// This ID must match the 'id' field in your python_pipeline/scripts.yaml
+const JSNAPY_SCRIPT_ID = "jsnapy_runner";
+
+// ====================================================================================
+// SECTION 1: STATE MANAGEMENT (REDUCER)
+// ====================================================================================
+// This reducer manages the complex state of a script's execution lifecycle.
+// It is a robust pattern that ensures predictable state updates.
+
 const progressReducer = (state, action) => {
   switch (action.type) {
     case 'START_EXECUTION':
@@ -15,7 +25,7 @@ const progressReducer = (state, action) => {
       return { ...state, progress: newProgress, latestMessage: action.payload, totalSteps, completedSteps, progressPercentage };
     }
     case 'PROCESS_RESULT':
-      return { ...state, isRunning: false, isComplete: true, result: action.payload.data, progressPercentage: 100 };
+      return { ...state, isRunning: false, isComplete: true, hasError: false, result: action.payload.data, progressPercentage: 100 };
     case 'PROCESS_ERROR':
       return { ...state, isRunning: false, isComplete: true, hasError: true, error: { message: action.payload.message, details: action.payload.error } };
     case 'RESET_STATE':
@@ -25,35 +35,45 @@ const progressReducer = (state, action) => {
   }
 };
 
-const API_BASE_URL = "http://localhost:3001";
+
+// ====================================================================================
+// SECTION 2: THE MAIN HOOK DEFINITION
+// ====================================================================================
 
 export function useJsnapyWorkflow(wsContext) {
+  // --- STATE AND HOOKS ---
   const [executionState, dispatch] = useReducer(progressReducer, {
     isRunning: false, isComplete: false, hasError: false, progress: [], result: null, error: null, totalSteps: 0, completedSteps: 0, progressPercentage: 0, latestMessage: null,
   });
-
   const [categorizedTests, setCategorizedTests] = useState({});
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [discoveryError, setDiscoveryError] = useState(null);
-  const [parameters, setParameters] = useState({ environment: 'development', tests: [] });
+  const [parameters, setParameters] = useState({
+    hostname: '', username: 'root', password: '', environment: 'development', tests: [],
+  });
 
+  // --- SIDE EFFECTS (useEffect) ---
+  // This effect discovers tests whenever the selected environment changes.
   useEffect(() => {
-    // This discovery logic is fine, no changes needed.
     const discoverTests = async () => {
       setIsDiscovering(true);
       setDiscoveryError(null);
+      setCategorizedTests({});
       try {
         const response = await fetch(`${API_BASE_URL}/api/scripts/discover-tests`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scriptId: "run_jsnapy_tests", environment: parameters.environment }),
+          // FIX: Use the correct script ID constant. This was the source of the "Script definition not found" error.
+          body: JSON.stringify({ scriptId: JSNAPY_SCRIPT_ID, environment: parameters.environment }),
         });
         const data = await response.json();
-        if (!data.success) throw new Error(data.message || "Failed to discover tests.");
+        if (!data.success) {
+            // Prepend the error source for easier debugging
+            throw new Error(`Test discovery failed: ${data.message || "Unknown API error."}`);
+        }
         setCategorizedTests(data.discovered_tests || {});
       } catch (err) {
         setDiscoveryError(err.message);
-        setCategorizedTests({});
       } finally {
         setIsDiscovering(false);
       }
@@ -61,69 +81,41 @@ export function useJsnapyWorkflow(wsContext) {
     discoverTests();
   }, [parameters.environment]);
 
-  // +++ THIS IS THE CRITICAL DEBUGGING SECTION +++
+  // This effect attaches the WebSocket listener. It is correct and does not need changes.
   useEffect(() => {
-    console.log('[DEBUG][useJsnapyWorkflow] Mount/Update: The useEffect for the listener is running.');
-
-    if (!wsContext || !wsContext.websocketService) {
-      console.warn('[DEBUG][useJsnapyWorkflow] WARNING: wsContext or websocketService is not available. Cannot attach listener.');
-      return;
-    }
-
-    console.log('[DEBUG][useJsnapyWorkflow] SUCCESS: Attaching WebSocket message listener...');
-
+    if (!wsContext || !wsContext.websocketService) return;
     const handleMessage = (event) => {
-      // THIS IS THE MOST IMPORTANT LOG. If you see the low-level logs but not this one,
-      // the listener is "deaf".
-      console.log('%c[DEBUG][useJsnapyWorkflow] >>> HOOK HEARD A MESSAGE:', 'color: lightgreen; font-weight: bold;', event.data);
-
       try {
         const message = JSON.parse(event.data);
         switch (message.type) {
-          case 'progress':
-            console.log('[DEBUG][useJsnapyWorkflow] Dispatching PROCESS_PROGRESS');
-            dispatch({ type: 'PROCESS_PROGRESS', payload: message });
-            break;
-          case 'result':
-            console.log('[DEBUG][useJsnapyWorkflow] Dispatching PROCESS_RESULT');
-            dispatch({ type: 'PROCESS_RESULT', payload: message });
-            break;
-          case 'error':
-            console.log('[DEBUG][useJsnapyWorkflow] Dispatching PROCESS_ERROR');
-            dispatch({ type: 'PROCESS_ERROR', payload: message });
-            break;
-          default:
-            break;
+          case 'progress': dispatch({ type: 'PROCESS_PROGRESS', payload: message }); break;
+          case 'result': dispatch({ type: 'PROCESS_RESULT', payload: message }); break;
+          case 'error': dispatch({ type: 'PROCESS_ERROR', payload: message }); break;
+          default: break;
         }
-      } catch (e) {
-        console.error("[DEBUG][useJsnapyWorkflow] Failed to parse WebSocket message:", e);
-      }
+      } catch (e) { console.error("useJsnapyWorkflow: Failed to parse WebSocket message:", e); }
     };
-
     wsContext.websocketService.on('message', handleMessage);
+    return () => wsContext.websocketService.off('message', handleMessage);
+  }, [wsContext]);
 
-    // This "cleanup" function is also critical for debugging.
-    return () => {
-      console.log('%c[DEBUG][useJsnapyWorkflow] Cleanup: Detaching listener. If this happens unexpectedly, the parent component may be re-rendering.', 'color: orange;');
-      wsContext.websocketService.off('message', handleMessage);
-    };
-  }, [wsContext]); // This dependency is crucial.
 
+  // --- CONTROL FUNCTIONS (CALLBACKS) ---
+  // This function is called by the UI to start the script execution.
   const runJsnapyScript = useCallback(async (allParams) => {
     if (!wsContext || !wsContext.clientId) {
       dispatch({ type: 'PROCESS_ERROR', payload: { message: "WebSocket is not connected." } });
       return;
     }
     dispatch({ type: 'START_EXECUTION' });
-
     const paramsToSend = { ...allParams, tests: allParams.tests.join(',') };
-
     try {
       const response = await fetch(`${API_BASE_URL}/api/scripts/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          scriptId: 'run_jsnapy_tests',
+          // FIX: Use the correct script ID constant here as well.
+          scriptId: JSNAPY_SCRIPT_ID,
           parameters: paramsToSend,
           wsClientId: wsContext.clientId,
         }),
@@ -137,8 +129,12 @@ export function useJsnapyWorkflow(wsContext) {
     }
   }, [wsContext]);
 
-  const resetExecution = useCallback(() => dispatch({ type: 'RESET_STATE' }), []);
+  // Function to clear the real-time display.
+  const resetExecution = useCallback(() => {
+    dispatch({ type: 'RESET_STATE' });
+  }, []);
 
+  // Expose all necessary state and functions to the component.
   return {
     executionState, runJsnapyScript, resetExecution,
     categorizedTests, isDiscovering, discoveryError,

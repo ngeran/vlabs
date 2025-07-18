@@ -1,193 +1,136 @@
-// vlabs/src/components/FetchDynamicOptions.jsx
-
-// ====================================================================================
-// SECTION 1: IMPORTS & COMPONENT OVERVIEW
-// ====================================================================================
-// Description: React component for rendering dynamic dropdowns for device IP and backup file selection.
-// Purpose: Fetches options from /api/backups/devices for the backup_restore script’s restore mode,
-//          validates paths against backup_base_path from metadata.yml, and displays them in the UI.
-// Dependencies: Uses Tailwind CSS for styling and fetchDynamicOptions utility for API calls.
-import React, { useState, useEffect } from "react";
-import { fetchDynamicOptions } from "../utils/fetchDynamicOptions";
+// src/components/FetchDynamicOptions.jsx
+import React, { useState } from "react";
 import toast from "react-hot-toast";
+import { RefreshCw } from "lucide-react";
+import PulseLoader from "react-spinners/PulseLoader";
+
+const API_BASE_URL = "http://localhost:3001";
 
 // ====================================================================================
-// SECTION 2: COMPONENT DEFINITION & STATE MANAGEMENT
+// SECTION 1: COMPONENT DEFINITION
 // ====================================================================================
-// Description: Defines the FetchDynamicOptions component and its state for managing devices and backups.
-// Purpose: Handles dynamic dropdown logic and user input for restore operations.
-export default function FetchDynamicOptions({ script, parameters, onParamChange }) {
-  const [deviceOptions, setDeviceOptions] = useState([]); // List of devices and their backups
-  const [loadingDevices, setLoadingDevices] = useState(false); // Loading state for API call
-  const [errorDevices, setErrorDevices] = useState(null); // Error state for API failures
-  const [selectedDevice, setSelectedDevice] = useState(parameters.hostname || ""); // Selected device IP
-  const [backupBasePath, setBackupBasePath] = useState(""); // Base path for backup files from metadata.yml
+
+/**
+ * A component that can fetch dynamic options (e.g., backup files) for a script.
+ * This version is enhanced with defensive checks to prevent crashes when a script's
+ * metadata does not conform to the expected structure.
+ *
+ * @param {object} props
+ * @param {object} props.script - The configuration object for the currently selected script.
+ * @param {object} props.parameters - The current state of script parameters.
+ * @param {function} props.onParamChange - Callback to update a parameter in the parent component.
+ */
+function FetchDynamicOptions({ script, parameters, onParamChange }) {
+  // ====================================================================================
+  // SECTION 2: STATE MANAGEMENT
+  // ====================================================================================
+
+  const [isLoading, setIsLoading] = useState(false);
 
   // ====================================================================================
-  // SECTION 3: DATA FETCHING & PROCESSING
+  // SECTION 3: DEFENSIVE LOGIC & GUARD CLAUSES
   // ====================================================================================
-  // Description: Fetches device and backup data from /api/backups/devices when in restore mode.
-  // Purpose: Populates dropdowns and validates backup file paths against backup_base_path.
-  useEffect(() => {
-    const hostnameParam = script?.parameters.find(p => p.name === "hostname");
+  // This section contains the critical fixes. It validates the `script` prop
+  // before any logic attempts to use it, preventing crashes.
 
-    if (hostnameParam?.dynamicOptionsEndpoint && parameters.command === "restore") {
-      setLoadingDevices(true);
-      setErrorDevices(null);
-      fetchDynamicOptions(hostnameParam.dynamicOptionsEndpoint, `devices-${script.id}`).then(({ options, error }) => {
-        const processedOptions = options.map(device => ({
-         deviceIp: device.deviceIp,
-         backups: device.backups.map(backup => ({
-           value: backup.value,
-           label: backup.label.split('_').pop() // Shortens label to e.g., "180433.conf"
-         }))
-       }));
-        setDeviceOptions(processedOptions);
-        if (processedOptions.length > 0 && !parameters.hostname) {
-          onParamChange("hostname", processedOptions[0].deviceIp);
-          setSelectedDevice(processedOptions[0].deviceIp);
-        }
-        setLoadingDevices(false);
-        setErrorDevices(error);
+  // FIX: Perform a series of checks to determine if this component should render at all.
+  const shouldRender =
+    // 1. Ensure the script object itself and its `capabilities` key exist.
+    script &&
+    script.capabilities?.dynamicOptions &&
+    // 2. CRITICAL: Ensure `script.parameters` is an actual array.
+    //    This directly fixes the "TypeError: script.parameters is undefined" crash.
+    Array.isArray(script.parameters) &&
+    // 3. Ensure the specific parameter that triggers the fetch (the "source")
+    //    is actually defined in the script's metadata.
+    script.parameters.some(p => p.name === script.capabilities.dynamicOptions.sourceParameter);
+
+  // If any of the above checks fail, the component will render nothing.
+  // This is the correct behavior for scripts that don't support this dynamic feature.
+  if (!shouldRender) {
+    return null;
+  }
+
+  // If we have passed the checks, it is now safe to destructure the configuration.
+  const { sourceParameter, targetParameter, apiEndpoint } = script.capabilities.dynamicOptions;
+  const sourceValue = parameters[sourceParameter];
+
+
+  // ====================================================================================
+  // SECTION 4: DATA FETCHING LOGIC
+  // ====================================================================================
+
+  /**
+   * Fetches the dynamic options from the backend API.
+   */
+  const fetchOptions = async () => {
+    // Don't attempt to fetch if the source parameter (e.g., a hostname) is empty.
+    if (!sourceValue) {
+      onParamChange(targetParameter, []); // Clear any existing options.
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}${apiEndpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [sourceParameter]: sourceValue }),
       });
-    } else {
-      setDeviceOptions([]);
-      setSelectedDevice("");
-    }
-  }, [script, parameters.command, onParamChange, parameters.hostname]);
 
-  // ====================================================================================
-  // SECTION 4: BACKUP FILE AUTO-SELECTION
-  // ====================================================================================
-  // Description: Automatically selects a backup file when a device is chosen.
-  // Purpose: Simplifies user interaction by pre-selecting the first valid backup.
-  useEffect(() => {
-    if (parameters.command === "restore" && selectedDevice) {
-      const device = deviceOptions.find(d => d.deviceIp === selectedDevice);
-      if (device?.backups.length > 0 && !parameters.backup_file) {
-        onParamChange("backup_file", device.backups[0].value);
-        console.log(`[FetchDynamicOptions] Auto-selected backup_file: ${device.backups[0].value}`);
-      } else if (device?.backups.length === 0) {
-        onParamChange("backup_file", "");
-        console.log(`[FetchDynamicOptions] No backups available for device: ${selectedDevice}`);
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to fetch dynamic options from API.");
       }
-    }
-  }, [selectedDevice, deviceOptions, parameters.command, onParamChange]);
 
-  // ====================================================================================
-  // SECTION 5: VALIDATION HELPERS
-  // ====================================================================================
-  // Description: Validates selected hostname and backup file.
-  // Purpose: Ensures required fields are filled and paths are valid before submission.
-  const hasValidHostname = parameters.hostname && parameters.hostname.trim() !== "";
-  const hasValidBackupFile = parameters.backup_file && parameters.backup_file.trim() !== "";
-  // ====================================================================================
-  // SECTION 6: EVENT HANDLERS
-  // ====================================================================================
-  // Description: Handles changes to dropdown selections.
-  // Purpose: Updates parameters and selected device state, with logging for debugging.
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    console.log(`[FetchDynamicOptions] Setting ${name} = "${value}"`);
-    onParamChange(name, value);
-    if (name === "hostname") {
-      setSelectedDevice(value);
+      // Update the parent component's state with the fetched options.
+      // Assumes the API returns an array of strings in a key named `options`.
+      onParamChange(targetParameter, data.options || []);
+
+      if ((data.options || []).length === 0) {
+        toast.error(`No ${targetParameter.replace(/_/g, ' ')}s found for: ${sourceValue}`);
+      } else {
+        toast.success(`Successfully fetched ${data.options.length} ${targetParameter.replace(/_/g, ' ')}s.`);
+      }
+
+    } catch (err) {
+      toast.error(err.message);
+      onParamChange(targetParameter, []); // Clear options on any error to ensure clean state.
+    } finally {
+      setIsLoading(false);
     }
   };
 
+
   // ====================================================================================
-  // SECTION 7: UI RENDERING
+  // SECTION 5: RENDER LOGIC
   // ====================================================================================
-  // Description: Renders dropdowns for device IP and backup file selection.
-  // Purpose: Provides a user-friendly interface for restore operations with validation feedback.
-  if (parameters.command !== "restore") return null;
+  // This JSX will only be rendered if the `shouldRender` check passed.
 
   return (
-    <div className="border-t border-gray-200 pt-6 space-y-4">
-      <h4 className="text-sm font-medium text-gray-700 flex items-center">
-        <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-        </svg>
-        Restore Configuration
-      </h4>
-      <div className="flex flex-row gap-4">
-        {/* Device IP Dropdown */}
-        <div className="flex-1">
-          <label htmlFor="restore_hostname" className="block text-sm font-medium text-gray-700 mb-1">
-            Device IP *
-          </label>
-          {loadingDevices ? (
-            <div className="flex items-center justify-center h-10">
-              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          ) : errorDevices ? (
-            <p className="text-sm text-red-600">{errorDevices}</p>
-          ) : deviceOptions.length === 0 ? (
-            <p className="text-sm text-red-600">No devices with backups found.</p>
-          ) : (
-            <select
-              id="restore_hostname"
-              name="hostname"
-              value={parameters.hostname || ""}
-              onChange={handleChange}
-              className="block w-full max-w-64 border rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out truncate"
-              required
-              title={parameters.hostname || "Select a device"}
-            >
-              <option value="" disabled>Select a device</option>
-              {deviceOptions.map(device => (
-                <option key={device.deviceIp} value={device.deviceIp} title={device.deviceIp}>
-                  {device.deviceIp}
-                </option>
-              ))}
-            </select>
-          )}
-          {!hasValidHostname && (
-            <p className="text-sm text-red-600 mt-1">Device IP is required</p>
-          )}
-        </div>
-        {/* Backup File Dropdown */}
-        <div className="flex-1">
-          <label htmlFor="backup_file" className="block text-sm font-medium text-gray-700 mb-1">
-            Backup File to Restore *
-          </label>
-          {loadingDevices ? (
-            <div className="flex items-center justify-center h-10">
-              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          ) : errorDevices ? (
-            <p className="text-sm text-red-600">{errorDevices}</p>
-          ) : (
-            (() => {
-              const device = deviceOptions.find(d => d.deviceIp === selectedDevice);
-              const backups = device ? device.backups : [];
-              return backups.length === 0 ? (
-                <p className="text-sm text-red-600">No backup files available for this device.</p>
-              ) : (
-                <select
-                  id="backup_file"
-                  name="backup_file"
-                  value={parameters.backup_file || ""}
-                  onChange={handleChange}
-                  className="block w-full max-w-64 border rounded-md p-2 shadow-sm focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out truncate"
-                  required
-                  title={parameters.backup_file || "Select a backup file"}
-                >
-                  <option value="" disabled>Select a backup file</option>
-                  {backups.map(backup => (
-                    <option key={backup.value} value={backup.value} title={backup.value}>
-                      {backup.label}
-                    </option>
-                  ))}
-                </select>
-              );
-            })()
-          )}
-          {!hasValidBackupFile && (
-            <p className="text-sm text-red-600 mt-1">Valid backup file is required</p>
-          )}
-        </div>
-      </div>
+    <div className="flex items-end gap-2">
+      {/* This container is a placeholder in case you want to add form fields
+          (like a dropdown) associated with this feature in the future. */}
+      <div className="flex-grow"></div>
+
+      {/* The button that triggers the fetch action. */}
+      <button
+        type="button"
+        onClick={fetchOptions}
+        disabled={isLoading || !sourceValue}
+        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
+        title={`Fetch ${targetParameter.replace(/_/g, ' ')}s for ${sourceValue}`}
+      >
+        {isLoading ? (
+          <PulseLoader size={6} color="#475569" />
+        ) : (
+          <RefreshCw size={14} />
+        )}
+        <span>Fetch {targetParameter.replace(/_/g, ' ')}</span>
+      </button>
     </div>
   );
 }
+
+export default FetchDynamicOptions;

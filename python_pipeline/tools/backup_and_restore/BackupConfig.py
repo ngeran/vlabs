@@ -103,21 +103,21 @@ class BackupManager:
         Saves the device's collected facts to a JSON file after sanitizing them.
         """
         self.logger.info(f"Saving device facts for {self.hostname}...")
-        
+
         # Convert the top-level _FactCache object to a dictionary.
         raw_facts = dict(self.dev.facts)
-        
+
         # --- FIX: Sanitize the dictionary to handle nested special objects ---
         # This new step ensures all values are JSON-serializable.
         sanitized_facts = self._sanitize_dict(raw_facts)
-        
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{self.hostname}_facts_{timestamp}.json"
         filepath = backup_path / filename
 
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(sanitized_facts, f, indent=4)
-            
+
         self.logger.info(f"Facts saved to {filepath}")
         return filepath
 
@@ -140,16 +140,16 @@ class BackupManager:
             json.dump(metadata, f, indent=4)
         self.logger.info(f"Metadata file created at {filepath}")
         return filepath
-        
+
     # --- NEW HELPER METHOD FOR JSON SANITIZATION ---
     def _sanitize_dict(self, data: dict) -> dict:
         """
         Recursively walks through a dictionary and converts any non-JSON-serializable
         values (like custom objects or tuples) into plain strings.
-        
+
         Args:
             data (dict): The dictionary to clean.
-            
+
         Returns:
             dict: A new dictionary that is safe to serialize to JSON.
         """

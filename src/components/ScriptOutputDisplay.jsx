@@ -156,12 +156,8 @@ function SimpleTable({ title, headers, data }) {
  * @param {{progressEvents: Array<object>, isRunning: boolean, isComplete: boolean, showDebug: boolean}} props
  * @returns {JSX.Element | null} The real-time progress UI or null if not applicable.
  */
-function RealtimeProgressView({
-  progressEvents = [],
-  isRunning,
-  isComplete,
-  showDebug = false,
-}) {
+
+function RealtimeProgressView({ progressEvents = [], isRunning, isComplete, error, showDebug = false }) {
   // Find the final operation event to determine overall completion status
   const finalOpEvent = useMemo(() =>
     Array.isArray(progressEvents) ? progressEvents.find((e) => e?.event_type === "OPERATION_COMPLETE") : null,
@@ -169,15 +165,12 @@ function RealtimeProgressView({
   );
 
   // Process progress events to extract step information and current progress
-  const { stepArray, currentStep, totalSteps } = useMemo(() => {
+
+const { stepArray, currentStep, totalSteps } = useMemo(() => {
     if (!Array.isArray(progressEvents) || progressEvents.length === 0) {
       return { stepArray: [], currentStep: 0, totalSteps: 0 };
     }
-
-    // Filter events related to step progress
     const stepEvents = progressEvents.filter(e => e?.event_type === "STEP_START" || e?.event_type === "STEP_COMPLETE");
-
-    // Group events by step number to get complete step information
     const groupedSteps = stepEvents.reduce((acc, event) => {
       const stepNum = event?.data?.step;
       if (stepNum) {
@@ -186,31 +179,30 @@ function RealtimeProgressView({
       }
       return acc;
     }, {});
-
-    // Convert to array and sort by step number
     const steps = Object.values(groupedSteps).sort((a, b) => a.step - b.step);
-
-    // Update step statuses based on completion state
-    const processedSteps = steps.map(step => {
-      if ((finalOpEvent || isComplete) && step.status === "IN_PROGRESS") {
-        return { ...step, status: "COMPLETED" };
-      }
-      return step;
-    });
-
-    // Calculate total steps and current progress
+    const processedSteps = steps.map(step => ((finalOpEvent || isComplete) && step.status === "IN_PROGRESS") ? { ...step, status: "COMPLETED" } : step);
     const total = processedSteps.length > 0 ? Math.max(...processedSteps.map(s => s.step)) : 0;
 
+    // FIX: This logic now correctly handles the progress bar on failure.
     let current = 0;
-    if (finalOpEvent || isComplete) {
+    const lastCompletedStep = processedSteps.filter(s => s.status === "COMPLETED").pop()?.step || 0;
+
+    if (isComplete && error) {
+      // On failure, show progress up to the last completed step.
+      current = lastCompletedStep;
+    } else if (finalOpEvent || isComplete) {
+      // On success, show 100% completion.
       current = total;
     } else if (isRunning) {
+      // While running, show the active step or the last one that finished.
       const activeStep = processedSteps.find(s => s.status === "IN_PROGRESS");
-      current = activeStep ? activeStep.step : (processedSteps.filter(s => s.status === "COMPLETED").pop()?.step || 0);
+      current = activeStep ? activeStep.step : lastCompletedStep;
     }
 
     return { stepArray: processedSteps, currentStep: current, totalSteps: total };
-  }, [progressEvents, finalOpEvent, isRunning, isComplete]);
+  }, [progressEvents, finalOpEvent, isRunning, isComplete, error]); // Add 'error' to the dependency array
+
+
 
   // Don't render if not running and no steps to show
   if (!isRunning && stepArray.length === 0) {
@@ -446,6 +438,24 @@ export default function ScriptOutputDisplay({
   // Extract save button configuration from script capabilities
   const saveButtonConfig = script?.capabilities?.saveButton;
   const canSaveReport = script?.capabilities?.enableReportSaving === true;
+    /**
+   * FIX: This helper function safely formats an error for display, preventing crashes
+   * when the 'error' prop is an object instead of a simple string.
+   * @param {any} err - The error variable from the state.
+   * @returns {string} A displayable error message.
+   */
+  const formatErrorMessage = (err) => {
+    if (typeof err === 'object' && err !== null && err.message) {
+      return String(err.message);
+    }
+    if (typeof err === 'object' && err !== null) {
+      return JSON.stringify(err);
+    }
+    if (err) {
+      return String(err);
+    }
+    return "An unknown error occurred.";
+  };
 
   /**
    * Handles the save report functionality by calling the backend API.
@@ -505,7 +515,7 @@ export default function ScriptOutputDisplay({
         {/* Console output (shown if there's an error during execution) */}
         {error && (
           <ConsoleOutputDisplay
-            content={fullLog || error}
+            content={fullLog || formatErrorMessage(error)}
             isOpen={false}
             title="Console Output"
           />
@@ -534,7 +544,7 @@ export default function ScriptOutputDisplay({
               SCRIPT FAILED
             </div>
             <div className="mt-2 text-sm font-mono whitespace-pre-wrap" style={{wordBreak: 'break-word', overflowWrap: 'break-word'}}>
-              {error}
+              {formatErrorMessage(error)}
             </div>
           </div>
 
@@ -587,7 +597,7 @@ export default function ScriptOutputDisplay({
         {/* Console log display (open by default if execution failed) */}
         {(error || fullLog) && (
           <ConsoleOutputDisplay
-            content={fullLog || error || "No console output available"}
+            content={fullLog || formatErrorMessage(error) || "No console output available"}
             isOpen={!finalResult?.success}
             title="Raw Console Log"
           />

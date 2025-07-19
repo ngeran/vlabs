@@ -1,7 +1,7 @@
 // src/components/FetchDynamicOptions.jsx
 import React, { useState } from "react";
 import toast from "react-hot-toast";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Download, Database } from "lucide-react";
 import PulseLoader from "react-spinners/PulseLoader";
 
 const API_BASE_URL = "http://localhost:3001";
@@ -11,9 +11,8 @@ const API_BASE_URL = "http://localhost:3001";
 // ====================================================================================
 
 /**
- * A component that can fetch dynamic options (e.g., backup files) for a script.
- * This version is enhanced with defensive checks to prevent crashes when a script's
- * metadata does not conform to the expected structure.
+ * Enhanced FetchDynamicOptions component that works with the new capability-based system.
+ * Supports multiple dynamic option types and integrates with device targeting capabilities.
  *
  * @param {object} props
  * @param {object} props.script - The configuration object for the currently selected script.
@@ -25,110 +24,225 @@ function FetchDynamicOptions({ script, parameters, onParamChange }) {
   // SECTION 2: STATE MANAGEMENT
   // ====================================================================================
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingStates, setLoadingStates] = useState({});
 
   // ====================================================================================
-  // SECTION 3: DEFENSIVE LOGIC & GUARD CLAUSES
+  // SECTION 3: DEFENSIVE LOGIC & ENHANCED GUARD CLAUSES
   // ====================================================================================
-  // This section contains the critical fixes. It validates the `script` prop
-  // before any logic attempts to use it, preventing crashes.
 
-  // FIX: Perform a series of checks to determine if this component should render at all.
+  // Enhanced validation for the new capability system
   const shouldRender =
-    // 1. Ensure the script object itself and its `capabilities` key exist.
     script &&
-    script.capabilities?.dynamicOptions &&
-    // 2. CRITICAL: Ensure `script.parameters` is an actual array.
-    //    This directly fixes the "TypeError: script.parameters is undefined" crash.
+    script.capabilities &&
     Array.isArray(script.parameters) &&
-    // 3. Ensure the specific parameter that triggers the fetch (the "source")
-    //    is actually defined in the script's metadata.
-    script.parameters.some(p => p.name === script.capabilities.dynamicOptions.sourceParameter);
+    // Check if any parameters have dynamic options configured
+    script.parameters.some(param => param.apiEndpoint || param.dynamicOptions);
 
-  // If any of the above checks fail, the component will render nothing.
-  // This is the correct behavior for scripts that don't support this dynamic feature.
   if (!shouldRender) {
     return null;
   }
 
-  // If we have passed the checks, it is now safe to destructure the configuration.
-  const { sourceParameter, targetParameter, apiEndpoint } = script.capabilities.dynamicOptions;
-  const sourceValue = parameters[sourceParameter];
-
+  // Find all parameters that support dynamic fetching
+  const dynamicParameters = script.parameters.filter(param =>
+    param.apiEndpoint || param.dynamicOptions
+  );
 
   // ====================================================================================
-  // SECTION 4: DATA FETCHING LOGIC
+  // SECTION 4: ENHANCED DATA FETCHING LOGIC
   // ====================================================================================
 
   /**
-   * Fetches the dynamic options from the backend API.
+   * Generic function to fetch dynamic options for any parameter
    */
-  const fetchOptions = async () => {
-    // Don't attempt to fetch if the source parameter (e.g., a hostname) is empty.
-    if (!sourceValue) {
-      onParamChange(targetParameter, []); // Clear any existing options.
-      return;
+  const fetchOptionsForParameter = async (paramConfig) => {
+    const { name: paramName, apiEndpoint, dependsOn, dynamicOptions } = paramConfig;
+
+    // Determine the API endpoint - could be direct or from dynamicOptions
+    const endpoint = apiEndpoint || dynamicOptions?.apiEndpoint;
+    if (!endpoint) return;
+
+    // Check dependencies if they exist
+    if (dependsOn) {
+      const { field: depField, value: depValue } = dependsOn;
+      if (parameters[depField] !== depValue) {
+        return; // Don't fetch if dependency condition isn't met
+      }
     }
 
-    setIsLoading(true);
+    // For device targeting, check if we have the required source parameter
+    if (script.capabilities?.deviceTargeting) {
+      const hasHostname = parameters.hostname && parameters.hostname.trim();
+      const hasInventoryFile = parameters.inventory_file && parameters.inventory_file.trim();
+
+      if (!hasHostname && !hasInventoryFile) {
+        toast.error("Please specify a target device (hostname or inventory file) first");
+        return;
+      }
+    }
+
+    const loadingKey = paramName;
+    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
+
     try {
-      const response = await fetch(`${API_BASE_URL}${apiEndpoint}`, {
+      // Prepare request body with relevant parameters
+      const requestBody = {
+        // Include device targeting info if available
+        ...(parameters.hostname && { hostname: parameters.hostname }),
+        ...(parameters.inventory_file && { inventory_file: parameters.inventory_file }),
+        // Include auth info if available (for authenticated requests)
+        ...(parameters.username && { username: parameters.username }),
+        // Include any other relevant parameters
+        ...Object.fromEntries(
+          Object.entries(parameters).filter(([key, value]) =>
+            value !== undefined && value !== null && value !== ""
+          )
+        )
+      };
+
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [sourceParameter]: sourceValue }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || "Failed to fetch dynamic options from API.");
+        throw new Error(data.message || `Failed to fetch ${paramName} options`);
       }
 
-      // Update the parent component's state with the fetched options.
-      // Assumes the API returns an array of strings in a key named `options`.
-      onParamChange(targetParameter, data.options || []);
+      // Handle different response formats
+      let options = [];
+      if (Array.isArray(data.options)) {
+        options = data.options;
+      } else if (Array.isArray(data.data)) {
+        options = data.data;
+      } else if (data[paramName]) {
+        options = Array.isArray(data[paramName]) ? data[paramName] : [data[paramName]];
+      }
 
-      if ((data.options || []).length === 0) {
-        toast.error(`No ${targetParameter.replace(/_/g, ' ')}s found for: ${sourceValue}`);
+      // Update the parameter with fetched options
+      const optionsKey = `${paramName}_options`;
+      onParamChange(optionsKey, options);
+
+      if (options.length === 0) {
+        toast.error(`No ${paramName.replace(/_/g, ' ')}s found`);
       } else {
-        toast.success(`Successfully fetched ${data.options.length} ${targetParameter.replace(/_/g, ' ')}s.`);
+        toast.success(`Found ${options.length} ${paramName.replace(/_/g, ' ')}(s)`);
       }
 
     } catch (err) {
-      toast.error(err.message);
-      onParamChange(targetParameter, []); // Clear options on any error to ensure clean state.
+      console.error(`Error fetching ${paramName} options:`, err);
+      toast.error(err.message || `Failed to fetch ${paramName} options`);
+      onParamChange(`${paramName}_options`, []);
     } finally {
-      setIsLoading(false);
+      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
     }
   };
 
+  /**
+   * Get appropriate icon for parameter type
+   */
+  const getParameterIcon = (paramConfig) => {
+    const paramName = paramConfig.name.toLowerCase();
+    if (paramName.includes('backup') || paramName.includes('file')) {
+      return Download;
+    }
+    if (paramName.includes('inventory') || paramName.includes('database')) {
+      return Database;
+    }
+    return RefreshCw;
+  };
+
+  /**
+   * Check if a fetch button should be enabled
+   */
+  const shouldEnableFetch = (paramConfig) => {
+    // Check if currently loading
+    if (loadingStates[paramConfig.name]) {
+      return false;
+    }
+
+    // Check dependencies
+    if (paramConfig.dependsOn) {
+      const { field: depField, value: depValue } = paramConfig.dependsOn;
+      if (parameters[depField] !== depValue) {
+        return false;
+      }
+    }
+
+    // For device-dependent fetches, ensure device targeting is configured
+    if (script.capabilities?.deviceTargeting) {
+      const hasHostname = parameters.hostname && parameters.hostname.trim();
+      const hasInventoryFile = parameters.inventory_file && parameters.inventory_file.trim();
+      return hasHostname || hasInventoryFile;
+    }
+
+    return true;
+  };
 
   // ====================================================================================
-  // SECTION 5: RENDER LOGIC
+  // SECTION 5: ENHANCED RENDER LOGIC
   // ====================================================================================
-  // This JSX will only be rendered if the `shouldRender` check passed.
 
   return (
-    <div className="flex items-end gap-2">
-      {/* This container is a placeholder in case you want to add form fields
-          (like a dropdown) associated with this feature in the future. */}
-      <div className="flex-grow"></div>
+    <div className="space-y-3">
+      {dynamicParameters.map((paramConfig) => {
+        const Icon = getParameterIcon(paramConfig);
+        const isLoading = loadingStates[paramConfig.name];
+        const isEnabled = shouldEnableFetch(paramConfig);
+        const paramDisplayName = paramConfig.label || paramConfig.name.replace(/_/g, ' ');
 
-      {/* The button that triggers the fetch action. */}
-      <button
-        type="button"
-        onClick={fetchOptions}
-        disabled={isLoading || !sourceValue}
-        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
-        title={`Fetch ${targetParameter.replace(/_/g, ' ')}s for ${sourceValue}`}
-      >
-        {isLoading ? (
-          <PulseLoader size={6} color="#475569" />
-        ) : (
-          <RefreshCw size={14} />
-        )}
-        <span>Fetch {targetParameter.replace(/_/g, ' ')}</span>
-      </button>
+        return (
+          <div key={paramConfig.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white rounded-lg border">
+                <Icon className="h-4 w-4 text-gray-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">
+                  Fetch {paramDisplayName}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {paramConfig.description || `Load available ${paramDisplayName.toLowerCase()} options`}
+                </p>
+                {paramConfig.dependsOn && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    Requires: {paramConfig.dependsOn.field} = "{paramConfig.dependsOn.value}"
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => fetchOptionsForParameter(paramConfig)}
+              disabled={!isEnabled}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                isEnabled
+                  ? "text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                  : "text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed"
+              }`}
+              title={
+                !isEnabled && paramConfig.dependsOn
+                  ? `Set ${paramConfig.dependsOn.field} to "${paramConfig.dependsOn.value}" first`
+                  : !isEnabled && script.capabilities?.deviceTargeting
+                  ? "Configure device targeting first"
+                  : `Fetch ${paramDisplayName.toLowerCase()}`
+              }
+            >
+              {isLoading ? (
+                <PulseLoader size={6} color="#1d4ed8" />
+              ) : (
+                <Icon className="h-4 w-4" />
+              )}
+              <span>
+                {isLoading ? "Fetching..." : "Fetch"}
+              </span>
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

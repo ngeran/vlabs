@@ -188,70 +188,106 @@ export const useScriptRunnerStream = (wsContext = {}, options = {}) => {
   const updateState = useCallback((updates) => {
     setState((prev) => ({ ...prev, ...updates }));
   }, []);
-
+  //  ================================================================================
+  //
+  //  ================================================================================
   const runScript = useCallback(
     async (scriptData) => {
+      console.log('[DIAG][useScriptRunnerStream] runScript called with:', { scriptData, isConnected, clientId });
       if (!isConnected || !clientId) {
         const errorMsg = "WebSocket is not connected. Cannot run script.";
+        console.error('[DIAG][useScriptRunnerStream] Error:', errorMsg);
         updateState({ error: errorMsg, isComplete: true, currentState: SCRIPT_STATES.FAILED });
         throw new Error(errorMsg);
       }
       const runId = generateUniqueId();
+      console.log('[DIAG][useScriptRunnerStream] Generated runId:', runId);
       resetState();
       updateState({ isRunning: true, currentState: SCRIPT_STATES.RUNNING, runId, startTime: new Date().toISOString() });
       try {
-        await websocketService.runScript({ ...scriptData, runId });
+        const response = await websocketService.runScript({ ...scriptData, runId });
+        console.log('[DIAG][useScriptRunnerStream] runScript response:', response);
+        return response;
       } catch (error) {
+        console.error('[DIAG][useScriptRunnerStream] runScript failed:', error);
         updateState({ isRunning: false, currentState: SCRIPT_STATES.FAILED, error: error.message, isComplete: true, endTime: new Date().toISOString() });
         throw error;
       }
     },
     [isConnected, clientId, resetState, updateState, websocketService]
   );
-
   //--------------------------------------------------------------------------------
   // Subsection 2.4: WebSocket Event Handlers
   //--------------------------------------------------------------------------------
-  const handleScriptError = useCallback((data) => {
-    if (data.runId !== state.runId) return;
-    const rawChunk = data.error || data.message || "";
+const handleScriptError = useCallback((data) => {
+  console.log('[DIAG][useScriptRunnerStream] handleScriptError received:', data);
+  if (data.type === 'progress' || data.runId === state.runId) {
     const timestamp = new Date().toISOString();
-    stderrBuffer.current += rawChunk;
-    const lines = stderrBuffer.current.split('\n');
-    stderrBuffer.current = lines.pop() || "";
-    if (lines.length > 0) {
-        const newProgressEvents = [];
-        const newLogLines = [];
-        for (const line of lines) {
-            if (!line) continue;
-            newLogLines.push({ timestamp, line, type: "stderr" });
-            if (line.startsWith("JSON_PROGRESS:")) {
-                const jsonContent = line.substring("JSON_PROGRESS:".length);
-                const progressObjects = extractJsonFromLine(jsonContent);
-                if (progressObjects.length > 0) newProgressEvents.push(...progressObjects);
-            }
-        }
-        if (newProgressEvents.length > 0 || newLogLines.length > 0) {
-            setState((prev) => ({
-                ...prev,
-                fullLog: prev.fullLog + lines.join('\n') + '\n',
-                logLines: [...prev.logLines, ...newLogLines].slice(-config.maxLogLines),
-                progressEvents: [...prev.progressEvents, ...newProgressEvents],
-                totalProgressEvents: prev.totalProgressEvents + newProgressEvents.length,
-                lastProgressTime: timestamp,
-            }));
-        }
-    }
-  }, [state.runId, config.maxLogLines]);
+    const newProgressEvents = [];
+    const newLogLines = [];
 
-  const handleScriptOutput = useCallback((data) => {
-    if (data.runId !== state.runId) return;
+    if (data.type === 'progress') {
+      newProgressEvents.push(data);
+      newLogLines.push({ timestamp, line: data.message || JSON.stringify(data), type: 'progress' });
+
+      // Handle OPERATION_COMPLETE to update completion state
+      if (data.event_type === 'OPERATION_COMPLETE') {
+        setState((prev) => ({
+          ...prev,
+          isRunning: false,
+          isComplete: true,
+          endTime: timestamp,
+          currentState: data.level === 'SUCCESS' ? SCRIPT_STATES.COMPLETED : SCRIPT_STATES.FAILED,
+          error: data.level === 'SUCCESS' ? null : (data.message || 'Script failed'),
+          fullLog: prev.fullLog + newLogLines.map(l => l.line).join('\n') + '\n',
+          logLines: [...prev.logLines, ...newLogLines].slice(-config.maxLogLines),
+          progressEvents: [...prev.progressEvents, ...newProgressEvents],
+          totalProgressEvents: prev.totalProgressEvents + newProgressEvents.length,
+          lastProgressTime: timestamp,
+        }));
+        return; // Exit early to avoid redundant state update
+      }
+    } else {
+      const rawChunk = data.error || data.message || "";
+      stderrBuffer.current += rawChunk;
+      const lines = stderrBuffer.current.split('\n');
+      stderrBuffer.current = lines.pop() || "";
+      for (const line of lines) {
+        if (!line) continue;
+        newLogLines.push({ timestamp, line, type: "stderr" });
+        if (line.startsWith("JSON_PROGRESS:")) {
+          const jsonContent = line.substring("JSON_PROGRESS:".length);
+          const progressObjects = extractJsonFromLine(jsonContent);
+          if (progressObjects.length > 0) newProgressEvents.push(...progressObjects);
+        }
+      }
+    }
+
+    if (newProgressEvents.length > 0 || newLogLines.length > 0) {
+      console.log('[DIAG][useScriptRunnerStream] Updating state with:', { newProgressEvents, newLogLines });
+      setState((prev) => ({
+        ...prev,
+        fullLog: prev.fullLog + newLogLines.map(l => l.line).join('\n') + '\n',
+        logLines: [...prev.logLines, ...newLogLines].slice(-config.maxLogLines),
+        progressEvents: [...prev.progressEvents, ...newProgressEvents],
+        totalProgressEvents: prev.totalProgressEvents + newProgressEvents.length,
+        lastProgressTime: timestamp,
+      }));
+    }
+  }
+}, [state.runId, config.maxLogLines]);
+//  ============================================================================================
+const handleScriptOutput = useCallback((data) => {
+  console.log('[DIAG][useScriptRunnerStream] handleScriptOutput received:', data);
+  if (data.type === 'progress' || data.runId === state.runId) { // Allow progress events without runId
     const result = typeof data.output === "string" ? safeJsonParse(data.output) : data.output;
     setState((prev) => ({ ...prev, finalResult: result }));
-  }, [state.runId]);
+  }
+}, [state.runId]);
 
-  const handleScriptEnd = useCallback((data) => {
-    if (data.runId !== state.runId) return;
+const handleScriptEnd = useCallback((data) => {
+  console.log('[DIAG][useScriptRunnerStream] handleScriptEnd received:', data);
+  if (data.type === 'progress' || data.runId === state.runId) { // Allow progress events without runId
     const endTime = new Date().toISOString();
     const exitCode = data.exitCode || 0;
     setState((prev) => {
@@ -260,25 +296,33 @@ export const useScriptRunnerStream = (wsContext = {}, options = {}) => {
       if (!isSuccess && !finalError) finalError = prev.finalResult?.message || `Script exited with code ${exitCode}.`;
       return {
         ...prev,
-        isRunning: false, isComplete: true, endTime, exitCode, error: finalError,
+        isRunning: false,
+        isComplete: true,
+        endTime,
+        exitCode,
+        error: finalError,
         currentState: isSuccess ? SCRIPT_STATES.COMPLETED : SCRIPT_STATES.FAILED,
       };
     });
-  }, [state.runId]);
-
+  }
+}, [state.runId]);
   //--------------------------------------------------------------------------------
   // Subsection 2.5: WebSocket Event Subscriptions
   //--------------------------------------------------------------------------------
   useEffect(() => {
-    if (!websocketService || !state.runId) return;
-    const unsubscribers = [
-      websocketService.on(WS_EVENTS.SCRIPT_ERROR, handleScriptError),
-      websocketService.on(WS_EVENTS.SCRIPT_OUTPUT, handleScriptOutput),
-      websocketService.on(WS_EVENTS.SCRIPT_END, handleScriptEnd),
-    ];
-    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
-  }, [websocketService, state.runId, handleScriptError, handleScriptOutput, handleScriptEnd]);
-
+  if (!websocketService || !state.runId) return;
+  console.log('[DIAG][useScriptRunnerStream] Setting up listeners for runId:', state.runId);
+  const unsubscribers = [
+    websocketService.on(WS_EVENTS.PROGRESS, handleScriptError),
+    websocketService.on(WS_EVENTS.RESULT, handleScriptOutput),
+    // Remove or keep handleScriptEnd if needed for other scripts
+    websocketService.on(WS_EVENTS.ERROR, handleScriptEnd),
+  ];
+  return () => {
+    console.log('[DIAG][useScriptRunnerStream] Cleaning up listeners for runId:', state.runId);
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
+  };
+}, [websocketService, state.runId, handleScriptError, handleScriptOutput, handleScriptEnd]);
   //--------------------------------------------------------------------------------
   // Subsection 2.6: Computed Properties & Return Interface
   //--------------------------------------------------------------------------------
@@ -430,7 +474,6 @@ export const useTemplateApplication = (wsContext = {}, options = {}) => {
     const pythonPayload = data.data;
     setApplicationState(prev => ({ ...prev, progress: pythonPayload }));
   }, []);
-
   const handleResult = useCallback((data) => {
     const endTime = performance.now();
     setApplicationState(prev => ({

@@ -1,14 +1,11 @@
 # python_pipeline/tools/backup_and_restore/metadata.yml
-
 # -----------------------------------
 # Basic Information
 # -----------------------------------
 # Display name for the tool in the UI
 displayName: "Device Backup & Restore"
-
 # Description shown in the UI to explain the tool's purpose
 description: "A tool to perform configuration backups from a device or restore a configuration to a device. The form will dynamically change based on the selected action."
-
 # Category for grouping in the UI
 category: "Device Management"
 
@@ -16,10 +13,27 @@ category: "Device Management"
 # Capabilities
 # -----------------------------------
 capabilities:
+  # Enables device targeting functionality (manual hostname entry or inventory file selection)
+  deviceTargeting: true
   # Indicates the tool requires device authentication credentials
   deviceAuth: true
   # Disables report saving feature for this tool
   enableReportSaving: false
+
+# -----------------------------------
+# Capability Configuration
+# -----------------------------------
+# Configuration for the deviceTargeting capability
+deviceTargeting:
+  title: "Target Device Selection"
+  description: "Choose target devices for backup or restore operations"
+  requiredFields: ["hostname", "inventory_file"]  # At least one must be provided
+
+# Configuration for the deviceAuth capability
+deviceAuth:
+  title: "Device Authentication"
+  description: "Provide credentials to access the target device(s)"
+  requiredFields: ["username", "password"]
 
 # -----------------------------------
 # Parameters

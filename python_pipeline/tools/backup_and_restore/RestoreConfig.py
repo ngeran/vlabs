@@ -1,4 +1,4 @@
-# python_pipeline/tools/backup_and_restore/RestoreConfig.py
+#s python_pipeline/tools/backup_and_restore/RestoreConfig.py
 
 # ====================================================================================
 # SECTION 1: IMPORTS AND DEPENDENCIES

@@ -18,6 +18,9 @@ capabilities:
   # instead of the default form generator. The string must match the `case`
   # in ScriptOptionsRenderer.jsx.
   sidebarComponent: 'MultiLevelSelect'
+  # Enables device targeting functionality (manual hostname entry or inventory file selection)
+  deviceTargeting: true
+
 
   # We can keep this if the script doesn't produce a saveable report.
   enableReportSaving: false

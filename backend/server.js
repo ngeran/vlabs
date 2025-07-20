@@ -504,8 +504,9 @@ app.get("/api/labs/all-statuses", async (req, res) => {
 //  ===========================================================================
 app.post("/api/scripts/run", async (req, res) => {
   const { scriptId, parameters, wsClientId } = req.body;
-    // +++ ADD THIS LOG +++
+
   console.log(`[DEBUG][API] /api/scripts/run called for scriptId: ${scriptId} with wsClientId: ${wsClientId}`);
+  console.log(`[DEBUG][API] Original parameters:`, parameters);
 
   // 1. Validate WebSocket Client ID
   if (!wsClientId) {
@@ -526,35 +527,95 @@ app.post("/api/scripts/run", async (req, res) => {
     return res.status(404).json({ success: false, message: "Script definition not found." });
   }
 
-  // 3. Immediately respond to the client to indicate the process has started
+  // 3. Process parameters - RESOLVE INVENTORY FILE TO HOSTNAMES
+  let processedParameters = { ...parameters };
+
+  if (parameters && parameters.inventory_file) {
+    try {
+      // Read the inventory file from the host filesystem
+        // Extract just the filename from the parameters (remove any path prefixes)
+      const filename = path.basename(parameters.inventory_file);
+      const inventoryFilePath = path.join('/python_pipeline/data', filename);
+      console.log(`[DEBUG][API] Reading inventory file from: ${inventoryFilePath}`);
+
+      if (!fs.existsSync(inventoryFilePath)) {
+        throw new Error(`Inventory file not found: ${inventoryFilePath}`);
+      }
+
+      const inventoryContent = fs.readFileSync(inventoryFilePath, 'utf8');
+      const inventoryData = yaml.load(inventoryContent);
+
+      // Extract hostnames from your specific inventory format
+      let hostnames = [];
+
+      // Your format: array of locations with routers
+      if (Array.isArray(inventoryData)) {
+        for (const location of inventoryData) {
+          if (location.routers && Array.isArray(location.routers)) {
+            for (const router of location.routers) {
+              // You can use either ip_address or host_name - adjust as needed
+              if (router.ip_address) {
+                hostnames.push(router.ip_address);
+              } else if (router.host_name) {
+                hostnames.push(router.host_name);
+              }
+            }
+          }
+        }
+      }
+
+      if (hostnames.length === 0) {
+        throw new Error(`No hosts found in inventory file: ${parameters.inventory_file}`);
+      }
+
+      // Convert hostnames array to comma-separated string
+      const hostnameString = hostnames.join(',');
+      console.log(`[DEBUG][API] Resolved hostnames from inventory: ${hostnameString}`);
+
+      // Replace inventory_file parameter with hostname parameter
+      processedParameters = {
+        ...parameters,
+        hostname: hostnameString
+      };
+      delete processedParameters.inventory_file;
+
+    } catch (error) {
+      console.error(`[DEBUG][API] Error processing inventory file:`, error.message);
+      return res.status(400).json({
+        success: false,
+        message: `Error processing inventory file: ${error.message}`
+      });
+    }
+  }
+
+  console.log(`[DEBUG][API] Processed parameters:`, processedParameters);
+
+  // 4. Immediately respond to the client to indicate the process has started
   res.status(202).json({ success: true, message: `Script '${scriptId}' execution started.` });
 
-  // 4. Construct Docker arguments
+  // 5. Construct Docker arguments
   const scriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, scriptDef.path, "run.py");
-
   const dockerArgs = [
     "run", "--rm", "--network=host",
     "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
     "vlabs-python-runner",
-    // These are crucial for unbuffered output from Python
     "stdbuf", "-oL", "-eL", "python", "-u",
     scriptPath
   ];
 
-  if (parameters) {
-    for (const [key, value] of Object.entries(parameters)) {
-      // The old logic for joining array is now handled in Python
+  // Add processed parameters to Docker command
+  if (processedParameters) {
+    for (const [key, value] of Object.entries(processedParameters)) {
       if (value !== undefined && value !== null && value !== "") {
         dockerArgs.push(`--${key}`);
         dockerArgs.push(String(value));
       }
     }
   }
- // +++ ADD THIS CRITICAL LOG +++
-  // This shows us the exact command being run.
-  console.log('[DEBUG][API] Executing Docker command with args:', dockerArgs.join(' '));
 
-  // 5. Kick off the execution using the new real-time function
+  console.log('[DEBUG][API] Final Docker command:', dockerArgs.join(' '));
+
+  // 6. Execute the script
   executeWithRealTimeUpdates('docker', dockerArgs, clientWs);
 });
 //  ===========================================================================================

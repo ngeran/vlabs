@@ -49,7 +49,14 @@ function JsnapyRunner({ wsContext, script }) {
   const handleParamChange = (name, value) => {
     setParameters(prev => ({ ...prev, [name]: value }));
   };
-
+   // 1. ADD THIS NEW DEDICATED FUNCTION FOR AUTHENTICATION
+  // It ensures username and password are saved correctly without side effects.
+  const handleAuthChange = (name, value) => {
+    setParameters(prevParams => ({
+      ...prevParams,
+      [name]: value
+    }));
+  };
   // Toggle selection of a test in the tests array.
   const handleTestToggle = (testId) => {
     setParameters(prev => {
@@ -136,7 +143,7 @@ function JsnapyRunner({ wsContext, script }) {
             {/* Device Targeting Inputs */}
             <DeviceTargetSelector
               parameters={parameters}
-              onParamChange={handleParamChange}
+              onParamChange={handleAuthChange}
               title={script.deviceTargeting?.title}
               description={script.deviceTargeting?.description}
             />

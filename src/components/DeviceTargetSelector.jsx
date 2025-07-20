@@ -2,7 +2,9 @@
 // FILE: DeviceTargetSelector.jsx
 // DESCRIPTION: Reusable component for rendering device targeting inputs (hostname
 //              or inventory file selection) with a toggle between manual and
-//              inventory modes. Fetches inventory files from the backend API.
+//              inventory modes. Fetches inventory files from the backend API and
+//              logs interactions to verify inventory file selection, including
+//              specific checks for inventory.yml.
 // DEPENDENCIES:
 //   - react: For building the UI and managing state (useState, useEffect).
 //   - lucide-react: For icons (List, Keyboard, Server, AlertCircle, ChevronDown, Wifi).
@@ -45,19 +47,26 @@ export default function DeviceTargetSelector({
       setLoadingInv(true);
       setErrorInv(null);
       try {
+        console.log('[DeviceTargetSelector] Fetching inventory files from:', `${API_BASE_URL}/api/inventories/list`);
         const response = await fetch(`${API_BASE_URL}/api/inventories/list`);
-        if (!response.ok)
-          throw new Error(`Server responded with ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+        }
         const data = await response.json();
         if (data.success) {
+          console.log('[DeviceTargetSelector] Successfully fetched inventories:', data.inventories);
+          const hasInventoryYml = data.inventories.some(file => file.value === 'inventory.yml');
+          console.log('[DeviceTargetSelector] Is inventory.yml available?', hasInventoryYml);
+          if (!hasInventoryYml) {
+            console.warn('[DeviceTargetSelector] inventory.yml not found in fetched inventories');
+            setErrorInv('Inventory file "inventory.yml" not found in available inventories.');
+          }
           setInventories(data.inventories || []);
         } else {
-          throw new Error(
-            data.message || "Unknown error fetching inventories.",
-          );
+          throw new Error(data.message || "Unknown error fetching inventories.");
         }
       } catch (error) {
-        console.error("Failed to fetch inventories:", error);
+        console.error('[DeviceTargetSelector] Failed to fetch inventories:', error.message);
         setErrorInv(error.message);
       } finally {
         setLoadingInv(false);
@@ -72,18 +81,25 @@ export default function DeviceTargetSelector({
   // Handle input changes for hostname or inventory_file.
   const handleChange = (e) => {
     const { name, value } = e.target;
+    console.log(`[DeviceTargetSelector] Updating ${name} to:`, value);
+    if (name === 'inventory_file' && value === 'inventory.yml') {
+      console.log('[DeviceTargetSelector] Selected inventory.yml');
+    }
     onParamChange(name, value);
   };
 
   // Handle toggle between manual and inventory modes, resetting other field.
   const handleModeChange = (mode) => {
+    console.log('[DeviceTargetSelector] Switching to input mode:', mode);
     setInputMode(mode);
     if (mode === "manual") {
+      console.log('[DeviceTargetSelector] Clearing inventory_file and setting hostname');
       onParamChange("inventory_file", undefined);
       if (!parameters.hostname) {
         onParamChange("hostname", "");
       }
     } else {
+      console.log('[DeviceTargetSelector] Clearing hostname and setting inventory_file');
       onParamChange("hostname", undefined);
       if (!parameters.inventory_file) {
         onParamChange("inventory_file", "");
@@ -229,4 +245,5 @@ export default function DeviceTargetSelector({
       </div>
     </div>
   );
+        I
 }

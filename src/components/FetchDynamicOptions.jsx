@@ -1,190 +1,134 @@
-// src/components/FetchDynamicOptions.jsx
+// =================================================================================================
+// COMPONENT: FetchDynamicOptions.jsx
+//
+// PURPOSE:
+//   - Handles dynamic fetching of options for parameters with dynamicOptionsEndpoint/apiEndpoint.
+//   - Respects both `show_if` and `active` fields from metadata.yml for option visibility.
+//   - Only parameters with active: true (or undefined) and matching show_if are rendered.
+//
+// -------------------------------------------------------------------------------------------------
+// SECTION 1: IMPORTS AND CONSTANTS
+// -------------------------------------------------------------------------------------------------
 import React, { useState } from "react";
 import toast from "react-hot-toast";
-import { RefreshCw, Download, Database } from "lucide-react";
+import { RefreshCw, Database } from "lucide-react";
 import PulseLoader from "react-spinners/PulseLoader";
 
 const API_BASE_URL = "http://localhost:3001";
 
-// ====================================================================================
-// SECTION 1: COMPONENT DEFINITION
-// ====================================================================================
-
-/**
- * Enhanced FetchDynamicOptions component that works with the new capability-based system.
- * Supports multiple dynamic option types and integrates with device targeting capabilities.
- *
- * @param {object} props
- * @param {object} props.script - The configuration object for the currently selected script.
- * @param {object} props.parameters - The current state of script parameters.
- * @param {function} props.onParamChange - Callback to update a parameter in the parent component.
- */
+// -------------------------------------------------------------------------------------------------
+// SECTION 2: MAIN COMPONENT LOGIC
+// -------------------------------------------------------------------------------------------------
 function FetchDynamicOptions({ script, parameters, onParamChange }) {
-  // ====================================================================================
-  // SECTION 2: STATE MANAGEMENT
-  // ====================================================================================
-
+  // State for loading indicators per parameter
   const [loadingStates, setLoadingStates] = useState({});
 
-  // ====================================================================================
-  // SECTION 3: DEFENSIVE LOGIC & ENHANCED GUARD CLAUSES
-  // ====================================================================================
-
-  // Enhanced validation for the new capability system
+  // Only render if there are parameters with dynamic options
   const shouldRender =
     script &&
-    script.capabilities &&
     Array.isArray(script.parameters) &&
-    // Check if any parameters have dynamic options configured
-    script.parameters.some(param => param.apiEndpoint || param.dynamicOptions);
+    script.parameters.some(param =>
+      (param.apiEndpoint || param.dynamicOptionsEndpoint) && (param.active === undefined || param.active === true)
+    );
 
-  if (!shouldRender) {
-    return null;
-  }
+  if (!shouldRender) return null;
 
-  // Find all parameters that support dynamic fetching
-  const dynamicParameters = script.parameters.filter(param =>
-    param.apiEndpoint || param.dynamicOptions
-  );
+  // Filter parameters that should show "Fetch" button, considering active and show_if logic
+  const dynamicParameters = script.parameters.filter(param => {
+    // Only show if active !== false
+    if (param.active === false) return false;
+    // Only show if dynamic endpoint present
+    if (!(param.apiEndpoint || param.dynamicOptionsEndpoint)) return false;
+    // Only show if show_if matches (or not present)
+    if (param.show_if) {
+      const { name, value } = param.show_if;
+      if (parameters[name] !== value) return false;
+    }
+    return true;
+  });
 
-  // ====================================================================================
-  // SECTION 4: ENHANCED DATA FETCHING LOGIC
-  // ====================================================================================
-
+  // -------------------------------------------------------------------------------------------------
+  // SECTION 3: FETCH LOGIC FOR DYNAMIC PARAMETERS
+  // -------------------------------------------------------------------------------------------------
   /**
-   * Generic function to fetch dynamic options for any parameter
+   * Fetches options for a parameter from its configured endpoint.
    */
   const fetchOptionsForParameter = async (paramConfig) => {
-    const { name: paramName, apiEndpoint, dependsOn, dynamicOptions } = paramConfig;
+    const { name: paramName, apiEndpoint, dynamicOptionsEndpoint, dependsOn } = paramConfig;
+    const endpoint = apiEndpoint || dynamicOptionsEndpoint;
 
-    // Determine the API endpoint - could be direct or from dynamicOptions
-    const endpoint = apiEndpoint || dynamicOptions?.apiEndpoint;
-    if (!endpoint) return;
-
-    // Check dependencies if they exist
+    // Check dependencies if defined
     if (dependsOn) {
-      const { field: depField, value: depValue } = dependsOn;
-      if (parameters[depField] !== depValue) {
-        return; // Don't fetch if dependency condition isn't met
-      }
+      const { field, value } = dependsOn;
+      if (parameters[field] !== value) return;
     }
 
-    // For device targeting, check if we have the required source parameter
-    if (script.capabilities?.deviceTargeting) {
-      const hasHostname = parameters.hostname && parameters.hostname.trim();
-      const hasInventoryFile = parameters.inventory_file && parameters.inventory_file.trim();
-
-      if (!hasHostname && !hasInventoryFile) {
-        toast.error("Please specify a target device (hostname or inventory file) first");
-        return;
-      }
-    }
-
-    const loadingKey = paramName;
-    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
+    setLoadingStates(prev => ({ ...prev, [paramName]: true }));
 
     try {
-      // Prepare request body with relevant parameters
+      // Compose request body for POST endpoints
       const requestBody = {
-        // Include device targeting info if available
-        ...(parameters.hostname && { hostname: parameters.hostname }),
-        ...(parameters.inventory_file && { inventory_file: parameters.inventory_file }),
-        // Include auth info if available (for authenticated requests)
-        ...(parameters.username && { username: parameters.username }),
-        // Include any other relevant parameters
         ...Object.fromEntries(
-          Object.entries(parameters).filter(([key, value]) =>
-            value !== undefined && value !== null && value !== ""
-          )
+          Object.entries(parameters).filter(([_, v]) => v !== undefined && v !== null && v !== "")
         )
       };
 
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
+      // Use POST for /api/ endpoints, GET otherwise
+      const response = endpoint.startsWith("/api/")
+        ? await fetch(`${API_BASE_URL}${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          })
+        : await fetch(`${API_BASE_URL}${endpoint}`);
 
       const data = await response.json();
+      if (!data.success) throw new Error(data.message || `Failed to fetch ${paramName} options`);
 
-      if (!data.success) {
-        throw new Error(data.message || `Failed to fetch ${paramName} options`);
-      }
-
-      // Handle different response formats
+      // Standardize option extraction
       let options = [];
-      if (Array.isArray(data.options)) {
-        options = data.options;
-      } else if (Array.isArray(data.data)) {
-        options = data.data;
-      } else if (data[paramName]) {
-        options = Array.isArray(data[paramName]) ? data[paramName] : [data[paramName]];
-      }
+      if (Array.isArray(data.options)) options = data.options;
+      else if (Array.isArray(data.data)) options = data.data;
+      else if (Array.isArray(data[paramName])) options = data[paramName];
+      else if (Array.isArray(data.backups)) options = data.backups;
 
-      // Update the parameter with fetched options
-      const optionsKey = `${paramName}_options`;
-      onParamChange(optionsKey, options);
+      onParamChange(`${paramName}_options`, options);
 
       if (options.length === 0) {
         toast.error(`No ${paramName.replace(/_/g, ' ')}s found`);
       } else {
         toast.success(`Found ${options.length} ${paramName.replace(/_/g, ' ')}(s)`);
       }
-
     } catch (err) {
       console.error(`Error fetching ${paramName} options:`, err);
       toast.error(err.message || `Failed to fetch ${paramName} options`);
       onParamChange(`${paramName}_options`, []);
     } finally {
-      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
+      setLoadingStates(prev => ({ ...prev, [paramName]: false }));
     }
   };
 
-  /**
-   * Get appropriate icon for parameter type
-   */
+  // -------------------------------------------------------------------------------------------------
+  // SECTION 4: UTILITY FUNCTIONS FOR UI
+  // -------------------------------------------------------------------------------------------------
   const getParameterIcon = (paramConfig) => {
     const paramName = paramConfig.name.toLowerCase();
-    if (paramName.includes('backup') || paramName.includes('file')) {
-      return Download;
-    }
-    if (paramName.includes('inventory') || paramName.includes('database')) {
-      return Database;
-    }
+    if (paramName.includes('inventory') || paramName.includes('database')) return Database;
     return RefreshCw;
   };
 
-  /**
-   * Check if a fetch button should be enabled
-   */
   const shouldEnableFetch = (paramConfig) => {
-    // Check if currently loading
-    if (loadingStates[paramConfig.name]) {
-      return false;
-    }
-
-    // Check dependencies
+    if (loadingStates[paramConfig.name]) return false;
     if (paramConfig.dependsOn) {
-      const { field: depField, value: depValue } = paramConfig.dependsOn;
-      if (parameters[depField] !== depValue) {
-        return false;
-      }
+      const { field, value } = paramConfig.dependsOn;
+      if (parameters[field] !== value) return false;
     }
-
-    // For device-dependent fetches, ensure device targeting is configured
-    if (script.capabilities?.deviceTargeting) {
-      const hasHostname = parameters.hostname && parameters.hostname.trim();
-      const hasInventoryFile = parameters.inventory_file && parameters.inventory_file.trim();
-      return hasHostname || hasInventoryFile;
-    }
-
     return true;
   };
 
-  // ====================================================================================
-  // SECTION 5: ENHANCED RENDER LOGIC
-  // ====================================================================================
-
+  // -------------------------------------------------------------------------------------------------
+  // SECTION 5: RENDER LOGIC
+  // -------------------------------------------------------------------------------------------------
   return (
     <div className="space-y-3">
       {dynamicParameters.map((paramConfig) => {
@@ -213,7 +157,6 @@ function FetchDynamicOptions({ script, parameters, onParamChange }) {
                 )}
               </div>
             </div>
-
             <button
               type="button"
               onClick={() => fetchOptionsForParameter(paramConfig)}
@@ -226,8 +169,6 @@ function FetchDynamicOptions({ script, parameters, onParamChange }) {
               title={
                 !isEnabled && paramConfig.dependsOn
                   ? `Set ${paramConfig.dependsOn.field} to "${paramConfig.dependsOn.value}" first`
-                  : !isEnabled && script.capabilities?.deviceTargeting
-                  ? "Configure device targeting first"
                   : `Fetch ${paramDisplayName.toLowerCase()}`
               }
             >
@@ -248,3 +189,13 @@ function FetchDynamicOptions({ script, parameters, onParamChange }) {
 }
 
 export default FetchDynamicOptions;
+
+// -------------------------------------------------------------------------------------------------
+// SECTION 6: EXTENDING METADATA CAPABILITIES
+// -------------------------------------------------------------------------------------------------
+/**
+ * To control option visibility:
+ * - Use `active: false` in metadata.yml for any parameter you want hidden.
+ * - Use `show_if` for conditional visibility (backup/restore).
+ * - Only parameters with dynamicOptionsEndpoint/apiEndpoint and active: true get fetch buttons.
+ */

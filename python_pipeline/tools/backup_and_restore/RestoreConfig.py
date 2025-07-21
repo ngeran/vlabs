@@ -124,6 +124,13 @@ class RestoreManager:
         Raises:
             Exception: If any step in the restore process fails.
         """
+        # [DEBUG] Log received parameters to verify against the frontend
+        self.logger.info("--- Python Restore Script: Parameter Verification ---")
+        self.logger.info(f"Received backup_file_path: '{backup_file_path}' (Type: {type(backup_file_path)})")
+        self.logger.info(f"Received restore_type: '{restore_type}' (Type: {type(restore_type)})")
+        self.logger.info(f"Received confirmed_timeout: {confirmed_timeout} (Type: {type(confirmed_timeout)})")
+        self.logger.info("-----------------------------------------------------")
+
         self.progress.start_operation(f"Restore on '{self.dev.hostname}' using type '{restore_type}'")
         self.logger.info(f"Starting restore for {self.dev.hostname} with file {backup_file_path}")
 

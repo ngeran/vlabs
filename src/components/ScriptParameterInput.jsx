@@ -1,15 +1,27 @@
-// src/components/ScriptParameterInput.jsx
+// =================================================================================================
+// COMPONENT: ScriptParameterInput.jsx
+//
+// PURPOSE:
+//   - Renders a single input field for a script parameter.
+//   - Supports all standard types: text, password, number, boolean, select/enum, radio.
+//
+// -------------------------------------------------------------------------------------------------
+// SECTION 1: IMPORTS
+// -------------------------------------------------------------------------------------------------
 import React from "react";
 
 /**
- * @description Renders a single input field for a script parameter based on its type.
- * Supports text, password, number, boolean (checkbox), enum (select), and now RADIO buttons.
- * @param {object} props - The component props.
- * @param {object} props.param - The parameter definition object (from script metadata).
- * @param {*} props.value - The current value of the parameter.
- * @param {(name: string, value: any) => void} props.onChange - Callback for when the parameter's value changes.
+ * @description Renders an input for a single parameter.
+ *
+ * @param {object} props
+ * @param {object} props.param - Parameter config.
+ * @param {*} props.value - Current value.
+ * @param {(name: string, value: any) => void} props.onChange - Change handler.
  */
 function ScriptParameterInput({ param, value, onChange }) {
+  // -------------------------------------------------------------------------------------------------
+  // SECTION 2: VALUE CHANGE HANDLER
+  // -------------------------------------------------------------------------------------------------
   const handleChange = (e) => {
     let newValue;
     switch (e.target.type) {
@@ -25,6 +37,7 @@ function ScriptParameterInput({ param, value, onChange }) {
     onChange(param.name, newValue);
   };
 
+  // Common props for all inputs
   const commonProps = {
     id: `param-${param.name}`,
     name: param.name,
@@ -34,9 +47,12 @@ function ScriptParameterInput({ param, value, onChange }) {
       "mt-1 block w-full border border-slate-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-slate-100",
   };
 
+  // -------------------------------------------------------------------------------------------------
+  // SECTION 3: INPUT RENDERING LOGIC
+  // -------------------------------------------------------------------------------------------------
   const renderInput = () => {
     switch (param.type) {
-      // --- NEW CASE FOR RADIO BUTTONS ---
+      // --- RADIO BUTTONS ---
       case "radio":
         return (
           <div className="mt-2 space-y-2">
@@ -47,9 +63,9 @@ function ScriptParameterInput({ param, value, onChange }) {
               >
                 <input
                   type="radio"
-                  name={param.name} // All radios in a group must have the same name
+                  name={param.name}
                   value={option.value}
-                  checked={value === option.value} // Check if this option's value matches the current state
+                  checked={value === option.value}
                   onChange={handleChange}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300"
                 />
@@ -58,8 +74,7 @@ function ScriptParameterInput({ param, value, onChange }) {
             ))}
           </div>
         );
-      // --- END OF NEW CASE ---
-
+      // --- BOOLEAN (CHECKBOX) ---
       case "boolean":
         return (
           <div className="flex items-center mt-2">
@@ -77,9 +92,12 @@ function ScriptParameterInput({ param, value, onChange }) {
             </label>
           </div>
         );
+      // --- SELECT or ENUM (Dropdown) ---
+      case "select":
       case "enum":
         return (
           <select {...commonProps} value={value ?? param.default ?? ""}>
+            <option value="" disabled>Select an option</option>
             {param.options?.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -87,6 +105,7 @@ function ScriptParameterInput({ param, value, onChange }) {
             ))}
           </select>
         );
+      // --- PASSWORD ---
       case "password":
         return (
           <input
@@ -96,6 +115,7 @@ function ScriptParameterInput({ param, value, onChange }) {
             placeholder={param.placeholder}
           />
         );
+      // --- NUMBER ---
       case "number":
         return (
           <input
@@ -105,6 +125,7 @@ function ScriptParameterInput({ param, value, onChange }) {
             placeholder={param.placeholder}
           />
         );
+      // --- TEXT (default) ---
       case "text":
       default:
         return (
@@ -118,6 +139,9 @@ function ScriptParameterInput({ param, value, onChange }) {
     }
   };
 
+  // -------------------------------------------------------------------------------------------------
+  // SECTION 4: MAIN FIELD RENDER
+  // -------------------------------------------------------------------------------------------------
   return (
     <div className="mb-4">
       <label
@@ -136,3 +160,13 @@ function ScriptParameterInput({ param, value, onChange }) {
 }
 
 export default ScriptParameterInput;
+
+// -------------------------------------------------------------------------------------------------
+// SECTION 5: EXTENDING FOR NEW TYPES
+// -------------------------------------------------------------------------------------------------
+/**
+ * To support new parameter types:
+ * - Add logic for the new type in the switch above.
+ * - Update metadata.yml with the new parameter and type.
+ * - Use `show_if` for conditional visibility, `active: false` to hide.
+ */

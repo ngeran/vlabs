@@ -1,44 +1,45 @@
-# python_pipeline/tools/backup_and_restore/metadata.yml
-# -----------------------------------
-# Basic Information
-# -----------------------------------
-# Display name for the tool in the UI
-displayName: "Device Backup & Restore"
-# Description shown in the UI to explain the tool's purpose
+# =================================================================================================
+# METADATA FILE: Backup & Restore Tool
+#
+# PURPOSE:
+#   - Controls UI rendering, option visibility, and validation for backup and restore operations.
+#   - Uses `show_if` to control visibility of parameters per action (backup or restore).
+#   - Uses `active: true/false` to allow easy toggling of parameter visibility without deleting or commenting.
+#   - Only parameters with dynamicOptionsEndpoint/apiEndpoint get fetch buttons.
+#
+# -------------------------------------------------------------------------------------------------
+# SECTION 1: BASIC INFORMATION
+# -------------------------------------------------------------------------------------------------
+displayName: "Backup & Restore"
 description: "A tool to perform configuration backups from a device or restore a configuration to a device. The form will dynamically change based on the selected action."
-# Category for grouping in the UI
 category: "Device Management"
+runnerComponent: "BackupAndRestoreRunner"
 
-# -----------------------------------
-# Capabilities
-# -----------------------------------
+# -------------------------------------------------------------------------------------------------
+# SECTION 2: CAPABILITIES
+# -------------------------------------------------------------------------------------------------
 capabilities:
-  # Enables device targeting functionality (manual hostname entry or inventory file selection)
   deviceTargeting: true
-  # Indicates the tool requires device authentication credentials
   deviceAuth: true
-  # Disables report saving feature for this tool
   enableReportSaving: false
+  restoreUI: true  # Enables RestoreForm for restore action
 
-# -----------------------------------
-# Capability Configuration
-# -----------------------------------
-# Configuration for the deviceTargeting capability
+# -------------------------------------------------------------------------------------------------
+# SECTION 3: CAPABILITY CONFIGURATION
+# -------------------------------------------------------------------------------------------------
 deviceTargeting:
   title: "Target Device Selection"
   description: "Choose target devices for backup or restore operations"
   requiredFields: ["hostname", "inventory_file"]  # At least one must be provided
 
-# Configuration for the deviceAuth capability
 deviceAuth:
   title: "Device Authentication"
   description: "Provide credentials to access the target device(s)"
   requiredFields: ["username", "password"]
 
-# -----------------------------------
-# Parameters
-# -----------------------------------
-# Defines form fields displayed in the UI for user input
+# -------------------------------------------------------------------------------------------------
+# SECTION 4: PARAMETERS (WITH show_if AND active FOR VISIBILITY CONTROL)
+# -------------------------------------------------------------------------------------------------
 parameters:
   # Action selection parameter (backup or restore)
   - name: "command"
@@ -51,70 +52,72 @@ parameters:
       - { value: "restore", label: "Perform Restore" }
     layout: "sidebar"
     description: "Choose whether to back up from or restore to the device."
+    active: true
 
-  # Device IP selection for backup and restore operations
+  # Device IP selection for backup operation only (visible for backup)
   - name: "hostname"
     label: "Device IP"
-    type: "text" # Text for manual entry in backup mode
-    required: true
-    dynamicOptionsEndpoint: "/api/backups/devices" # Used for restore mode dropdown
-    description: "Enter the device IP or hostname for backup, or select from available devices for restore."
+    type: "text"
+    required: false
+    description: "Enter the device IP or hostname for backup."
     layout: "main"
+    show_if: { name: "command", value: "backup" }
+    active: true
 
-  # Backup file selection for restore operation
+  # Device IP selection for restore operation only (visible for restore)
+  - name: "restore_hostname"
+    label: "Device IP for Restore"
+    type: "select"
+    required: false
+    dynamicOptionsEndpoint: "/api/backups/devices"
+    description: "Select the device to restore configuration to."
+    layout: "main"
+    show_if: { name: "command", value: "restore" }
+    active: false
+
+  # Backup file selection for restore operation only (visible for restore)
   - name: "backup_file"
     label: "Backup File to Restore"
     type: "select"
-    required: true
-    dynamicOptionsEndpoint: "/api/backups/devices"
+    required: false
+    dynamicOptionsEndpoint: "/api/backups/files"
     description: "Select a configuration file to restore. Options depend on the selected device."
-    show_if: { name: "command", value: "restore" }
     layout: "main"
+    show_if: { name: "command", value: "restore" }
+    active: false
 
-  # Restore method selection
+  # Inventory file for inventory mode (toggle visible/invisible using active)
+  - name: "inventory_file"
+    label: "Inventory File"
+    type: "select"
+    required: false
+    dynamicOptionsEndpoint: "/api/inventories/list"
+    description: "Select an inventory file containing device details."
+    layout: "main"
+    show_if: { name: "command", value: "backup" }
+    active: false  # <--- Set to false to hide completely
+
+  # Restore method selection (visible for restore only)
   - name: "type"
     label: "Restore Load Type"
     type: "enum"
     default: "override"
-    required: true
+    required: false
     options:
       - { value: "override", label: "Override (full replace)" }
       - { value: "set", label: "Set Commands" }
       - { value: "merge", label: "Merge" }
     description: "The method used to load the configuration onto the device."
-    show_if: { name: "command", value: "restore" }
     layout: "sidebar"
+    show_if: { name: "command", value: "restore" }
+    active: true
 
-  # Timeout for confirmed commit during restore
+  # Timeout for confirmed commit during restore (visible for restore only)
   - name: "confirmed_commit_timeout"
     label: "Confirmed Commit Timeout (minutes)"
     type: "number"
     default: 5
     description: "Timeout for confirmed commit. A value of 0 disables this safety feature."
-    show_if: { name: "command", value: "restore" }
     layout: "sidebar"
-
-  # Username for device authentication
-  - name: "username"
-    label: "Username"
-    type: "text"
-    required: true
-    description: "Username for device authentication."
-    layout: "main"
-
-  # Password for device authentication
-  - name: "password"
-    label: "Password"
-    type: "password"
-    required: true
-    description: "Password for device authentication."
-    layout: "main"
-
-  # Inventory file for inventory mode
-  - name: "inventory_file"
-    label: "Inventory File"
-    type: "select"
-    required: true
-    dynamicOptionsEndpoint: "/api/inventories/list"
-    description: "Select an inventory file containing device details."
-    layout: "main"
+    show_if: { name: "command", value: "restore" }
+    active: true

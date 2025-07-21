@@ -373,7 +373,9 @@ app.get("/api/navigation/menu", (req, res) => {
     res.status(500).json({ success: false, message: `Failed to load navigation menu: ${e.message}` });
   }
 });
-
+// =============================================================================================
+// ==================== FETCH THE HOSTS INSIDE THE BUCKUP DIRECTORY ============================
+// =============================================================================================
 app.get("/api/backups/devices", (req, res) => {
   // Lists devices and their backup files, strictly using /app/backups.
   try {
@@ -438,6 +440,56 @@ app.get("/api/backups/devices", (req, res) => {
     return res.status(500).json({ success: false, message: `Error fetching backups: ${error.message}` });
   }
 });
+
+// =============================================================================================
+// ==================== FETCH THE HOSTS INSIDE THE BUCKUP DIRECTORY ============================
+// =============================================================================================
+//
+app.get("/api/backups/host/:hostname", (req, res) => {
+  const { hostname } = req.params;
+  try {
+    const backupBasePath = "/backups";
+    const deviceDir = path.join(backupBasePath, hostname);
+
+    // Check if the device directory exists
+    if (!fs.existsSync(deviceDir)) {
+      console.error(`[BACKEND] Device directory not found: ${deviceDir}`);
+      return res.json({ success: true, backups: [], message: `No backups found for host ${hostname}.` });
+    }
+
+    // Check directory permissions
+    try {
+      fs.accessSync(deviceDir, fs.constants.R_OK);
+      console.log(`[BACKEND] Device directory is readable: ${deviceDir}`);
+    } catch (error) {
+      console.error(`[BACKEND] Device directory is not readable: ${deviceDir}, Error: ${error.message}`);
+      return res.status(500).json({ success: false, message: `Device directory not readable: ${error.message}` });
+    }
+
+    // Read backup files
+    let backups = [];
+    try {
+      backups = fs.readdirSync(deviceDir)
+        .filter(file => file.endsWith('.conf'))
+        .map(file => ({
+          value: path.join(backupBasePath, hostname, file),
+          label: file
+        }));
+      console.log(`[BACKEND] Backups for ${hostname}: ${backups.map(b => b.label).join(', ') || 'none'}`);
+    } catch (error) {
+      console.error(`[BACKEND] Error reading backups for ${hostname}: ${error.message}`);
+      return res.status(500).json({ success: false, message: `Error reading backups: ${error.message}` });
+    }
+
+    return res.json({ success: true, backups });
+  } catch (error) {
+    console.error(`[BACKEND] Error fetching backups for ${hostname}: ${error.message}`);
+    return res.status(500).json({ success: false, message: `Error fetching backups: ${error.message}` });
+  }
+});
+
+
+
 
 app.get("/api/health", (req, res) => {
   // Health check endpoint for server status.
@@ -743,6 +795,14 @@ app.post("/api/scripts/run-stream", (req, res) => {
   if (clientWs.readyState === 1) {
     clientWs.send(JSON.stringify({ type: "script_start", runId, scriptId }));
   }
+
+  // =======================================================================
+  // [DEBUG ENHANCEMENT 1] - Log the raw arguments array
+  // =======================================================================
+  console.log('[DEBUG][API] Final Docker command being constructed:');
+  console.log(`[DEBUG][API] Command: docker`);
+  console.log('[DEBUG][API] Arguments Array:', dockerArgs);
+  // =======================================================================
 
   executeWithRealTimeUpdates('docker', dockerArgs, clientWs, {
     onStdout: (data) => {

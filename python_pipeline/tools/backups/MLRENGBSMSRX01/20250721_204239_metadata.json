@@ -1,0 +1,14 @@
+{
+    "hostname": "MLRENGBSMSRX01",
+    "backup_timestamp_utc": "2025-07-21T20:42:39.918486",
+    "backup_type": "full",
+    "files": {
+        "configuration": "/app/python-scripts/tools/backups/MLRENGBSMSRX01/20250721_204239.conf",
+        "facts": "/app/python-scripts/tools/backups/MLRENGBSMSRX01/20250721_204239_facts.json"
+    },
+    "device_facts_summary": {
+        "model": "SRX320-POE",
+        "version": "24.2R1-S2.5",
+        "serial_number": "CX1923AN0400"
+    }
+}

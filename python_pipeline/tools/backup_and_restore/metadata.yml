@@ -23,7 +23,8 @@ capabilities:
   deviceAuth: true
   enableReportSaving: false
   restoreUI: true  # Enables RestoreForm for restore action
-
+  resultsDisplay: true
+  enableDebug: true
 # -------------------------------------------------------------------------------------------------
 # SECTION 3: CAPABILITY CONFIGURATION
 # -------------------------------------------------------------------------------------------------
@@ -36,6 +37,10 @@ deviceAuth:
   title: "Device Authentication"
   description: "Provide credentials to access the target device(s)"
   requiredFields: ["username", "password"]
+
+resultsDisplay:
+  title: "Final Execution Summary"
+  description: "A detailed summary of all successful and failed operations."
 
 # -------------------------------------------------------------------------------------------------
 # SECTION 4: PARAMETERS (WITH show_if AND active FOR VISIBILITY CONTROL)

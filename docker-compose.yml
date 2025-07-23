@@ -67,6 +67,8 @@ services:
     # Mount backups directory for script access.
     volumes:
       - ${PROJECT_ROOT}/python_pipeline/tools/backup_and_restore/backups:/backups
+       #DATA DIRECTORY THE INVENTORY.YML
+      - ${PROJECT_ROOT}/python_pipeline/data:/data
     # Connect to the custom network.
     networks:
       - vlabs-net

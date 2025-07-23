@@ -774,6 +774,7 @@ app.post("/api/scripts/run-stream", (req, res) => {
     "run", "--rm", "--network=host",
     "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
     "-v", `${path.join(PYTHON_PIPELINE_PATH_ON_HOST, "tools", "backup_and_restore", "backups")}:/backups`,
+    "-v", `${path.join(PYTHON_PIPELINE_PATH_ON_HOST, "data")}:/data`,
     "vlabs-python-runner", "stdbuf", "-oL", "-eL", "python", "-u", scriptPath
   ];
 

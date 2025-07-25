@@ -234,8 +234,31 @@ const scanDirectory = (directoryPath) => {
 // ====================================================================================
 // Description: Defines REST API endpoints for script, template, and lab management.
 // Purpose: Handles HTTP requests from the frontend for various operations.
-// =======TEST API curl http://localhost:3001/api/inventory-tree ======================
+//
+// NEW ENDPOINT: Fetch Software Versions for the Code Upgrade tool
+app.get('/api/software-versions', (req, res) => {
+  const filePath = path.join(PYTHON_PIPELINE_MOUNT_PATH, 'tools', 'code_upgrade', 'data', 'SoftwareVersions.yml');
+  console.log(`[API][software-versions] Attempting to read: ${filePath}`);
 
+  try {
+    if (!fs.existsSync(filePath)) {
+      console.error(`[API][software-versions] File not found at ${filePath}`);
+      return res.status(404).json({ success: false, message: 'SoftwareVersions.yml not found on the server.' });
+    }
+
+    const fileContents = fs.readFileSync(filePath, 'utf8');
+    const data = yaml.load(fileContents);
+
+    console.log(`[API][software-versions] Successfully parsed SoftwareVersions.yml.`);
+    res.json(data);
+
+  } catch (error) {
+    console.error(`[API][software-versions] Error processing file: ${error.message}`);
+    res.status(500).json({ success: false, message: 'Failed to read or parse software versions file.', error: error.message });
+  }
+});
+
+// =======TEST API curl http://localhost:3001/api/inventory-tree ======================
 app.get('/api/inventory-tree', (req, res) => {
   const basePath = '/python_pipeline/tools/code_upgrade';
   const upgradePath = path.join(basePath, 'upgrade_path', 'vendor');
@@ -750,90 +773,92 @@ app.post("/api/templates/apply", async (req, res) => {
   executeWithRealTimeUpdates('docker', dockerArgs, clientWs);
 });
 
-//  =========================================================================
-//  ==============   EXECUTE WITH REAL TIME STREAMING     ===================
-//  =========================================================================
+// ===================================================================================
+// FILE: backend/server.js (Partial)
+// SECTION 7.X: SCRIPT EXECUTION WITH REAL-TIME STREAMING (FINAL CORRECTED VERSION)
+// ===================================================================================
+// Description: The definitive endpoint for running all scripts. It uses a simple
+//              pass-through logic by default and applies special parameter processing
+//              conditionally, only for the scripts that require it. This ensures
+//              compatibility for both old and new scripts.
 
+// ===================================================================================
+// FILE: backend/server.js (Partial)
+// SECTION 7.X: SCRIPT EXECUTION WITH REAL-TIME STREAMING (FINAL CORRECTED VERSION)
+// ===================================================================================
+
+// ===================================================================================
+// SCRIPT EXECUTION ENDPOINT (CORRECTED)
+// ===================================================================================
 app.post("/api/scripts/run-stream", (req, res) => {
   const { scriptId, parameters, wsClientId } = req.body;
   const runId = Date.now().toString() + Math.random().toString(36).substring(2, 9);
 
+  // 1. Validation
   if (!scriptId || !wsClientId) return res.status(400).json({ success: false, message: "scriptId and wsClientId are required." });
-
   const clientWs = clients.get(wsClientId);
-  if (!clientWs || clientWs.readyState !== 1) return res.status(404).json({ success: false, message: `WebSocket client not found or not open: ${wsClientId}` });
-
+  if (!clientWs || clientWs.readyState !== 1) return res.status(404).json({ success: false, message: `WebSocket client not found.` });
   const config = yaml.load(fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
   const scriptDef = config.scripts.find((s) => s.id === scriptId);
-  if (!scriptDef) return res.status(404).json({ success: false, message: `Script definition not found for ID: ${scriptId}` });
+  if (!scriptDef) return res.status(404).json({ success: false, message: `Script definition not found.` });
 
-  const scriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, scriptDef.path, "run.py");
+  // 2. Acknowledge and Pre-process
   res.status(202).json({ success: true, message: "Script execution started.", runId });
+  let processedParameters = { ...parameters };
 
-  const dockerArgs = [
+  if (scriptId === 'code_upgrade') {
+      console.log('[BACKEND] Removing transient UI parameters (vendor, platform) for code_upgrade script.');
+      delete processedParameters.vendor;
+      delete processedParameters.platform;
+  }
+
+  // 3. Construct Docker command
+  const scriptPathInContainer = path.join(PYTHON_PIPELINE_MOUNT_PATH, scriptDef.path, "run.py");
+
+  // ** THIS IS THE EXPLICIT FIX for the ReferenceError **
+  const mainVolumeMount = `${process.env.HOST_PROJECT_ROOT}/python_pipeline:${PYTHON_PIPELINE_MOUNT_PATH}`;
+  const backupVolumeMount = `${process.env.HOST_PROJECT_ROOT}/python_pipeline/tools/backup_and_restore/backups:/backups`;
+
+  const dockerOptions = [
     "run", "--rm", "--network=host",
-    "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
-    "-v", `${path.join(PYTHON_PIPELINE_PATH_ON_HOST, "tools", "backup_and_restore", "backups")}:/backups`,
-    "-v", `${path.join(PYTHON_PIPELINE_PATH_ON_HOST, "data")}:/data`,
-    "vlabs-python-runner", "stdbuf", "-oL", "-eL", "python", "-u", scriptPath
+    "-v", mainVolumeMount,
+    "-v", backupVolumeMount,
   ];
 
-  if (parameters) {
-    for (const [key, value] of Object.entries(parameters)) {
-      if (value === null || value === undefined || value === "") continue;
-      if (value === true) {
-        dockerArgs.push(`--${key}`);
-      } else if (value !== false) {
-        dockerArgs.push(`--${key}`);
-        dockerArgs.push(String(value));
-      }
+  const commandAndArgs = ["vlabs-python-runner", "stdbuf", "-oL", "-eL", "python", "-u", scriptPathInContainer];
+
+  // Build argument list
+  for (const [key, value] of Object.entries(processedParameters)) {
+    if (value === null || value === undefined || value === '') continue;
+    if (value === true) {
+      commandAndArgs.push(`--${key}`);
+    } else if (value !== false) {
+      commandAndArgs.push(`--${key}`);
+      commandAndArgs.push(String(value));
     }
   }
 
-  console.log(`[BACKEND] Executing docker command: docker ${dockerArgs.join(" ")}`);
+  const finalDockerCommand = [...dockerOptions, ...commandAndArgs];
 
-  // Send start notification
-  if (clientWs.readyState === 1) {
-    clientWs.send(JSON.stringify({ type: "script_start", runId, scriptId }));
-  }
+  // 4. Execute
+  console.log('--- EXECUTING DOCKER COMMAND ---');
+  console.log(`docker ${finalDockerCommand.join(' ')}`);
+  console.log('--------------------------------');
 
-  // =======================================================================
-  // [DEBUG ENHANCEMENT 1] - Log the raw arguments array
-  // =======================================================================
-  console.log('[DEBUG][API] Final Docker command being constructed:');
-  console.log(`[DEBUG][API] Command: docker`);
-  console.log('[DEBUG][API] Arguments Array:', dockerArgs);
-  // =======================================================================
-
-  executeWithRealTimeUpdates('docker', dockerArgs, clientWs, {
-    onStdout: (data) => {
-      if (clientWs.readyState === 1) {
-        clientWs.send(JSON.stringify({ type: "script_output", runId, scriptId, output: data }));
-      }
-    },
-    onStderr: (data) => {
-      if (clientWs.readyState === 1) {
-        clientWs.send(JSON.stringify({ type: "script_error", runId, scriptId, error: data }));
-      }
-    },
+  if (clientWs.readyState === 1) clientWs.send(JSON.stringify({ type: "script_start", runId, scriptId }));
+  executeWithRealTimeUpdates('docker', finalDockerCommand, clientWs, {
     onClose: (code, fullStdout, fullStderr) => {
-      let finalResult = null;
-      try { finalResult = JSON.parse(fullStdout); } catch(e) { /* Ignore */ }
-
-      if (finalResult && clientWs.readyState === 1) {
-        clientWs.send(JSON.stringify({ type: "script_output", runId, scriptId, output: finalResult }));
-      }
-
-      const historyRecord = {
-        runId, timestamp: new Date().toISOString(), scriptId, parameters,
-        isSuccess: code === 0, output: fullStdout, error: fullStderr
-      };
-      runHistory.unshift(historyRecord);
-      if (runHistory.length > MAX_HISTORY_ITEMS) runHistory.pop();
-
-      if (clientWs.readyState === 1) {
-        clientWs.send(JSON.stringify({ type: "script_end", runId, scriptId, exitCode: code }));
-      }
+        let finalResult = null;
+        try { finalResult = JSON.parse(fullStdout); } catch(e) { /* Ignore */ }
+        if (finalResult && clientWs.readyState === 1) {
+          clientWs.send(JSON.stringify({ type: "script_output", runId, scriptId, output: finalResult }));
+        }
+        const historyRecord = { runId, timestamp: new Date().toISOString(), scriptId, parameters: processedParameters, isSuccess: code === 0, output: fullStdout, error: fullStderr };
+        runHistory.unshift(historyRecord);
+        if (runHistory.length > MAX_HISTORY_ITEMS) runHistory.pop();
+        if (clientWs.readyState === 1) {
+          clientWs.send(JSON.stringify({ type: "script_end", runId, scriptId, exitCode: code }));
+        }
     }
   });
 });

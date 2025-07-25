@@ -67,6 +67,12 @@ services:
     # Mount backups directory for script access.
     volumes:
       - ${PROJECT_ROOT}/python_pipeline/tools/backup_and_restore/backups:/backups
+      # =======================================================================
+      # iUPGRADE IMAGE
+      # This makes the upgrade images available to the backend service itself at /upgrade_images.
+      # While the server.js fix is for the temporary script container, this is for the permanent backend container.
+      # =======================================================================
+      - ${PROJECT_ROOT}/python_pipeline/tools/code_upgrade/upgrade_path:/upgrade_images
        #DATA DIRECTORY THE INVENTORY.YML
       - ${PROJECT_ROOT}/python_pipeline/data:/data
     # Connect to the custom network.

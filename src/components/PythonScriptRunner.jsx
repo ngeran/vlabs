@@ -37,6 +37,7 @@ import HistoryDrawer from "./HistoryDrawer.jsx";
 // --- Specialized "Feature Runner" Components ---
 // These are the components that the router will choose between.
 import BackupAndRestoreRunner from './runners/BackupAndRestoreRunner.jsx';
+import CodeUpgradeRunner from './runners/CodeUpgradeRunner.jsx';
 import GenericScriptRunner from "./GenericScriptRunner.jsx";
 import JsnapyRunner from "./JsnapyRunner.jsx";
 import TemplateWorkflow from "./TemplateWorkflow.jsx"; // <-- THIS IMPORT IS RESTORED
@@ -58,6 +59,7 @@ const API_BASE_URL = "http://localhost:3001";
  */
 const RUNNER_MAP = {
   BackupAndRestoreRunner,
+  CodeUpgradeRunner,
 };
 
 

@@ -1,716 +1,331 @@
-# python_pipeline/tools/code_upgrades/run.py Version 1
+#!/usr/bin/env python3
+"""
+================================================================================
+SCRIPT:             Device Code Upgrade
+FILENAME:           run.py
+VERSION:            4.0
+AUTHOR:             Network Infrastructure Team
+LAST UPDATED:       2025-07-25
+================================================================================
 
+DESCRIPTION:
+    This script provides a robust, automated solution for upgrading the firmware
+    on network devices, specifically targeting Juniper products running Junos.
+    It is designed to be executed from a web UI or other automation tools by
+    accepting all necessary parameters via command-line arguments.
+
+KEY FEATURES:
+    - Concurrent Upgrades: Utilizes a thread pool to upgrade multiple devices
+      simultaneously, significantly reducing total maintenance time.
+    - Pre-emptive Validation: Before starting the upgrade, it connects to the
+      device to verify that the specified software image file exists in the
+      /var/tmp/ directory, preventing failed jobs due to missing files.
+    - Version Safety: Checks the device's current version against the target
+      version and will skip the upgrade if the device is already compliant.
+    - Post-Reboot Monitoring: Actively probes the device after a reboot,
+      waiting for it to become reachable via both ping and NETCONF.
+    - Final Verification: After the device comes back online, it re-connects
+      to verify that the running software version matches the target version.
+    - Actionable Reporting: Generates a clear, color-coded summary table upon
+      completion, detailing the success or failure for each device with
+      specific error messages.
+
+HOW TO GUIDE:
+
+  1. Prerequisites:
+     - Ensure the target device has NETCONF over SSH enabled.
+     - The software image file must be pre-staged (e.g., via SCP) into the
+       `/var/tmp/` directory on the target device.
+     - The executing environment must have network connectivity to the devices.
+
+  2. Execution from the Web UI / Command Line:
+     The script is executed by passing all parameters as command-line arguments.
+
+     Example:
+     python run.py \\
+       --hostname "192.168.1.10,192.168.1.11" \\
+       --username "netadmin" \\
+       --password "yourSecretPassword" \\
+       --image-filename "junos-vmx-x86-64-21.4R1.12.tgz" \\
+       --target-version "21.4R1.12"
+================================================================================
+"""
+
+# ================================================================================
+# SECTION 1: IMPORTS AND CONFIGURATION
+# --------------------------------------------------------------------------------
+# All necessary libraries and initial script-wide configurations are defined here.
+# ================================================================================
 import argparse
-import json
-import sys
-import os
 import logging
+import sys
 import time
-import socket
-import hashlib
-from datetime import datetime
+import subprocess
+import concurrent.futures
+from typing import List, Optional
 from enum import Enum
-from typing import Optional, Dict, Any, Callable
+from dataclasses import dataclass
 
-# Import PyEZ specifics for software upgrades and robust error handling
+# Third-party libraries
 from jnpr.junos import Device
 from jnpr.junos.utils.sw import SW
-from jnpr.junos.exception import ConnectError, SwError, ProbeError, RpcError
+from rich.console import Console
+from rich.table import Table
 
-# Import custom utility functions
-try:
-    # Assuming standard project structure
-    from utils.connect_to_hosts import connect_to_hosts, disconnect_from_hosts
-    from utils.utils import load_yaml_file
-except ImportError:
-    # Fallback for direct execution
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
-    from connect_to_hosts import connect_to_hosts, disconnect_from_hosts
-    from utils import load_yaml_file
-
-# --- Enhanced Progress Tracking Classes ---
-class NotificationLevel(Enum):
-    DEBUG = "DEBUG"
-    INFO = "INFO"
-    WARNING = "WARNING"
-    ERROR = "ERROR"
-    SUCCESS = "SUCCESS"
-
-class ProgressTracker:
-    """A class to manage and broadcast the progress of a multi-step operation."""
-    
-    def __init__(self, enable_visual_display: bool = True):
-        self.steps = []
-        self.current_step_index = -1
-        self.start_time = None
-        self.step_start_time = None
-        self.enable_visual_display = enable_visual_display
-        
-    def start_operation(self, operation_name: str):
-        self.start_time = time.time()
-        self.operation_name = operation_name
-        self._notify(
-            level=NotificationLevel.INFO,
-            message=f"Starting: {operation_name}",
-            event_type="OPERATION_START",
-            data={"operation": operation_name}
-        )
-        
-    def start_step(self, step_name: str, description: str = "", estimated_duration: Optional[int] = None):
-        self.current_step_index += 1
-        self.step_start_time = time.time()
-        step_info = {
-            "step": self.current_step_index + 1,
-            "name": step_name,
-            "description": description,
-            "status": "IN_PROGRESS",
-            "start_time": datetime.now().isoformat(),
-            "estimated_duration": estimated_duration,
-            "duration": None,
-            "details": {}
-        }
-        self.steps.append(step_info)
-        
-        self._notify(
-            level=NotificationLevel.INFO,
-            message=f"Step {step_info['step']}: {step_name}",
-            event_type="STEP_START",
-            data=step_info
-        )
-            
-    def update_step(self, details: Optional[Dict] = None, status: Optional[str] = None, progress_percentage: Optional[int] = None, message: Optional[str] = None):
-        if self.current_step_index < 0: return
-        
-        current = self.steps[self.current_step_index]
-        if details:
-            current["details"].update(details)
-        if status:
-            current["status"] = status
-        if progress_percentage is not None:
-            current["progress_percentage"] = progress_percentage
-                
-        self._notify(
-            level=NotificationLevel.INFO,
-            message=message or f"Updating: {current['name']}",
-            event_type="STEP_UPDATE",
-            data={
-                "step": current['step'],
-                "name": current['name'],
-                "status": status,
-                "details": details,
-                "progress_percentage": progress_percentage
-            }
-        )
-                
-    def complete_step(self, status: str = "COMPLETED", details: Optional[Dict] = None):
-        if self.current_step_index < 0: return
-
-        current = self.steps[self.current_step_index]
-        current["status"] = status
-        current["duration"] = time.time() - self.step_start_time
-        current["end_time"] = datetime.now().isoformat()
-        if details:
-            current["details"].update(details)
-                
-        level = NotificationLevel.SUCCESS if status == "COMPLETED" else NotificationLevel.ERROR
-        self._notify(
-            level=level,
-            message=f"Step {current['step']} {status.lower()}: {current['name']} ({current['duration']:.2f}s)",
-            event_type="STEP_COMPLETE",
-            data=current
-        )
-            
-    def complete_operation(self, status: str = "SUCCESS"):
-        total_duration = time.time() - self.start_time if self.start_time else 0
-        level = NotificationLevel.SUCCESS if status == "SUCCESS" else NotificationLevel.ERROR
-        
-        self._notify(
-            level=level,
-            message=f"Operation completed in {total_duration:.2f}s with status: {status}",
-            event_type="OPERATION_COMPLETE",
-            data={
-                "operation": getattr(self, 'operation_name', 'Unknown'),
-                "status": status,
-                "total_duration": total_duration,
-                "total_steps": len(self.steps)
-            }
-        )
-
-    def _notify(self, level: NotificationLevel, message: str, event_type: str, data: Dict[Any, Any] = None):
-        """Unified notification method. Always sends structured JSON to stderr for WebSocket consumption."""
-        notification_data = {
-            "timestamp": datetime.now().isoformat(),
-            "level": level.value,
-            "message": message,
-            "event_type": event_type,
-            "data": data or {}
-        }
-        
-        # This is the primary output for the Node.js server to capture.
-        print(f"JSON_PROGRESS: {json.dumps(notification_data)}", file=sys.stderr, flush=True)
-
-    def get_summary(self):
-        return {
-            "operation": getattr(self, 'operation_name', 'Unknown'),
-            "total_steps": len(self.steps),
-            "steps": self.steps,
-            "total_duration": time.time() - self.start_time if self.start_time else 0
-        }
-
-# --- Logging Configuration ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename='run_upgrade.log', filemode='a')
+# Configure a logger that prints to standard output for capture by the backend.
+# This ensures all log messages are visible in the Docker container's logs.
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)-8s - %(message)s',
+    stream=sys.stdout
+)
 logger = logging.getLogger(__name__)
 
-def calculate_file_checksum(file_path: str, algorithm: str = 'md5') -> str:
+# Initialize Rich Console for styled terminal output (e.g., the final table).
+console = Console()
+
+
+# ================================================================================
+# SECTION 2: DATA STRUCTURES
+# --------------------------------------------------------------------------------
+# Enums and Dataclasses for tracking the state of the upgrade process.
+# ================================================================================
+
+class UpgradePhase(Enum):
+    """A clear enumeration of all possible steps in the upgrade workflow."""
+    PENDING = "pending"
+    CONNECTING = "connecting"
+    CHECKING_IMAGE = "checking_image"
+    CHECKING_VERSION = "checking_version"
+    INSTALLING = "installing"
+    REBOOTING = "rebooting"
+    PROBING = "probing"
+    VERIFYING = "verifying"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+@dataclass
+class DeviceStatus:
+    """A data structure to track the complete upgrade status for a single device."""
+    hostname: str
+    target_version: str
+    phase: UpgradePhase = UpgradePhase.PENDING
+    message: str = "Waiting to start"
+    initial_version: Optional[str] = None
+    final_version: Optional[str] = None
+    error: Optional[str] = None
+    success: bool = False
+
+    def update_phase(self, phase: UpgradePhase, message: str = ""):
+        """Helper method to update the phase and log the change."""
+        self.phase = phase
+        self.message = message or phase.value.replace("_", " ").title()
+        logger.info(f"[{self.hostname}] STATUS: {self.phase.name} - {self.message}")
+
+
+# ================================================================================
+# SECTION 3: DEVICE UPGRADE WORKFLOW
+# --------------------------------------------------------------------------------
+# This section contains the core function that performs the upgrade on a single
+# target device from start to finish.
+# ================================================================================
+
+def upgrade_device(hostname: str, username: str, password: str, image_filename: str, target_version: str) -> DeviceStatus:
     """
-    Calculate checksum of a file for integrity verification.
-    
-    Args:
-        file_path: Path to the file
-        algorithm: Hash algorithm to use ('md5', 'sha1', 'sha256')
-        
+    Performs the entire upgrade workflow for a single device. This function is
+    designed to be executed in a separate thread for concurrency.
+
     Returns:
-        Hexadecimal string of the checksum
+        DeviceStatus: An object containing the final state of the operation.
     """
-    hash_obj = hashlib.new(algorithm)
+    status = DeviceStatus(hostname=hostname, target_version=target_version)
+    dev = None
+    full_image_path_on_device = f"/var/tmp/{image_filename}"
+
     try:
-        with open(file_path, 'rb') as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash_obj.update(chunk)
-        return hash_obj.hexdigest()
+        # STEP 1: Connect and run pre-checks.
+        status.update_phase(UpgradePhase.CONNECTING, "Establishing NETCONF connection...")
+        dev = Device(host=hostname, user=username, password=password, auto_probe=True, timeout=30)
+        dev.open()
+        dev.timeout = 720  # Increase timeout for long operations like install.
+        status.update_phase(UpgradePhase.CONNECTING, "Connection established.")
+        status.initial_version = dev.facts.get("version", "Unknown")
+        status.final_version = status.initial_version
+
+        # STEP 2: Verify the image file exists before proceeding. This is a critical pre-check.
+        status.update_phase(UpgradePhase.CHECKING_IMAGE, f"Verifying image '{image_filename}' exists in /var/tmp/...")
+        if image_filename not in dev.cli("file list /var/tmp/", warning=False):
+            raise Exception(f"Image '{image_filename}' not found. Please upload it to /var/tmp/ on the device.")
+
+        # STEP 3: Check if the device is already on the target version.
+        status.update_phase(UpgradePhase.CHECKING_VERSION, f"Current version: {status.initial_version}")
+        if status.initial_version == target_version:
+            status.update_phase(UpgradePhase.SKIPPED, "Device is already on the target version.")
+            status.success = True
+            return status
+
+        # STEP 4: Perform the software installation.
+        status.update_phase(UpgradePhase.INSTALLING, "Starting software installation. This may take a while...")
+        sw = SW(dev)
+        install_success = sw.install(package=full_image_path_on_device, validate=True, no_copy=True, progress=True)
+        if not install_success:
+            raise Exception("The sw.install command returned False. Check device logs for details (e.g., 'show log messages').")
+
+        # STEP 5: Initiate the reboot.
+        status.update_phase(UpgradePhase.REBOOTING, "Installation successful. Initiating device reboot...")
+        sw.reboot()
+        # Connection will be lost at this point.
+
     except Exception as e:
-        logger.error(f"Failed to calculate checksum for {file_path}: {str(e)}")
-        return ""
+        status.update_phase(UpgradePhase.FAILED, "Process stopped due to an error.")
+        status.error = str(e)
+        return status
 
-def validate_upgrade_image(image_path: str, expected_checksum: str = None) -> Dict[str, Any]:
-    """
-    Validate upgrade image file exists and optionally verify checksum.
-    
-    Args:
-        image_path: Path to the upgrade image file
-        expected_checksum: Optional expected checksum for verification
-        
-    Returns:
-        Dict containing validation results
-    """
-    validation_result = {
-        "file_exists": False,
-        "file_size": 0,
-        "checksum_valid": None,
-        "calculated_checksum": "",
-        "errors": []
-    }
-    
-    try:
-        # Check if file exists
-        if not os.path.exists(image_path):
-            validation_result["errors"].append(f"Image file not found: {image_path}")
-            return validation_result
-            
-        validation_result["file_exists"] = True
-        validation_result["file_size"] = os.path.getsize(image_path)
-        
-        # Calculate checksum if expected checksum provided
-        if expected_checksum:
-            calculated_checksum = calculate_file_checksum(image_path, 'md5')
-            validation_result["calculated_checksum"] = calculated_checksum
-            
-            if calculated_checksum.lower() == expected_checksum.lower():
-                validation_result["checksum_valid"] = True
-            else:
-                validation_result["checksum_valid"] = False
-                validation_result["errors"].append(f"Checksum mismatch: expected {expected_checksum}, got {calculated_checksum}")
-        
-        # Check file size (typical Junos images are at least 100MB)
-        if validation_result["file_size"] < 100 * 1024 * 1024:  # 100MB
-            validation_result["errors"].append(f"Image file seems too small ({validation_result['file_size']} bytes). Possible corruption.")
-            
-    except Exception as e:
-        validation_result["errors"].append(f"Error validating image: {str(e)}")
-        
-    return validation_result
-
-def parse_storage_cleanup_output(cleanup_output: str) -> Dict[str, Any]:
-    """
-    Parse storage cleanup output to extract freed space information.
-    
-    Args:
-        cleanup_output: Output from storage cleanup operations
-        
-    Returns:
-        Dict containing parsed cleanup results
-    """
-    result = {
-        "files_removed": 0,
-        "space_freed": 0,
-        "cleanup_actions": [],
-        "errors": []
-    }
-    
-    if not cleanup_output:
-        return result
-        
-    lines = cleanup_output.strip().split('\n')
-    for line in lines:
-        line = line.strip()
-        if 'removed' in line.lower() or 'deleted' in line.lower():
-            result["cleanup_actions"].append(line)
-            # Try to extract file count
-            words = line.split()
-            for word in words:
-                if word.isdigit():
-                    result["files_removed"] += int(word)
-                    break
-        elif 'freed' in line.lower() or 'available' in line.lower():
-            result["cleanup_actions"].append(line)
-            # Try to extract space information
-            if 'mb' in line.lower() or 'gb' in line.lower():
-                words = line.split()
-                for i, word in enumerate(words):
-                    if word.lower() in ['mb', 'gb'] and i > 0:
-                        try:
-                            size = float(words[i-1])
-                            if word.lower() == 'gb':
-                                size *= 1024  # Convert to MB
-                            result["space_freed"] += size
-                        except:
-                            pass
-    
-    return result
-
-def upgrade_progress_callback(dev, report, progress_tracker: ProgressTracker):
-    """Callback function for upgrade progress that integrates with ProgressTracker."""
-    # Parse the report to extract meaningful progress information
-    if "copying" in report.lower():
-        progress_tracker.update_step(
-            message=f"Copying image to device: {report}",
-            details={"upgrade_stage": "COPYING", "report": report}
-        )
-    elif "validating" in report.lower():
-        progress_tracker.update_step(
-            message=f"Validating image: {report}",
-            details={"upgrade_stage": "VALIDATING", "report": report}
-        )
-    elif "installing" in report.lower():
-        progress_tracker.update_step(
-            message=f"Installing software: {report}",
-            details={"upgrade_stage": "INSTALLING", "report": report}
-        )
-    elif "rebooting" in report.lower():
-        progress_tracker.update_step(
-            message=f"Rebooting device: {report}",
-            details={"upgrade_stage": "REBOOTING", "report": report}
-        )
-    else:
-        progress_tracker.update_step(
-            message=f"Upgrade progress: {report}",
-            details={"upgrade_stage": "IN_PROGRESS", "report": report}
-        )
-    
-    # Log to file for debugging
-    logger.info(f"UPGRADE_PROGRESS: {report}")
-
-def test_basic_reachability(host: str, port: int = 22, timeout: int = 10) -> bool:
-    """
-    Test basic TCP connectivity to the host on the specified port.
-    
-    Args:
-        host: The hostname or IP address to test
-        port: The port to test (default 22 for SSH)
-        timeout: Connection timeout in seconds
-        
-    Returns:
-        bool: True if host is reachable, False otherwise
-    """
-    try:
-        socket.setdefaulttimeout(timeout)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex((host, port))
-        sock.close()
-        return result == 0
-    except socket.gaierror:
-        return False
-    except Exception:
-        return False
-
-def test_junos_reachability(host: str, username: str, password: str, timeout: int = 30) -> tuple[bool, str, Optional[Device]]:
-    """
-    Test Junos device reachability using PyEZ probe functionality.
-    
-    Args:
-        host: The hostname or IP address
-        username: SSH username
-        password: SSH password
-        timeout: Connection timeout in seconds
-        
-    Returns:
-        tuple: (success, message, device_object or None)
-    """
-    try:
-        dev = Device(host=host, user=username, password=password, 
-                    connect_timeout=timeout, normalize=True)
-        
-        try:
-            result = dev.probe(timeout=timeout)
-            if result:
-                return True, f"Device {host} is reachable and responsive", dev
-            else:
-                return False, f"Device {host} is not responding to NETCONF/SSH", None
-        except ProbeError as e:
-            return False, f"Probe failed for {host}: {str(e)}", None
-        except Exception as e:
-            return False, f"Connection test failed for {host}: {str(e)}", None
-            
-    except Exception as e:
-        return False, f"Failed to create device connection for {host}: {str(e)}", None
-
-def check_storage_space(dev: Device, image_size: int) -> Dict[str, Any]:
-    """
-    Check available storage space on the device.
-    
-    Args:
-        dev: Connected PyEZ Device object
-        image_size: Size of the upgrade image in bytes
-        
-    Returns:
-        Dict containing storage information
-    """
-    try:
-        # Get storage information
-        storage_info = dev.rpc.get_system_storage()
-        
-        # Parse storage information (this is device-specific)
-        # For most Junos devices, we'll look for /var or /tmp partitions
-        available_space = 0
-        storage_details = {}
-        
-        # This is a simplified parser - in real implementation, 
-        # you'd need to parse the XML response properly
-        if hasattr(storage_info, 'text'):
-            storage_text = storage_info.text
-            # Basic parsing logic would go here
-            # For now, we'll use a conservative estimate
-            available_space = 2 * 1024 * 1024 * 1024  # 2GB default assumption
-            
-        required_space = image_size * 1.5  # Add 50% buffer for temporary files
-        
-        return {
-            "available_space": available_space,
-            "required_space": required_space,
-            "sufficient_space": available_space >= required_space,
-            "storage_details": storage_details,
-            "recommendation": "cleanup_needed" if available_space < required_space else "sufficient"
-        }
-        
-    except Exception as e:
-        logger.warning(f"Failed to check storage space: {str(e)}")
-        return {
-            "available_space": 0,
-            "required_space": image_size * 1.5,
-            "sufficient_space": False,
-            "error": str(e),
-            "recommendation": "manual_check_needed"
-        }
-
-def perform_storage_cleanup(dev: Device, sw_instance: SW) -> Dict[str, Any]:
-    """
-    Perform storage cleanup to free up space for upgrade.
-    
-    Args:
-        dev: Connected PyEZ Device object
-        sw_instance: SW utility instance
-        
-    Returns:
-        Dict containing cleanup results
-    """
-    cleanup_results = {
-        "actions_taken": [],
-        "space_freed": 0,
-        "errors": []
-    }
-    
-    try:
-        # Clean up old log files
-        try:
-            result = sw_instance.cleanup()
-            if result:
-                cleanup_info = parse_storage_cleanup_output(str(result))
-                cleanup_results["actions_taken"].extend(cleanup_info["cleanup_actions"])
-                cleanup_results["space_freed"] += cleanup_info["space_freed"]
-            else:
-                cleanup_results["actions_taken"].append("Automatic cleanup completed")
-        except Exception as e:
-            cleanup_results["errors"].append(f"Automatic cleanup failed: {str(e)}")
-            
-        # Additional cleanup actions could be added here
-        # such as removing old software packages, core dumps, etc.
-        
-    except Exception as e:
-        cleanup_results["errors"].append(f"Storage cleanup failed: {str(e)}")
-        
-    return cleanup_results
-
-def main():
-    parser = argparse.ArgumentParser(description="Perform Juniper device software upgrades.")
-    parser.add_argument('--image_path', type=str, required=True, help="Path to the upgrade image file")
-    parser.add_argument('--target_host', type=str, required=True, help="Target device hostname or IP")
-    parser.add_argument('--username', type=str, required=True, help="SSH username")
-    parser.add_argument('--password', type=str, required=True, help="SSH password")
-    parser.add_argument('--inventory_file', type=str, help="Inventory file for host resolution")
-    parser.add_argument('--expected_checksum', type=str, help="Expected MD5 checksum of the image")
-    parser.add_argument('--validate_only', action='store_true', help="Only validate the upgrade without installing")
-    parser.add_argument('--no_reboot', action='store_true', help="Skip automatic reboot after upgrade")
-    parser.add_argument('--cleanup_storage', action='store_true', help="Perform storage cleanup before upgrade")
-    parser.add_argument('--skip_reachability_test', action='store_true', help="Skip initial reachability test")
-    parser.add_argument('--timeout', type=int, default=1800, help="Upgrade timeout in seconds (default: 1800)")
-    parser.add_argument('--simple_output', action='store_true', help="Disable legacy visual display")
-    
-    args = parser.parse_args()
-
-    # Initialize progress tracker
-    progress = ProgressTracker()
-    
-    results = {"success": False, "message": "", "details": {}, "progress": {}}
-    connections = []
-
-    progress.start_operation(f"Software upgrade for device '{args.target_host}'")
-    logger.info(f"Starting software upgrade for device '{args.target_host}' with image '{args.image_path}'")
-
-    try:
-        # --- Step 1: Image Validation ---
-        progress.start_step("IMAGE_VALIDATION", "Validating upgrade image file", estimated_duration=30)
-        validation_result = validate_upgrade_image(args.image_path, args.expected_checksum)
-        
-        if validation_result["errors"]:
-            error_msg = f"Image validation failed: {'; '.join(validation_result['errors'])}"
-            progress.complete_step("FAILED", {"validation_errors": validation_result["errors"]})
-            progress.complete_operation("FAILED")
-            results["success"] = False
-            results["message"] = error_msg
-            logger.error(error_msg)
-            return results
-            
-        progress.complete_step("COMPLETED", {
-            "file_size": validation_result["file_size"],
-            "checksum_verified": validation_result["checksum_valid"],
-            "calculated_checksum": validation_result["calculated_checksum"]
-        })
-
-        # --- Step 2: IP Resolution ---
-        progress.start_step("IP_RESOLUTION", "Determining target device IP address")
-        device_ip = None
-        if args.inventory_file:
-            # Load inventory logic here if needed
-            pass
-        else:
-            device_ip = args.target_host
-        progress.complete_step("COMPLETED", {"resolved_ip": device_ip})
-
-        # --- Step 3: Reachability Test ---
-        if not args.skip_reachability_test:
-            progress.start_step("REACHABILITY_TEST", f"Testing connectivity to {device_ip}", estimated_duration=45)
-            
-            # Test basic TCP connectivity
-            progress.update_step(message="Testing basic TCP connectivity (port 22)")
-            if not test_basic_reachability(device_ip, port=22, timeout=10):
-                error_msg = f"Device {device_ip} is not reachable on port 22 (SSH)"
-                progress.complete_step("FAILED", {"error": error_msg})
-                progress.complete_operation("FAILED")
-                results["success"] = False
-                results["message"] = error_msg
-                logger.error(error_msg)
-                return results
-            
-            # Test Junos connectivity
-            progress.update_step(message="Testing Junos device connectivity and NETCONF capability")
-            is_reachable, reachability_msg, probe_device = test_junos_reachability(
-                device_ip, args.username, args.password, timeout=30
-            )
-            
-            if not is_reachable:
-                error_msg = f"Junos device connectivity test failed: {reachability_msg}"
-                progress.complete_step("FAILED", {"error": error_msg})
-                progress.complete_operation("FAILED")
-                results["success"] = False
-                results["message"] = error_msg
-                logger.error(error_msg)
-                return results
-            
-            if probe_device:
-                try:
-                    probe_device.close()
-                except:
-                    pass
-                    
-            progress.complete_step("COMPLETED", {
-                "tcp_connectivity": "PASSED",
-                "junos_connectivity": "PASSED",
-                "message": reachability_msg
-            })
-
-        # --- Step 4: Device Connection ---
-        progress.start_step("DEVICE_CONNECTION", f"Establishing SSH connection to {device_ip}", estimated_duration=30)
-        try:
-            connections = connect_to_hosts(host=device_ip, username=args.username, password=args.password)
-            dev = connections[0]
-            device_facts = {
-                "hostname": dev.hostname,
-                "model": dev.facts.get('model'),
-                "current_version": dev.facts.get('version'),
-                "serial_number": dev.facts.get('serialnumber')
-            }
-            progress.complete_step("COMPLETED", device_facts)
-        except ConnectError as e:
-            error_msg = f"Failed to connect to device {device_ip}: {str(e)}"
-            progress.complete_step("FAILED", {"error": error_msg})
-            progress.complete_operation("FAILED")
-            results["success"] = False
-            results["message"] = error_msg
-            logger.error(error_msg)
-            return results
-
-        # --- Step 5: Storage Space Check ---
-        progress.start_step("STORAGE_CHECK", "Checking available storage space", estimated_duration=30)
-        image_size = os.path.getsize(args.image_path)
-        storage_info = check_storage_space(dev, image_size)
-        
-        if not storage_info["sufficient_space"] and not args.cleanup_storage:
-            error_msg = f"Insufficient storage space. Available: {storage_info['available_space']} bytes, Required: {storage_info['required_space']} bytes"
-            progress.complete_step("FAILED", {
-                "storage_info": storage_info,
-                "recommendation": "Use --cleanup_storage flag or manually free up space"
-            })
-            progress.complete_operation("FAILED")
-            results["success"] = False
-            results["message"] = error_msg
-            logger.error(error_msg)
-            return results
-            
-        progress.complete_step("COMPLETED", storage_info)
-
-        # --- Step 6: Storage Cleanup (if requested) ---
-        if args.cleanup_storage:
-            progress.start_step("STORAGE_CLEANUP", "Performing storage cleanup", estimated_duration=120)
-            sw = SW(dev)
-            cleanup_results = perform_storage_cleanup(dev, sw)
-            
-            if cleanup_results["errors"]:
-                logger.warning(f"Storage cleanup had errors: {cleanup_results['errors']}")
-                
-            progress.complete_step("COMPLETED", cleanup_results)
-        else:
-            sw = SW(dev)
-
-        # --- Step 7: Pre-upgrade Validation ---
-        progress.start_step("PRE_UPGRADE_VALIDATION", "Validating device readiness for upgrade", estimated_duration=60)
-        
-        try:
-            # Check if device is ready for upgrade
-            # This could include checking for active alarms, commit synchronization, etc.
-            pre_upgrade_checks = {
-                "device_model": dev.facts.get('model'),
-                "current_version": dev.facts.get('version'),
-                "ready_for_upgrade": True,
-                "warnings": []
-            }
-            
-            progress.complete_step("COMPLETED", pre_upgrade_checks)
-            
-        except Exception as e:
-            error_msg = f"Pre-upgrade validation failed: {str(e)}"
-            progress.complete_step("FAILED", {"error": error_msg})
-            progress.complete_operation("FAILED")
-            results["success"] = False
-            results["message"] = error_msg
-            logger.error(error_msg)
-            return results
-
-        # --- Step 8: Image Installation ---
-        if args.validate_only:
-            results["success"] = True
-            results["message"] = f"Validation completed successfully for {dev.hostname}. Device is ready for upgrade."
-            progress.complete_operation("SUCCESS")
-        else:
-            progress.start_step("IMAGE_INSTALLATION", "Installing software image", estimated_duration=args.timeout)
-            
-            try:
-                # Set up progress callback
-                upgrade_callback = lambda dev, report: upgrade_progress_callback(dev, report, progress)
-                
-                # Perform the upgrade
-                upgrade_result = sw.install(
-                    package=args.image_path,
-                    remote_path='/var/tmp',
-                    validate=True,
-                    timeout=args.timeout,
-                    progress=upgrade_callback,
-                    no_reboot=args.no_reboot
-                )
-                
-                if upgrade_result:
-                    progress.complete_step("COMPLETED", {
-                        "upgrade_result": "SUCCESS",
-                        "reboot_required": not args.no_reboot,
-                        "message": "Software installation completed successfully"
-                    })
-                    
-                    if args.no_reboot:
-                        results["success"] = True
-                        results["message"] = f"Software installed successfully on {dev.hostname}. Manual reboot required."
-                    else:
-                        results["success"] = True
-                        results["message"] = f"Software upgrade completed successfully on {dev.hostname}. Device is rebooting."
-                else:
-                    error_msg = "Software installation failed - no specific error returned"
-                    progress.complete_step("FAILED", {"error": error_msg})
-                    progress.complete_operation("FAILED")
-                    results["success"] = False
-                    results["message"] = error_msg
-                    logger.error(error_msg)
-                    return results
-                    
-            except SwError as sw_err:
-                error_msg = f"Software installation failed: {str(sw_err)}"
-                progress.complete_step("FAILED", {"error": error_msg})
-                progress.complete_operation("FAILED")
-                results["success"] = False
-                results["message"] = f"Software upgrade failed on {dev.hostname}: {error_msg}"
-                logger.error(error_msg)
-                return results
-
-        progress.complete_operation("SUCCESS")
-
-    except (ConnectError, SwError, ValueError) as e:
-        error_msg = f"{e.__class__.__name__}: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        
-        if progress.steps and progress.steps[-1]["status"] == "IN_PROGRESS":
-            progress.complete_step("FAILED", {"error": error_msg})
-        progress.complete_operation("FAILED")
-        results["success"] = False
-        results["message"] = error_msg
-        
-    except Exception as e:
-        error_msg = f"An unexpected error occurred: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        
-        if progress.steps and progress.steps[-1]["status"] == "IN_PROGRESS":
-            progress.complete_step("FAILED", {"error": error_msg})
-        progress.complete_operation("FAILED")
-        results["success"] = False
-        results["message"] = error_msg
-        
     finally:
-        # Cleanup connections
-        if connections:
-            disconnect_from_hosts(connections)
-            logger.info("Disconnected from all devices.")
-        
-        results["progress"] = progress.get_summary()
-        results["details"]["device_facts"] = device_facts if 'device_facts' in locals() else {}
-        
-        # Print final JSON result to stdout
-        print(json.dumps(results, indent=2))
+        # Ensure the connection is always closed if it was opened.
+        if dev and dev.connected:
+            dev.close()
+
+    # STEP 6: Probe the device until it comes back online.
+    status.update_phase(UpgradePhase.PROBING, "Waiting for device to respond after reboot...")
+    time.sleep(60)  # Grace period for the reboot process to start.
+
+    max_wait, interval, start_time, device_online = 900, 30, time.time(), False
+    while time.time() - start_time < max_wait:
+        try:
+            # First, check for basic network reachability.
+            ping_result = subprocess.run(["ping", "-c", "1", "-W", "2", hostname], check=True, capture_output=True)
+            if ping_result.returncode == 0:
+                logger.info(f"[{hostname}] Ping successful. Attempting full NETCONF connection...")
+                # If pingable, attempt a full connection to ensure the NETCONF service is ready.
+                with Device(host=hostname, user=username, password=password, auto_probe=True, timeout=20) as probe_dev:
+                    logger.info(f"[{hostname}] Device is back online and NETCONF is responsive.")
+                    device_online = True
+                    break
+        except Exception:
+            logger.info(f"[{hostname}] Device is not yet fully online. Retrying in {interval}s...")
+            time.sleep(interval)
+
+    if not device_online:
+        status.update_phase(UpgradePhase.FAILED, "Device did not become reachable after reboot.")
+        status.error = "Device was unreachable after the 15-minute timeout period."
+        return status
+
+    # STEP 7: Re-connect and verify the final software version.
+    status.update_phase(UpgradePhase.VERIFYING, "Device online. Verifying final software version...")
+    try:
+        with Device(host=hostname, user=username, password=password, auto_probe=True) as final_dev:
+            final_ver = final_dev.facts.get("version")
+            status.final_version = final_ver
+            if final_ver == target_version:
+                status.update_phase(UpgradePhase.COMPLETED, f"Upgrade successful. Final version: {final_ver}")
+                status.success = True
+            else:
+                raise Exception(f"Version mismatch after upgrade. Expected '{target_version}', but found '{final_ver}'.")
+    except Exception as e:
+        status.update_phase(UpgradePhase.FAILED, "Could not verify final version.")
+        status.error = str(e)
+
+    return status
+
+
+# ================================================================================
+# SECTION 4: MAIN ORCHESTRATION LOGIC
+# --------------------------------------------------------------------------------
+# This function manages the overall process, including concurrent execution
+# and final reporting.
+# ================================================================================
+
+def code_upgrade(host_ips: List[str], username: str, password: str, image_filename: str, target_version: str):
+    """Orchestrates the concurrent upgrade of multiple devices and prints a summary."""
+    logger.info(f"Starting upgrade process for hosts: {', '.join(host_ips)}")
+    final_statuses = []
+
+    # Use a thread pool to run the upgrade function on all hosts concurrently.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(5, len(host_ips))) as executor:
+        future_to_hostname = {
+            executor.submit(upgrade_device, h, username, password, image_filename, target_version): h
+            for h in host_ips
+        }
+        for future in concurrent.futures.as_completed(future_to_hostname):
+            try:
+                final_statuses.append(future.result())
+            except Exception as e:
+                hostname = future_to_hostname[future]
+                logger.error(f"[{hostname}] A critical, unhandled exception occurred in its worker thread: {e}", exc_info=True)
+                error_status = DeviceStatus(hostname=hostname, target_version=target_version, phase=UpgradePhase.FAILED, error=str(e))
+                final_statuses.append(error_status)
+
+    # --- Print Final Summary Table ---
+    console.print("\n\n" + "="*80, style="bold cyan")
+    console.print("FINAL UPGRADE SUMMARY", style="bold cyan", justify="center")
+    console.print("="*80, style="bold cyan")
+
+    summary_table = Table(show_header=True, header_style="bold magenta", title="Upgrade Results", expand=True)
+    summary_table.add_column("Hostname", style="cyan", width=20)
+    summary_table.add_column("Final Status", style="white", width=15)
+    summary_table.add_column("Initial Version", style="yellow", width=25)
+    summary_table.add_column("Final Version", style="yellow", width=25)
+    summary_table.add_column("Details", style="white")
+
+    for status in sorted(final_statuses, key=lambda s: s.hostname):
+        status_style = "green" if status.success else "red"
+        summary_table.add_row(
+            status.hostname,
+            f"[{status_style}]{status.phase.name}[/{status_style}]",
+            status.initial_version or "N/A",
+            status.final_version or "N/A",
+            status.error or status.message
+        )
+    console.print(summary_table)
+
+
+# ================================================================================
+# SECTION 5: SCRIPT ENTRY POINT
+# --------------------------------------------------------------------------------
+# This is the main execution block that runs when the script is called directly.
+# It handles parsing and validating command-line arguments.
+# ================================================================================
 
 if __name__ == "__main__":
-    main()
+    # Define the command-line interface for the script.
+    parser = argparse.ArgumentParser(
+        description="Juniper Device Upgrade Automation Script (UI-Driven)",
+        formatter_class=argparse.RawTextHelpFormatter # Allows for better help text formatting.
+    )
+    parser.add_argument("--hostname", required=True, help="Comma-separated list of target device hostnames or IPs.")
+    parser.add_argument("--username", required=True, help="The username for device authentication.")
+    parser.add_argument("--password", required=True, help="The password for device authentication.")
+    parser.add_argument("--image_filename", required=True, help="The exact FILENAME of the software image.\n(e.g., 'junos-vmx-x86-64-21.4R1.12.tgz')\nNOTE: The script assumes this file is in /var/tmp/ on the device.")
+    parser.add_argument("--target_version", required=True, help="The target Junos version string to verify against after upgrade.\n(e.g., '21.4R1.12')")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose DEBUG-level logging.")
+
+    args = parser.parse_args()
+
+    # Set logging level based on the verbose flag.
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Verbose logging enabled.")
+
+    logger.info("Script execution started with validated arguments.")
+
+    try:
+        # Sanitize the hostname input.
+        host_ips = [ip.strip() for ip in args.hostname.split(",") if ip.strip()]
+        if not host_ips:
+            raise ValueError("The --hostname argument cannot be empty.")
+
+        # Launch the main orchestration function.
+        code_upgrade(
+            host_ips=host_ips,
+            username=args.username,
+            password=args.password,
+            image_filename=args.image_filename,
+            target_version=args.target_version
+        )
+        logger.info("Script has completed its execution.")
+
+    except Exception as e:
+        logger.fatal(f"A critical error occurred in the main execution block: {e}", exc_info=True)
+        sys.exit(1)

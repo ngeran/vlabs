@@ -1,21 +1,60 @@
-// src/services/websocketService.js
+// =================================================================================================
+//
+//  Singleton WebSocket Management Service
+//  FILE: src/services/websocketServices.js
+//
+// =================================================================================================
+//
+//  DESCRIPTION:
+//  This script provides a robust, application-wide singleton service for managing a persistent
+//  WebSocket connection. It is designed to be imported and used by various React hooks and
+//  components without causing connection conflicts, especially in React's StrictMode.
+//
+//  CORE FEATURES:
+//  - Establishes and maintains a single WebSocket connection.
+//  - Handles automatic reconnection with exponential backoff.
+//  - Manages a unique client ID assigned by the server.
+//  - Provides a simple event system (`on`, `off`, `emit`) for decoupled communication.
+//  - Includes a heartbeat (ping/pong) to keep the connection alive.
+//  - Contains dedicated methods for making API calls that initiate backend processes.
+//
+//  DEPENDENCIES:
+//  - This script is self-contained and has no external npm dependencies. It relies on the
+//    standard browser WebSocket API.
+//
+// =================================================================================================
+
 class WebSocketService {
+  // ================================================================================
+  //  SECTION 1: CONSTRUCTOR & INITIAL STATE
+  //  Initializes the service's state and binds method contexts.
+  // ================================================================================
   constructor() {
-    this.ws = null;
-    this.clientId = null;
-    this.isConnected = false;
+    // --- Connection State ---
+    this.ws = null; // Holds the WebSocket object instance.
+    this.isConnected = false; // Tracks if the connection is currently open.
+    this.connectionPromise = null; // Prevents multiple connection attempts while one is in progress.
+
+    // --- Client & Session State ---
+    this.clientId = null; // The unique ID assigned by the server upon connection.
+    this.clientIdPromise = null; // Used to queue calls that need a client ID before it's been assigned.
+
+    // --- Reconnection Logic ---
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
-    this.reconnectDelay = 1000;
-    this.maxReconnectDelay = 30000;
-    this.listeners = new Map();
-    this.messageQueue = [];
-    this.heartbeatInterval = null;
-    this.heartbeatTimeout = null;
-    this.connectionPromise = null;
-    this.clientIdPromise = null; // Add promise for client ID
+    this.reconnectDelay = 1000; // Initial delay in ms
+    this.maxReconnectDelay = 30000; // Maximum delay in ms
 
-    // Bind methods to preserve context
+    // --- Communication & Event Handling ---
+    this.listeners = new Map(); // Stores event listeners, e.g., listeners['progress'] = Set(callback1, callback2).
+    this.messageQueue = []; // Temporarily holds messages sent while the socket is disconnected.
+
+    // --- Keep-Alive Mechanism ---
+    this.heartbeatInterval = null; // Holds the interval ID for the ping timer.
+    this.heartbeatTimeout = null; // Holds the timeout ID for waiting for a pong.
+
+    // Bind all class methods to 'this' to ensure their context is always correct,
+    // even when they are passed as callbacks to other functions.
     this.connect = this.connect.bind(this);
     this.disconnect = this.disconnect.bind(this);
     this.send = this.send.bind(this);
@@ -27,96 +66,41 @@ class WebSocketService {
     this.handleError = this.handleError.bind(this);
   }
 
-  /**
-   * Generate UUID format to match backend
-   */
-  generateClientId() {
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
-      /[xy]/g,
-      function (c) {
-        const r = (Math.random() * 16) | 0;
-        const v = c === "x" ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      },
-    );
-  }
+  // ================================================================================
+  //  SECTION 2: CORE CONNECTION MANAGEMENT
+  //  Handles connecting, disconnecting, and reconnection logic.
+  // ================================================================================
 
   /**
-   * Wait for client ID to be assigned
-   */
-  async waitForClientId(timeout = 10000) {
-    if (this.clientId) {
-      return this.clientId;
-    }
-
-    if (this.clientIdPromise) {
-      return this.clientIdPromise;
-    }
-
-    this.clientIdPromise = new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error("Client ID assignment timeout"));
-      }, timeout);
-
-      // If we already have a client ID, resolve immediately
-      if (this.clientId) {
-        clearTimeout(timeoutId);
-        resolve(this.clientId);
-        return;
-      }
-
-      // Listen for client ID assignment
-      const unsubscribe = this.on("client_id", ({ clientId }) => {
-        clearTimeout(timeoutId);
-        unsubscribe();
-        resolve(clientId);
-      });
-
-      // If connection fails, reject
-      const unsubscribeError = this.on("error", (error) => {
-        clearTimeout(timeoutId);
-        unsubscribe();
-        unsubscribeError();
-        reject(new Error("Connection failed while waiting for client ID"));
-      });
-    });
-
-    return this.clientIdPromise;
-  }
-
-  /**
-   * Connect to WebSocket server and wait for client ID
+   * Establishes a connection to the WebSocket server.
+   * This method is idempotent: if a connection exists or is pending, it won't create a new one.
+   * @param {string} wsUrl - The WebSocket server URL.
    */
   async connect(wsUrl = "ws://localhost:3001") {
+    // If we are already connected or trying to connect, return the existing promise.
     if (this.isConnected || this.connectionPromise) {
       return this.connectionPromise;
     }
 
-    console.log(`[WebSocket] Connecting to ${wsUrl}`);
+    console.log(`[WebSocket] Attempting to connect to ${wsUrl}...`);
 
+    // Create a new promise to represent the connection attempt.
     this.connectionPromise = new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(wsUrl);
+        // Assign our handler methods to the WebSocket event properties.
         this.ws.onopen = (event) => {
           this.handleOpen(event);
-          resolve(this);
+          resolve(this); // Resolve the promise on successful connection.
         };
         this.ws.onmessage = this.handleMessage;
         this.ws.onclose = this.handleClose;
         this.ws.onerror = (error) => {
           this.handleError(error);
-          reject(error);
+          reject(error); // Reject the promise on a connection error.
         };
-
-        // Set connection timeout
-        setTimeout(() => {
-          if (!this.isConnected) {
-            this.ws?.close();
-            reject(new Error("Connection timeout"));
-          }
-        }, 10000);
       } catch (error) {
-        console.error("[WebSocket] Connection failed:", error);
+        console.error("[WebSocket] Connection failed to initiate:", error);
         reject(error);
       }
     });
@@ -125,241 +109,19 @@ class WebSocketService {
   }
 
   /**
-   * Connect and wait for client ID to be ready
-   */
-  async connectAndWaitForClientId(wsUrl = "ws://localhost:3001") {
-    try {
-      await this.connect(wsUrl);
-      await this.waitForClientId();
-      return this;
-    } catch (error) {
-      console.error("[WebSocket] Failed to connect and get client ID:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Handle WebSocket connection open
-   */
-  handleOpen(event) {
-    console.log("[WebSocket] Connection established");
-    this.isConnected = true;
-    this.reconnectAttempts = 0;
-    this.reconnectDelay = 1000;
-    this.connectionPromise = null;
-
-    // Start heartbeat
-    this.startHeartbeat();
-
-    // Process queued messages
-    this.processMessageQueue();
-
-    // Emit connection event
-    this.emit("connected", { clientId: this.clientId });
-  }
-
-  /**
-   * Handle WebSocket message
-   */
-  handleMessage(event) {
-    try {
-      const message = JSON.parse(event.data);
-      console.log("[WebSocket] Received message:", message);
-
-      // Handle different message types
-      switch (message.type) {
-        case "welcome":
-        case "client_id":
-          console.log(
-            "[WebSocket] Received client ID from server:",
-            message.clientId,
-          );
-          this.clientId = message.clientId;
-          this.clientIdPromise = null; // Clear the promise
-          this.emit("client_id", { clientId: message.clientId });
-          break;
-        case "pong":
-          this.handlePong();
-          break;
-        case "status":
-          this.emit("status", message);
-          break;
-        case "progress":
-          this.emit("progress", message);
-          break;
-        case "commit_progress":
-          this.emit("commit_progress", message);
-          break;
-        case "info":
-          this.emit("info", message);
-          break;
-        case "result":
-          this.emit("result", message);
-          break;
-        case "error":
-          this.emit("error", message);
-          break;
-        case "test":
-          this.emit("test", message);
-          break;
-        case "script_start":
-          this.emit("script_start", message);
-          break;
-        case "script_output":
-          this.emit("script_output", message);
-          break;
-        case "script_error":
-          this.emit("script_error", message);
-          break;
-        case "script_end":
-          this.emit("script_end", message);
-          break;
-        default:
-          this.emit("message", message);
-      }
-    } catch (error) {
-      console.error("[WebSocket] Failed to parse message:", error);
-      this.emit("parse_error", { error: error.message, raw: event.data });
-    }
-  }
-
-  /**
-   * Handle WebSocket connection close
-   */
-  handleClose(event) {
-    console.log("[WebSocket] Connection closed:", event.code, event.reason);
-    this.isConnected = false;
-    this.connectionPromise = null;
-    this.clientIdPromise = null; // Clear client ID promise
-    this.stopHeartbeat();
-
-    this.emit("disconnected", {
-      code: event.code,
-      reason: event.reason,
-      wasClean: event.wasClean,
-    });
-
-    // Attempt reconnection if not a clean close
-    if (!event.wasClean && this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.scheduleReconnect();
-    }
-  }
-
-  /**
-   * Handle WebSocket error
-   */
-  handleError(error) {
-    console.error("[WebSocket] Error:", error);
-    this.emit("error", { error: error.message || "WebSocket error" });
-  }
-
-  /**
-   * Schedule reconnection attempt
-   */
-  scheduleReconnect() {
-    this.reconnectAttempts++;
-    const delay = Math.min(
-      this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
-      this.maxReconnectDelay,
-    );
-
-    console.log(
-      `[WebSocket] Scheduling reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`,
-    );
-
-    setTimeout(() => {
-      if (!this.isConnected) {
-        console.log(
-          `[WebSocket] Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`,
-        );
-        this.connect();
-      }
-    }, delay);
-  }
-
-  /**
-   * Start heartbeat mechanism
-   */
-  startHeartbeat() {
-    this.heartbeatInterval = setInterval(() => {
-      if (this.isConnected) {
-        this.send({ type: "ping", timestamp: new Date().toISOString() });
-        this.heartbeatTimeout = setTimeout(() => {
-          console.log("[WebSocket] Heartbeat timeout, closing connection");
-          this.ws?.close();
-        }, 5000);
-      }
-    }, 30000);
-  }
-
-  /**
-   * Stop heartbeat mechanism
-   */
-  stopHeartbeat() {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-    }
-    if (this.heartbeatTimeout) {
-      clearTimeout(this.heartbeatTimeout);
-      this.heartbeatTimeout = null;
-    }
-  }
-
-  /**
-   * Handle pong response
-   */
-  handlePong() {
-    if (this.heartbeatTimeout) {
-      clearTimeout(this.heartbeatTimeout);
-      this.heartbeatTimeout = null;
-    }
-  }
-
-  /**
-   * Send message to WebSocket server
-   */
-  send(message) {
-    if (!this.isConnected) {
-      console.log("[WebSocket] Not connected, queuing message:", message);
-      this.messageQueue.push(message);
-      return false;
-    }
-
-    try {
-      const messageStr =
-        typeof message === "string" ? message : JSON.stringify(message);
-      this.ws.send(messageStr);
-      return true;
-    } catch (error) {
-      console.error("[WebSocket] Failed to send message:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Process queued messages
-   */
-  processMessageQueue() {
-    while (this.messageQueue.length > 0 && this.isConnected) {
-      const message = this.messageQueue.shift();
-      this.send(message);
-    }
-  }
-
-  /**
-   * Disconnect from WebSocket server
+   * Gracefully disconnects from the server.
    */
   disconnect() {
-    console.log("[WebSocket] Disconnecting...");
-    this.reconnectAttempts = this.maxReconnectAttempts;
+    console.log("[WebSocket] Disconnecting gracefully...");
+    this.reconnectAttempts = this.maxReconnectAttempts; // Prevents automatic reconnection.
     this.stopHeartbeat();
 
     if (this.ws) {
-      this.ws.close(1000, "Client disconnecting");
+      this.ws.close(1000, "Client initiated disconnect."); // 1000 is the code for a normal closure.
       this.ws = null;
     }
 
+    // Reset all state variables.
     this.isConnected = false;
     this.connectionPromise = null;
     this.clientIdPromise = null;
@@ -368,18 +130,183 @@ class WebSocketService {
   }
 
   /**
-   * Add event listener
+   * Schedules a reconnection attempt with exponential backoff.
+   */
+  scheduleReconnect() {
+    this.reconnectAttempts++;
+    // Calculate delay: it doubles with each attempt, up to a max limit.
+    const delay = Math.min(
+      this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
+      this.maxReconnectDelay,
+    );
+
+    console.log(`[WebSocket] Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms...`);
+
+    setTimeout(() => {
+      if (!this.isConnected) {
+        console.log(`[WebSocket] Attempting reconnection #${this.reconnectAttempts}...`);
+        this.connect(); // Attempt to connect again.
+      }
+    }, delay);
+  }
+
+  // ================================================================================
+  //  SECTION 3: EVENT HANDLERS (Private)
+  //  These methods are called internally by the WebSocket object.
+  // ================================================================================
+
+  /**
+   * Called when the WebSocket connection is successfully opened.
+   */
+  handleOpen(event) {
+    console.log("[WebSocket] Connection established successfully.");
+    this.isConnected = true;
+    this.reconnectAttempts = 0; // Reset reconnect counter on success.
+    this.connectionPromise = null; // Clear the connection promise.
+
+    this.startHeartbeat();
+    this.processMessageQueue(); // Send any messages that were queued while disconnected.
+    this.emit("connected", {}); // Notify listeners that we are connected.
+  }
+
+  /**
+   * Called when a message is received from the server. It parses the message
+   * and emits a specific event based on the message `type`.
+   */
+  handleMessage(event) {
+    try {
+      const message = JSON.parse(event.data);
+      console.log("[WebSocket] Received message:", message);
+
+      // Handle server-assigned client ID.
+      if (message.type === "welcome" || message.type === "client_id") {
+        console.log(`[WebSocket] Client ID assigned: ${message.clientId}`);
+        this.clientId = message.clientId;
+        this.clientIdPromise = null; // Clear the promise now that we have an ID.
+        this.emit("client_id", { clientId: message.clientId });
+      }
+      // Handle heartbeat pong response.
+      else if (message.type === "pong") {
+        this.handlePong();
+      }
+      // For all other types, emit the event by its type name.
+      else if (this.listeners.has(message.type)) {
+        this.emit(message.type, message);
+      }
+      // Fallback for any other message type.
+      else {
+        this.emit("message", message);
+      }
+    } catch (error) {
+      console.error("[WebSocket] Failed to parse incoming message:", error);
+      this.emit("parse_error", { error: error.message, raw: event.data });
+    }
+  }
+
+  /**
+   * Called when the WebSocket connection is closed, either intentionally or due to an error.
+   */
+  handleClose(event) {
+    console.log(`[WebSocket] Connection closed. Code: ${event.code}, Reason: "${event.reason}"`);
+    this.isConnected = false;
+    this.connectionPromise = null;
+    this.clientIdPromise = null;
+    this.stopHeartbeat();
+
+    this.emit("disconnected", { code: event.code, reason: event.reason, wasClean: event.wasClean });
+
+    // If the close was not clean (e.g., server crash, network loss), attempt to reconnect.
+    if (!event.wasClean && this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.scheduleReconnect();
+    }
+  }
+
+  /**
+   * Called when a WebSocket error occurs.
+   */
+  handleError(error) {
+    console.error("[WebSocket] An error occurred:", error);
+    this.emit("error", { error: error.message || "A WebSocket error occurred." });
+  }
+
+  // ================================================================================
+  //  SECTION 4: HEARTBEAT (KEEP-ALIVE)
+  //  Manages the ping/pong mechanism to prevent idle connection timeouts.
+  // ================================================================================
+
+  startHeartbeat() {
+    // Clear any existing heartbeat to prevent duplicates.
+    this.stopHeartbeat();
+    this.heartbeatInterval = setInterval(() => {
+      if (this.isConnected) {
+        this.send({ type: "ping" });
+        // Set a timeout. If a 'pong' isn't received in 5 seconds, assume the connection is dead.
+        this.heartbeatTimeout = setTimeout(() => {
+          console.warn("[WebSocket] Heartbeat timeout. Connection is likely lost.");
+          this.ws?.close(); // This will trigger the handleClose and reconnection logic.
+        }, 5000);
+      }
+    }, 30000); // Send a ping every 30 seconds.
+  }
+
+  stopHeartbeat() {
+    clearInterval(this.heartbeatInterval);
+    clearTimeout(this.heartbeatTimeout);
+    this.heartbeatInterval = null;
+    this.heartbeatTimeout = null;
+  }
+
+  /**
+   * Called when a 'pong' message is received, clearing the heartbeat timeout.
+   */
+  handlePong() {
+    clearTimeout(this.heartbeatTimeout);
+  }
+
+  // ================================================================================
+  //  SECTION 5: EVENT EMITTER & MESSAGING
+  //  Provides a pub/sub system for components to listen for WebSocket events.
+  // ================================================================================
+
+  /**
+   * Sends a message to the server, queueing it if not connected.
+   * @param {Object} message - The JSON object to send.
+   */
+  send(message) {
+    if (!this.isConnected) {
+      console.log("[WebSocket] Not connected. Queuing message:", message);
+      this.messageQueue.push(message);
+      return;
+    }
+    this.ws.send(JSON.stringify(message));
+  }
+
+  /**
+   * Sends all messages that were queued while disconnected.
+   */
+  processMessageQueue() {
+    while (this.messageQueue.length > 0 && this.isConnected) {
+      this.send(this.messageQueue.shift());
+    }
+  }
+
+  /**
+   * Registers a callback for a specific event.
+   * @param {string} event - The name of the event to listen for (e.g., 'progress').
+   * @param {function} callback - The function to call when the event is emitted.
+   * @returns {function} An `unsubscribe` function to remove the listener.
    */
   on(event, callback) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event).add(callback);
+    // Return a function that allows easy unsubscription.
     return () => this.off(event, callback);
   }
 
   /**
-   * Remove event listener
+   * Removes a callback for a specific event.
    */
   off(event, callback) {
     if (this.listeners.has(event)) {
@@ -388,194 +315,108 @@ class WebSocketService {
   }
 
   /**
-   * Emit event to all listeners
+   * Emits an event, calling all registered listeners with the provided data.
    */
   emit(event, data) {
     if (this.listeners.has(event)) {
-      this.listeners.get(event).forEach((callback) => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(
-            `[WebSocket] Error in event listener for ${event}:`,
-            error,
-          );
-        }
+      this.listeners.get(event).forEach((callback) => callback(data));
+    }
+  }
+
+  // ================================================================================
+  //  SECTION 6: CLIENT-SIDE API METHODS
+  //  Public methods that components call to interact with the backend API.
+  // ================================================================================
+
+  /**
+   * Waits for the client ID to be assigned by the server.
+   * This is crucial for API calls that require the wsClientId.
+   */
+  async waitForClientId(timeout = 10000) {
+    if (this.clientId) return this.clientId;
+    if (this.clientIdPromise) return this.clientIdPromise;
+
+    this.clientIdPromise = new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => reject(new Error("Timeout waiting for client ID.")), timeout);
+      const unsubscribe = this.on("client_id", ({ clientId }) => {
+        clearTimeout(timeoutId);
+        unsubscribe();
+        resolve(clientId);
       });
-    }
+    });
+    return this.clientIdPromise;
   }
 
   /**
-   * Get connection status
-   */
-  getStatus() {
-    return {
-      isConnected: this.isConnected,
-      clientId: this.clientId,
-      reconnectAttempts: this.reconnectAttempts,
-      queuedMessages: this.messageQueue.length,
-      readyState: this.ws?.readyState || WebSocket.CLOSED,
-    };
-  }
-
-  /**
-   * Check if WebSocket is ready for communication
-   */
-  isReady() {
-    return (
-      this.isConnected &&
-      this.ws?.readyState === WebSocket.OPEN &&
-      this.clientId !== null
-    );
-  }
-
-  /**
-   * Apply template configuration with real-time updates
-   */
-  async applyTemplate(templateData) {
-    // Ensure we have a client ID before proceeding
-    if (!this.clientId) {
-      try {
-        await this.waitForClientId();
-      } catch (error) {
-        throw new Error(
-          "Could not obtain WebSocket client ID: " + error.message,
-        );
-      }
-    }
-
-    if (!this.isReady()) {
-      throw new Error("WebSocket not ready for communication");
-    }
-
-    const payload = {
-      wsClientId: this.clientId,
-      ...templateData,
-    };
-
-    try {
-      const response = await fetch(
-        "http://localhost:3001/api/templates/apply",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to apply template");
-      }
-
-      return result;
-    } catch (error) {
-      console.error("[WebSocket] Failed to apply template:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Run a script with proper client ID handling
+   * Initiates a script run on the backend.
+   * @param {Object} scriptData - Contains the scriptId and its parameters.
    */
   async runScript(scriptData) {
-    // Ensure we have a client ID before proceeding
-    if (!this.clientId) {
-      try {
-        await this.waitForClientId();
-      } catch (error) {
-        throw new Error(
-          "Could not run script: No WebSocket client ID available",
-        );
-      }
-    }
-
-    if (!this.isReady()) {
-      throw new Error("WebSocket not ready for communication");
-    }
+    // Wait for a client ID if we don't have one yet.
+    await this.waitForClientId();
 
     const payload = {
+      scriptId: scriptData.scriptId,
+      parameters: scriptData.parameters, // Pass parameters under their own key.
       wsClientId: this.clientId,
-      ...scriptData,
     };
 
     try {
-      const response = await fetch("http://localhost:3001/api/scripts/run", {
+      //
+      // ✨✨✨ THE FIX IS APPLIED HERE ✨✨✨
+      // The URL is changed from '/api/scripts/run' to the correct '/api/scripts/run-stream' endpoint.
+      //
+      const response = await fetch("http://localhost:3001/api/scripts/run-stream", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || "Failed to run script");
+        throw new Error(result.message || "Failed to initiate script run.");
       }
-
       return result;
+
     } catch (error) {
-      console.error("[WebSocket] Failed to run script:", error);
-      throw error;
+      console.error("[API Call] Failed to run script:", error);
+      throw error; // Re-throw the error so the calling component can handle it.
     }
   }
 
   /**
-   * Test WebSocket connection
+   * Initiates a template application process on the backend.
+   * @param {Object} templateData - Data needed to apply the template.
    */
-  async testConnection(message = "Test message") {
-    if (!this.clientId) {
-      try {
-        await this.waitForClientId();
-      } catch (error) {
-        throw new Error("Client ID not available for testing");
-      }
-    }
+  async applyTemplate(templateData) {
+    await this.waitForClientId();
+
+    const payload = { ...templateData, wsClientId: this.clientId };
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/websocket/test/${this.clientId}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ message }),
-        },
-      );
-      return await response.json();
-    } catch (error) {
-      console.error("[WebSocket] Test connection failed:", error);
-      throw error;
-    }
-  }
+      const response = await fetch("http://localhost:3001/api/templates/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-  /**
-   * Get WebSocket connection status from server
-   */
-  async getServerStatus() {
-    if (!this.clientId) {
-      try {
-        await this.waitForClientId();
-      } catch (error) {
-        throw new Error("Client ID not available for server status check");
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to apply template.");
       }
-    }
+      return result;
 
-    try {
-      const response = await fetch(
-        `http://localhost:3001/api/websocket/status/${this.clientId}`,
-      );
-      return await response.json();
     } catch (error) {
-      console.error("[WebSocket] Failed to get server status:", error);
+      console.error("[API Call] Failed to apply template:", error);
       throw error;
     }
   }
 }
 
-// Create and export singleton instance
+// ================================================================================
+//  SECTION 7: SINGLETON INSTANCE EXPORT
+//  A single instance of the service is created and exported, ensuring all parts
+//  of the application share the same WebSocket connection and state.
+// ================================================================================
 const websocketService = new WebSocketService();
 export default websocketService;

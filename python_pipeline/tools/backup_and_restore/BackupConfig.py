@@ -1,167 +1,185 @@
 # =========================================================================================
-# FILE: python_pipeline/tools/backup_and_restore/BackupConfig.py
 #
-# PURPOSE: Manages the backup process for Juniper devices. This includes saving
-#          device configuration, collecting device facts, and creating metadata
-#          for each backup operation.
+# FILE:               BackupConfig.py (Worker)
+#
+# OVERVIEW:
+#   This file contains the `BackupManager` class, a dedicated "worker" responsible for
+#   handling the backup logic for a single Juniper device. It is designed to be
+#   instantiated and controlled by an asynchronous orchestrator (like `run.py`). Its primary
+#   role is to connect to a device, fetch its configuration in multiple formats (XML, SET,
+#   JSON, and Text), save them to a structured directory, and report detailed progress
+#   back to the calling process.
+#
+# KEY FEATURES:
+#   - Asynchronous Execution: Designed to be run within an asyncio event loop. It uses
+#     `asyncio.to_thread` to execute synchronous, blocking I/O operations (like PyEZ's
+#     `.open()` and `.rpc()` calls) in a separate thread, preventing them from blocking
+#     the entire application.
+#   - Multi-format Backup: Retrieves the device configuration in four standard formats,
+#     providing comprehensive backup coverage.
+#   - Structured File Organization: Saves backups into a clean, hierarchical directory
+#     structure: `base_path/hostname/timestamp_hostname_config.format`.
+#   - Decoupled Progress Reporting: Uses a callback function passed during initialization
+#     to send detailed, step-by-step progress updates, making it highly reusable and
+#     independent of the specific output mechanism.
+#   - Graceful Error Handling: Wraps the entire operation in a try/except block to catch
+#     connection errors, RPC failures, or other exceptions, and reports them cleanly.
+#
+# DEPENDENCIES:
+#   - jnpr-pyez: The official Juniper library for automating Junos devices.
+#   - lxml: Used by jnpr-pyez for XML parsing and manipulation.
+#
+# HOW-TO GUIDE (INTEGRATION):
+#   This class is not intended to be run as a standalone script. It should be imported
+#   by an orchestrator script.
+#
+#   1. Instantiate the class:
+#      `manager = BackupManager(host, user, password, path, offset, callback_func)`
+#   2. Await its main execution method in an async context:
+#      `status, data = await manager.run_backup()`
+#   3. The `status` will be "SUCCESS" or "FAILED", and `data` will contain the results
+#      or error details.
+#
 # =========================================================================================
 
-# =========================================================================================
+
+# ====================================================================================
 # SECTION 1: IMPORTS & DEPENDENCIES
-# =========================================================================================
+# All necessary standard library and third-party modules are imported here.
+# ====================================================================================
 import json
-from pathlib import Path
+import asyncio
 from datetime import datetime
+from pathlib import Path
+from lxml import etree
 from jnpr.junos import Device
-from jnpr.junos.exception import RpcError
 
-# =========================================================================================
+
+# ====================================================================================
 # SECTION 2: BACKUP MANAGER CLASS
-# =========================================================================================
+# Encapsulates all logic for the backup of a single device.
+# ====================================================================================
 class BackupManager:
-    """
-    Handles all aspects of the backup process for a connected Juniper device.
-    """
+    """Manages the backup process for a single Juniper device."""
 
-    # -------------------------------------------------------------------------------------
-    # Subsection 2.1: Initialization
-    # -------------------------------------------------------------------------------------
-    def __init__(self, device: Device, progress_tracker, logger):
-        self.dev = device
-        self.progress = progress_tracker
-        self.logger = logger
-        self.hostname = self.dev.hostname or self.dev.facts.get('hostname')
-        if not self.hostname:
-            self.logger.critical("Could not determine device hostname. Cannot proceed with backup.")
-            raise ValueError("Could not determine device hostname.")
-
-    # -------------------------------------------------------------------------------------
-    # Subsection 2.2: Main Backup Orchestration Method
-    # -------------------------------------------------------------------------------------
-    def run_backup(self, backup_path: str, config_only: bool = False):
-        self.progress.start_operation(f"Backup for '{self.hostname}'")
-        try:
-            self.progress.start_step("SETUP_DIRECTORY", "Ensuring backup directory exists")
-            device_backup_path = self._ensure_backup_directory(backup_path)
-            self.progress.complete_step("COMPLETED", {"path": str(device_backup_path)})
-
-            self.progress.start_step("CONFIG_BACKUP", "Backing up device configuration")
-            config_file = self._backup_configuration(device_backup_path)
-            self.progress.complete_step("COMPLETED", {"file_created": str(config_file)})
-            files_created = {"configuration": str(config_file)}
-
-            if not config_only:
-                self.progress.start_step("FACTS_BACKUP", "Backing up device facts")
-                facts_file = self._backup_facts(device_backup_path)
-                self.progress.complete_step("COMPLETED", {"file_created": str(facts_file)})
-                files_created["facts"] = str(facts_file)
-
-            self.progress.start_step("METADATA_CREATE", "Creating backup metadata file")
-            metadata_file = self._create_metadata_file(device_backup_path, files_created, config_only)
-            self.progress.complete_step("COMPLETED", {"file_created": str(metadata_file)})
-
-            self.progress.complete_operation("SUCCESS")
-            self.logger.info(f"Backup for {self.hostname} completed successfully.")
-        except Exception as e:
-            self.logger.error(f"Backup failed for {self.hostname}: {e}", exc_info=True)
-            self.progress.complete_step("FAILED", {"error": str(e)})
-            self.progress.complete_operation("FAILED")
-            raise
-
-    # -------------------------------------------------------------------------------------
-    # Subsection 2.3: Private Helper Methods
-    # -------------------------------------------------------------------------------------
-    def _ensure_backup_directory(self, base_path_str: str) -> Path:
-        base_path = Path(base_path_str).resolve()
-        device_path = base_path / self.hostname
-        device_path.mkdir(parents=True, exist_ok=True)
-        self.logger.info(f"Backup directory set to: {device_path}")
-        return device_path
-
-    def _backup_configuration(self, backup_path: Path) -> Path:
-        try:
-            self.logger.info(f"Attempting to fetch configuration from {self.hostname}...")
-            config_data = self.dev.rpc.get_config(options={'format': 'text'})
-            if config_data is None or not hasattr(config_data, 'text'):
-                raise ValueError("Failed to retrieve valid configuration data from device.")
-            config_text = config_data.text
-            if not config_text or not config_text.strip():
-                raise ValueError("Retrieved configuration from device is empty.")
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.hostname}_config_{timestamp}.conf"
-            filepath = backup_path / filename
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(config_text)
-            self.logger.info(f"Configuration successfully saved to {filepath}")
-            return filepath
-        except (RpcError, ValueError, AttributeError, IOError) as e:
-            self.logger.error(f"Critical error during configuration backup for {self.hostname}: {e}")
-            raise
-
-    def _backup_facts(self, backup_path: Path) -> Path:
+    def __init__(self, host, username, password, backup_path: Path, step_offset: int, progress_callback: callable):
         """
-        Saves the device's collected facts to a JSON file after sanitizing them.
-        """
-        self.logger.info(f"Saving device facts for {self.hostname}...")
-        
-        # Convert the top-level _FactCache object to a dictionary.
-        raw_facts = dict(self.dev.facts)
-        
-        # --- FIX: Sanitize the dictionary to handle nested special objects ---
-        # This new step ensures all values are JSON-serializable.
-        sanitized_facts = self._sanitize_dict(raw_facts)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{self.hostname}_facts_{timestamp}.json"
-        filepath = backup_path / filename
+        Initializes the manager for a specific device.
 
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(sanitized_facts, f, indent=4)
-            
-        self.logger.info(f"Facts saved to {filepath}")
-        return filepath
-
-    def _create_metadata_file(self, backup_path: Path, files: dict, config_only: bool) -> Path:
-        self.logger.info("Creating backup metadata file...")
-        metadata = {
-            "hostname": self.hostname,
-            "backup_timestamp_utc": datetime.utcnow().isoformat(),
-            "backup_type": "config_only" if config_only else "full",
-            "files": files,
-            "device_facts_summary": {
-                "model": self.dev.facts.get("model"),
-                "version": self.dev.facts.get("version"),
-                "serial_number": self.dev.facts.get("serialnumber"),
-            }
-        }
-        filename = f"{self.hostname}_metadata_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        filepath = backup_path / filename
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(metadata, f, indent=4)
-        self.logger.info(f"Metadata file created at {filepath}")
-        return filepath
-        
-    # --- NEW HELPER METHOD FOR JSON SANITIZATION ---
-    def _sanitize_dict(self, data: dict) -> dict:
-        """
-        Recursively walks through a dictionary and converts any non-JSON-serializable
-        values (like custom objects or tuples) into plain strings.
-        
         Args:
-            data (dict): The dictionary to clean.
-            
-        Returns:
-            dict: A new dictionary that is safe to serialize to JSON.
+            host (str): The IP address or hostname of the device.
+            username (str): The SSH username for authentication.
+            password (str): The SSH password for authentication.
+            backup_path (Path): The base Path object for the backup directory.
+            step_offset (int): The starting number for progress steps for this host,
+                               used for calculating UI progress in multi-device runs.
+            progress_callback (callable): The function to call to send progress updates back
+                                          to the orchestrator.
         """
-        clean_dict = {}
-        for key, value in data.items():
-            if isinstance(value, dict):
-                clean_dict[key] = self._sanitize_dict(value)
-            elif isinstance(value, list):
-                clean_dict[key] = [self._sanitize_dict(v) if isinstance(v, dict) else str(v) for v in value]
-            elif isinstance(value, (str, int, float, bool)) or value is None:
-                clean_dict[key] = value
-            else:
-                # This is the catch-all for any other type (e.g., version_info, tuples)
-                clean_dict[key] = str(value)
-        return clean_dict
+        self.host = host
+        self.username = username
+        self.password = password
+        self.backup_path = backup_path
+        self.step_offset = step_offset
+        self.progress_callback = progress_callback
+        self.dev = None # The PyEZ Device object, initialized later.
+
+    def _save_config_files(self) -> dict:
+        """
+        (Private Helper) Retrieves configuration in multiple formats and saves them to files.
+
+        This is a synchronous method intended to be run in a separate thread via `asyncio.to_thread`
+        to avoid blocking the main event loop.
+
+        Returns:
+            A dictionary mapping the config format (e.g., "xml") to the full path
+            of the created file.
+        """
+        # Use the device's actual hostname for the directory name, falling back to the IP.
+        hostname = self.dev.facts.get("hostname", self.host)
+        device_backup_path = self.backup_path / hostname
+        device_backup_path.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        files_created = {}
+
+        # --- XML Format ---
+        # The default and most reliable format for programmatic use.
+        config_xml = self.dev.rpc.get_config()
+        # FIX: Check for `is not None` to avoid FutureWarning and handle empty responses gracefully.
+        xml_content = etree.tostring(config_xml, pretty_print=True) if config_xml is not None else b""
+        xml_filepath = device_backup_path / f"{timestamp}_{hostname}_config.xml"
+        xml_filepath.write_bytes(xml_content)
+        files_created["xml"] = str(xml_filepath)
+
+        # --- Set Format ---
+        # Useful for human review and manual application.
+        config_set = self.dev.rpc.get_config(options={"format": "set"})
+        set_content = config_set.text if config_set is not None and hasattr(config_set, 'text') else ""
+        set_filepath = device_backup_path / f"{timestamp}_{hostname}_config.set"
+        set_filepath.write_text(set_content)
+        files_created["set"] = str(set_filepath)
+
+        # --- JSON Format ---
+        # Ideal for modern automation and API integration.
+        config_json = self.dev.rpc.get_config(options={"format": "json"})
+        json_filepath = device_backup_path / f"{timestamp}_{hostname}_config.json"
+        # Use `or {}` as a fallback for empty JSON responses.
+        json_filepath.write_text(json.dumps(config_json or {}, indent=4))
+        files_created["json"] = str(json_filepath)
+
+        # --- Text/Conf Format ---
+        # The standard, human-readable curly-brace format.
+        config_text = self.dev.rpc.get_config(options={'format': 'text'})
+        text_content = config_text.text if config_text is not None and hasattr(config_text, 'text') else ""
+        text_filepath = device_backup_path / f"{timestamp}_{hostname}_config.conf"
+        text_filepath.write_text(text_content)
+        files_created["text"] = str(text_filepath)
+
+        return files_created
+
+    async def run_backup(self) -> tuple:
+        """
+        The main asynchronous method that orchestrates the entire backup process for this device.
+
+        Returns:
+            A tuple of ("STATUS", data_dictionary).
+            - On success: ("SUCCESS", {"host": ..., "hostname": ..., "files": ...})
+            - On failure: ("FAILED", {"host": ..., "error": ...})
+        """
+        # Calculate the specific step numbers for this device's run.
+        connect_step = self.step_offset + 1
+        backup_step = self.step_offset + 2
+        try:
+            # --- Step 1: Connect to Device ---
+            self.progress_callback("info", "STEP_START", {"step": connect_step}, f"Connecting to {self.host}...")
+
+            # Create the PyEZ Device object. `gather_facts=True` is important to get the hostname.
+            self.dev = Device(host=self.host, user=self.username, password=self.password, gather_facts=True, normalize=True)
+            # Run the blocking `open()` call in a separate thread.
+            await asyncio.to_thread(self.dev.open)
+            hostname = self.dev.facts.get("hostname", self.host)
+            self.progress_callback("success", "STEP_COMPLETE", {"step": connect_step, "status": "COMPLETED"}, f"Successfully connected to {hostname}")
+
+            # --- Step 2: Perform Backup ---
+            self.progress_callback("info", "STEP_START", {"step": backup_step}, f"Starting backup for {hostname}...")
+
+            # Run the synchronous file-saving logic in a thread to avoid blocking the event loop.
+            files = await asyncio.to_thread(self._save_config_files)
+            self.progress_callback("success", "STEP_COMPLETE", {"step": backup_step, "status": "COMPLETED"}, f"Backup for {hostname} successful")
+
+            # Return a success status and detailed results.
+            return ("SUCCESS", {"host": self.host, "hostname": hostname, "files": files})
+
+        except Exception as e:
+            # Catch any exception during the process, from connection to file saving.
+            error_message = f"Failed to process {self.host}: {str(e)}"
+            # Report the step as failed.
+            self.progress_callback("error", "STEP_COMPLETE", {"step": connect_step, "status": "FAILED"}, error_message)
+            # Return a failed status and the error message.
+            return ("FAILED", {"host": self.host, "error": error_message})
+
+        finally:
+            # --- Cleanup ---
+            # Always ensure the device connection is closed to prevent orphaned sessions.
+            if self.dev and self.dev.connected:
+                self.dev.close()

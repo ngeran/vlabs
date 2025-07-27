@@ -6,6 +6,7 @@
 displayName: "Code Upgrade"
 description: "Select a device image from the inventory to perform a software upgrade."
 category: "Device Management"
+runnerComponent: "CodeUpgradeRunner"
 
 # --- Capabilities ---
 # Defines the special behaviors and UI components for this script.
@@ -13,17 +14,35 @@ capabilities:
   # This capability ensures the standard username/password/hostname fields
   # are available to be rendered in the main content area.
   deviceAuth: true
-
   # ✨ THIS IS THE KEY: It tells ScriptOptionsRenderer to load our custom component
   # instead of the default form generator. The string must match the `case`
   # in ScriptOptionsRenderer.jsx.
   sidebarComponent: 'MultiLevelSelect'
-
+  # Enables device targeting functionality (manual hostname entry or inventory file selection)
+  deviceTargeting: true
   # We can keep this if the script doesn't produce a saveable report.
   enableReportSaving: false
+# -------------------------------------------------------------------------------------------------
+# SECTION 3: CAPABILITY CONFIGURATION
+# -------------------------------------------------------------------------------------------------
+deviceTargeting:
+  title: "Target Device Selection"
+  description: "Choose target devices for backup or restore operations"
+  requiredFields: ["hostname", "inventory_file"]  # At least one must be provided
 
-# --- Parameters ---
-# Defines the inputs the script needs to run.
+deviceAuth:
+  title: "Device Authentication"
+  description: "Provide credentials to access the target device(s)"
+  requiredFields: ["username", "password"]
+
+resultsDisplay:
+  title: "Final Execution Summary"
+  description: "A detailed summary of all successful and failed operations."
+
+
+# -------------------------------------------------------------------------------------------------
+# SECTION 4: PARAMETERS (WITH show_if AND active FOR VISIBILITY CONTROL)
+# -------------------------------------------------------------------------------------------------
 parameters:
   # 1. PARAMETER FOR THE CUSTOM SIDEBAR COMPONENT
   # This parameter receives its value *from* the MultiLevelSelect component.

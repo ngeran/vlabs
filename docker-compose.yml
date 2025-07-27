@@ -36,6 +36,8 @@ services:
       - ${PROJECT_ROOT}/python_pipeline/tools/backup_and_restore/backups:/backups
        # Mount the specific upgrade path directory
       - ${PROJECT_ROOT}/python_pipeline/tools/code_upgrade:/data_to_scan
+        # Upload
+      - ${PROJECT_ROOT}/python_pipeline/temp_uploads:/uploads
     # Environment variables for path mapping.
     environment:
       # Absolute path on the host to the project root, used by server.js.
@@ -66,6 +68,7 @@ services:
     command: tail -f /dev/null
     # Mount backups directory for script access.
     volumes:
+      - ${PROJECT_ROOT}/python_pipeline:/python_pipeline
       - ${PROJECT_ROOT}/python_pipeline/tools/backup_and_restore/backups:/backups
       # =======================================================================
       # iUPGRADE IMAGE
@@ -76,6 +79,7 @@ services:
        #DATA DIRECTORY THE INVENTORY.YML
       - ${PROJECT_ROOT}/python_pipeline/data:/data
     # Connect to the custom network.
+      - ${PROJECT_ROOT}/python_pipeline/temp_uploads:/python_pipeline/temp_uploads
     networks:
       - vlabs-net
 

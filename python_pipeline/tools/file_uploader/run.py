@@ -1,676 +1,422 @@
 #!/usr/bin/env python3
-# =============================================================================
-# FILE: run.py
-# DESCRIPTION: Python backend script for uploading files to Juniper routers
-#              using PyEZ library. Handles secure connections, file transfers,
-#              and provides detailed logging and error handling.
+# =================================================================================================
+#
+# FILE:               run.py
 #
 # OVERVIEW:
-#   This script serves as the backend for the UniversalFileUploader React
-#   component. It receives file upload requests via HTTP API, establishes
-#   secure connections to Juniper routers using PyEZ, and transfers files
-#   to specified paths on the device. The script includes comprehensive
-#   error handling, progress tracking, and security best practices.
+#   A robust and intelligent Python backend script for securely uploading files to Juniper
+#   devices using the Junos PyEZ library. This script is designed to be executed in a
+#   containerized environment, providing detailed, structured feedback for consumption
+#   by a frontend application via a WebSocket stream.
+#
+# KEY FEATURES:
+#   - Pre-flight Checks: Proactively verifies sufficient disk space on the target device
+#     before initiating the transfer, preventing failed uploads and providing immediate,
+#     actionable feedback to the user.
+#   - Structured JSON Event Emission: Communicates progress and results through a series
+#     of well-defined JSON objects, enabling rich, real-time UI updates.
+#   - Accurate, Non-Flooding Progress Reporting: Uses a stateful, threshold-based
+#     callback to report SCP upload progress in clean increments without overwhelming the
+#     event stream.
+#   - Safe Progress Reporting via Stderr: Emits fine-grained `PROGRESS_UPDATE` events to
+#     `stderr`, preventing any interference with the `stdout`-based SCP protocol, which is a
+#     critical feature for stability.
+#   - Robust Error Handling & Graceful Exit: Captures exceptions at each stage and reports
+#     them in a structured final JSON error object, ensuring the frontend can display clear
+#     and specific error messages.
+#   - Original Filename Preservation: Ensures the file arrives on the remote device with
+#     the same name the user selected in the UI.
 #
 # DEPENDENCIES:
-#   - junos-eznc: Juniper PyEZ library for device connectivity
-#   - flask: Web framework for API endpoints
-#   - werkzeug: For secure file handling
-#   - paramiko: SSH/SCP functionality (used by PyEZ)
-#   - cryptography: For secure operations
+#   - jnpr-pyez: The official Juniper library for automating Junos devices.
 #
-# HOW TO USE:
-#   1. Install dependencies:
-#      pip install junos-eznc flask werkzeug paramiko cryptography
+# HOW-TO GUIDE (INTEGRATION):
+#   This script is intended to be executed by a backend service (e.g., a Node.js API)
+#   in response to a user request. The service is responsible for spawning this script
+#   in a container and passing all required parameters as command-line arguments.
 #
-#   2. Run the script:
-#      python run.py
+# HOW-TO GUIDE (CLI EXECUTION):
+#   The script is fully operable via the command line for testing and automation. The '-u'
+#   flag in the python command is critical to ensure unbuffered output for real-time streaming.
 #
-#   3. The API will be available at:
-#      POST /api/upload-to-router
+#   Example Command:
+#   docker run --rm -v /path/to/local/files:/uploads vlabs-python-runner \\
+#     python -u /path/to/script/run.py \\
+#       --mode cli \\
+#       --run-id "test-run-123" \\
+#       --hostname "192.168.1.1" \\
+#       --username "admin" \\
+#       --password "juniper123" \\
+#       --file "/uploads/temp-file-name.tgz" \\
+#       --remote-filename "junos-install-image.tgz" \\
+#       --path "/var/tmp/"
 #
-#   4. Expected form data:
-#      - file: The file to upload
-#      - hostname: Router IP/hostname
-#      - username: Router username
-#      - password: Router password
-#      - path: Upload path (optional, defaults to /var/tmp/)
-#
-# SECURITY CONSIDERATIONS:
-#   - Passwords are handled securely and not logged
-#   - File uploads are validated and sanitized
-#   - Connection timeouts prevent hanging connections
-#   - Temporary files are cleaned up after upload
-# =============================================================================
+# =================================================================================================
 
+
+# =================================================================================================
+# SECTION 1: IMPORTS
+# All necessary standard library and third-party modules are imported here.
+# =================================================================================================
 import os
 import sys
 import logging
-import tempfile
 import argparse
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Tuple
 
-# Third-party imports
 try:
     from jnpr.junos import Device
     from jnpr.junos.utils.scp import SCP
-    from jnpr.junos.exception import ConnectError, ConfigLoadError, CommitError
-    from flask import Flask, request, jsonify
-    from werkzeug.utils import secure_filename
-    import paramiko
+    from jnpr.junos.exception import RpcError
 except ImportError as e:
-    print(f"Error: Missing required dependency - {e}")
-    print("Please install required packages: pip install junos-eznc flask werkzeug paramiko cryptography")
+    # If a critical dependency is missing, exit immediately with a structured error.
+    print(json.dumps({"success": False, "error": {"type": "ImportError", "message": f"Missing dependency: {e}"}}), file=sys.stderr)
     sys.exit(1)
 
-# =============================================================================
-# SECTION 1: CONFIGURATION AND CONSTANTS
-# =============================================================================
-# Application configuration
+
+# =================================================================================================
+# SECTION 2: CONFIGURATION
+# Centralized constants for easy tuning and maintenance.
+# =================================================================================================
 DEFAULT_UPLOAD_PATH = "/var/tmp/"
-MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
-ALLOWED_EXTENSIONS = {'.txt', '.cfg', '.py', '.xml', '.json', '.yaml', '.yml', '.sh', '.conf'}
-CONNECTION_TIMEOUT = 30
-SCP_TIMEOUT = 300  # 5 minutes for file transfer
+CONNECTION_TIMEOUT = 60
+SCP_TIMEOUT = 3600
+# Define a safety buffer (e.g., 1.10 for 10%) for the disk space check.
+SPACE_CHECK_SAFETY_MARGIN = 1.10
+# Define allowed file extensions for security and validation.
+ALLOWED_EXTENSIONS = {'.tgz', '.txt', '.cfg', '.py', '.xml', '.json', '.yaml', '.yml', '.sh', '.conf', '.img'}
 
-# Flask app configuration
-app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 
-# =============================================================================
-# SECTION 2: LOGGING CONFIGURATION
-# =============================================================================
-def setup_logging(log_level: str = "INFO") -> logging.Logger:
-    """
-    Configure logging for the application
+# =================================================================================================
+# SECTION 3: LOGGING AND EVENT EMISSION
+# Setup for both internal debug logging and structured event emission for the frontend.
+# =================================================================================================
+# Configure a logger for detailed internal diagnostics, printed to stderr.
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - [PY-DEBUG] - %(levelname)s - %(message)s', stream=sys.stderr)
+logger = logging.getLogger('juniper_uploader')
 
-    Args:
-        log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
+def send_event(event_type: str, message: str, data: Dict = None, stream=sys.stdout, run_id: str = None):
+    """Constructs and prints a structured JSON event to the specified stream."""
+    event = {
+        "event_type": event_type,
+        "message": message,
+        "timestamp": datetime.now().isoformat(),
+        "data": data or {}
+    }
+    if run_id:
+        event["runId"] = run_id
+    print(json.dumps(event), flush=True, file=stream)
 
-    Returns:
-        Configured logger instance
-    """
-    logger = logging.getLogger('juniper_uploader')
-    logger.setLevel(getattr(logging, log_level.upper()))
 
-    # Create formatter
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-
-    # Console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-    # File handler
-    log_file = Path('juniper_uploader.log')
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-    return logger
-
-# Initialize logger
-logger = setup_logging()
-
-# =============================================================================
-# SECTION 3: UTILITY FUNCTIONS
-# =============================================================================
-def validate_file(filename: str, file_size: int) -> Tuple[bool, str]:
-    """
-    Validate uploaded file based on size and extension
-
-    Args:
-        filename: Name of the uploaded file
-        file_size: Size of the file in bytes
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    if file_size > MAX_FILE_SIZE:
-        return False, f"File size ({file_size} bytes) exceeds maximum allowed size ({MAX_FILE_SIZE} bytes)"
-
+# =================================================================================================
+# SECTION 4: UTILITY FUNCTIONS
+# Helper functions for validation, sanitization, and formatting.
+# =================================================================================================
+def validate_file(filename: str) -> Tuple[bool, str]:
+    """Checks if the file extension is in the allowed list."""
     file_ext = Path(filename).suffix.lower()
     if ALLOWED_EXTENSIONS and file_ext not in ALLOWED_EXTENSIONS:
-        return False, f"File extension '{file_ext}' not allowed. Allowed extensions: {', '.join(ALLOWED_EXTENSIONS)}"
-
-    return True, "File validation passed"
-
-def validate_connection_params(params: Dict) -> Tuple[bool, str]:
-    """
-    Validate connection parameters
-
-    Args:
-        params: Dictionary containing connection parameters
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    required_params = ['hostname', 'username', 'password']
-
-    for param in required_params:
-        if not params.get(param):
-            return False, f"Missing required parameter: {param}"
-
-    # Basic hostname validation
-    hostname = params['hostname'].strip()
-    if not hostname or len(hostname) > 255:
-        return False, "Invalid hostname format"
-
-    return True, "Connection parameters validation passed"
+        return False, f"File extension '{file_ext}' is not allowed."
+    return True, "File validation passed."
 
 def sanitize_path(path: str) -> str:
-    """
-    Sanitize and validate the upload path
-
-    Args:
-        path: The upload path to sanitize
-
-    Returns:
-        Sanitized path string
-    """
-    if not path or not path.strip():
-        return DEFAULT_UPLOAD_PATH
-
-    # Ensure path starts with /
+    """Sanitizes the remote directory path to prevent security issues."""
+    if not path or not path.strip(): return DEFAULT_UPLOAD_PATH
     path = path.strip()
-    if not path.startswith('/'):
-        path = '/' + path
-
-    # Ensure path ends with /
-    if not path.endswith('/'):
-        path += '/'
-
-    # Remove any dangerous characters or sequences
-    dangerous_chars = ['..', ';', '&', '|', '`', '$']
-    for char in dangerous_chars:
+    if not path.startswith('/'): path = f"/{path}"
+    if not path.endswith('/'): path = f"{path}/"
+    # Remove potentially dangerous characters/sequences.
+    for char in ['..', ';', '&', '|', '`', '$']:
         path = path.replace(char, '')
-
     return path
 
-# =============================================================================
-# SECTION 4: JUNIPER DEVICE CONNECTION CLASS
-# =============================================================================
+def format_bytes_to_mb(byte_count: int) -> str:
+    """Converts a byte count to a human-readable MB string."""
+    if byte_count is None: return "0.00"
+    return f"{byte_count / (1024 * 1024):.2f}"
+
+
+# =================================================================================================
+# SECTION 5: JUNIPER DEVICE MANAGER
+# A class encapsulating all interactions with the Junos device.
+# =================================================================================================
 class JuniperDeviceManager:
-    """
-    Manages connections and file operations with Juniper devices
-    """
+    """Manages the connection, pre-flight checks, and file operations for a Juniper device."""
 
-    def __init__(self, hostname: str, username: str, password: str):
-        """
-        Initialize device manager
-
-        Args:
-            hostname: Device hostname or IP address
-            username: Authentication username
-            password: Authentication password
-        """
+    def __init__(self, hostname: str, username: str, password: str, run_id: str):
         self.hostname = hostname
         self.username = username
         self.password = password
+        self.run_id = run_id
         self.device = None
-        self.scp = None
+        # State for reporting progress in clean, non-flooding increments.
+        self._last_reported_progress = -1
+        logger.info(f"JuniperDeviceManager initialized for host {hostname} and run_id {run_id}")
 
     def connect(self) -> Tuple[bool, str]:
-        """
-        Establish connection to Juniper device
-
-        Returns:
-            Tuple of (success, message)
-        """
+        """Establishes a secure NETCONF connection to the Juniper device."""
+        logger.info("Attempting to connect to device...")
         try:
-            logger.info(f"Attempting to connect to {self.hostname}")
-
-            # Create device instance
-            self.device = Device(
-                host=self.hostname,
-                user=self.username,
-                password=self.password,
-                timeout=CONNECTION_TIMEOUT,
-                gather_facts=False  # Skip facts gathering for faster connection
-            )
-
-            # Open connection
+            self.device = Device(host=self.hostname, user=self.username, password=self.password, timeout=CONNECTION_TIMEOUT, gather_facts=False)
             self.device.open()
-
-            # Initialize SCP
-            self.scp = SCP(self.device)
-
-            logger.info(f"Successfully connected to {self.hostname}")
+            logger.info(f"Successfully connected to host. Device is open: {self.device.connected}")
             return True, "Connection established successfully"
-
-        except ConnectError as e:
-            error_msg = f"Failed to connect to {self.hostname}: {str(e)}"
-            logger.error(error_msg)
-            return False, error_msg
         except Exception as e:
-            error_msg = f"Unexpected error during connection: {str(e)}"
-            logger.error(error_msg)
-            return False, error_msg
-
-    def upload_file(self, local_file_path: str, remote_path: str, filename: str) -> Tuple[bool, str]:
+            logger.error(f"Failed to connect: {e}", exc_info=True)
+            return False, f"Failed to connect: {str(e)}"
+    # ==============================PRE CHECKS======================================================
+    def perform_pre_flight_checks(self, local_file_path: str, remote_dest_path: str) -> Tuple[bool, str]:
         """
-        Upload file to Juniper device
-
-        Args:
-            local_file_path: Path to local file
-            remote_path: Remote directory path
-            filename: Name of the file
-
-        Returns:
-            Tuple of (success, message)
+        Performs checks on the remote device using a robust filesystem matching algorithm.
         """
-        if not self.device or not self.scp:
-            return False, "Device not connected. Call connect() first."
-
+        logger.info("Performing pre-flight checks on remote device...")
         try:
-            # Construct full remote path
-            full_remote_path = f"{remote_path}{filename}"
+            # 1. Get the required file size, including a safety margin.
+            file_size_bytes = os.path.getsize(local_file_path)
+            required_space_bytes = int(file_size_bytes * SPACE_CHECK_SAFETY_MARGIN)
 
-            logger.info(f"Uploading {local_file_path} to {self.hostname}:{full_remote_path}")
+            # 2. Get the system storage information from the device.
+            logger.info("Checking remote system storage via RPC...")
+            storage_info = self.device.rpc.get_system_storage()
 
-            # Upload file using SCP
-            self.scp.put(local_file_path, full_remote_path, progress=self._upload_progress)
+            # 3. Find the BEST filesystem match for the destination path.
+            # The "best" match is the mount point with the longest common prefix.
+            best_match_fs = None
+            longest_match_len = -1
 
-            # Verify file was uploaded
-            file_size = os.path.getsize(local_file_path)
-            success_msg = f"File uploaded successfully to {full_remote_path} ({file_size} bytes)"
-            logger.info(success_msg)
+            # Loop through ALL filesystems without breaking early.
+            for fs in storage_info.findall('filesystem'):
+                # Safely get the mount point, stripping any whitespace.
+                mount_point = fs.findtext('mounted-on', default='').strip()
+                if not mount_point:
+                    continue # Skip this filesystem if it has no mount point.
 
-            return True, success_msg
+                # Check if our destination path is located within this filesystem.
+                if remote_dest_path.startswith(mount_point):
+                    # If it is, check if this match is better (longer) than any previous match.
+                    if len(mount_point) > longest_match_len:
+                        # We found a new best match. Record it.
+                        longest_match_len = len(mount_point)
+                        best_match_fs = fs
 
+            # 4. After checking all filesystems, see if we found a viable candidate.
+            if best_match_fs is None:
+                # If no match was ever found, the original error was correct. Abort.
+                return False, f"Could not determine the target filesystem for path '{remote_dest_path}'."
+
+            # We now have the correct filesystem. Proceed with this one.
+            target_fs = best_match_fs
+            target_mount_point = target_fs.findtext('mounted-on')
+
+            # 5. Get the available space on that filesystem.
+            available_bytes = int(target_fs.findtext('available-blocks'))
+
+            # 6. Compare required space vs. available space.
+            logger.info(f"Required space: ~{format_bytes_to_mb(required_space_bytes)} MB. Available: {format_bytes_to_mb(available_bytes)} MB on '{target_mount_point}'.")
+            if available_bytes < required_space_bytes:
+                error_msg = (
+                    f"Insufficient space on device filesystem '{target_mount_point}'. "
+                    f"Required: ~{format_bytes_to_mb(required_space_bytes)} MB, "
+                    f"Available: {format_bytes_to_mb(available_bytes)} MB."
+                )
+                return False, error_msg
+
+            logger.info("Disk space check passed.")
+            return True, "Pre-flight checks passed successfully."
+
+        except RpcError as e:
+            logger.error(f"RPC error during pre-flight check: {e}", exc_info=True)
+            return False, f"Could not retrieve device storage information: {str(e)}"
         except Exception as e:
-            error_msg = f"File upload failed: {str(e)}"
-            logger.error(error_msg)
-            return False, error_msg
+            logger.error(f"An unexpected error occurred during pre-flight checks: {e}", exc_info=True)
+            return False, f"An unexpected error occurred during pre-flight checks: {str(e)}"
 
-    def _upload_progress(self, filename: str, size: int, sent: int):
-        """
-        Progress callback for SCP upload
+    # ==============================PROGRESS CALL===================================================
+    def _upload_progress_callback(self, filename: str, size: int, sent: int):
+        """A stateful callback that reports progress in clean, ~5% increments."""
+        try:
+            if size > 0:
+                percent = (sent / size) * 100
+                current_percent_int = int(percent)
+                # Report if progress has crossed a 5% threshold or if it's the final packet.
+                if (current_percent_int >= self._last_reported_progress + 5) or (sent == size):
+                    send_event(
+                        "PROGRESS_UPDATE",
+                        f"Uploading {filename.decode('utf-8') if isinstance(filename, bytes) else filename}: {percent:.1f}%",
+                        {"progress": percent, "sent": sent, "total": size},
+                        stream=sys.stderr, # Send to stderr to not interfere with SCP
+                        run_id=self.run_id
+                    )
+                    self._last_reported_progress = current_percent_int
+        except Exception as e:
+            logger.error(f"Error in progress callback: {e}", exc_info=True)
 
-        Args:
-            filename: Name of file being uploaded
-            size: Total file size
-            sent: Bytes sent so far
-        """
-        if size > 0:
-            percent = (sent / size) * 100
-            logger.debug(f"Upload progress for {filename}: {percent:.1f}% ({sent}/{size} bytes)")
+    def upload_file(self, local_file_path: str, remote_path: str) -> Tuple[bool, str]:
+        """Uploads a local file using the PyEZ SCP utility with a progress callback."""
+        if not self.device or not self.device.connected:
+            return False, "Device is not connected."
+        logger.info(f"Starting SCP upload of {local_file_path} to {self.hostname}:{remote_path}...")
+        try:
+            # Reset the progress tracker before every new upload.
+            self._last_reported_progress = -1
+            with SCP(self.device, progress=self._upload_progress_callback) as scp:
+                scp.put(local_file_path, remote_path=remote_path)
+            logger.info("SCP put command completed.")
+            return True, "File uploaded successfully"
+        except Exception as e:
+            logger.error(f"SCP upload failed: {e}", exc_info=True)
+            return False, f"SCP upload failed: {str(e)}"
 
     def get_device_info(self) -> Dict:
-        """
-        Get basic device information
-
-        Returns:
-            Dictionary containing device information
-        """
-        if not self.device:
-            return {}
-
+        """Retrieves basic facts (hostname, model, version) from the connected device."""
+        if not self.device: return {}
         try:
+            logger.info("Refreshing device facts...")
+            self.device.facts_refresh()
             facts = self.device.facts
-            return {
-                'hostname': facts.get('hostname', 'Unknown'),
-                'model': facts.get('model', 'Unknown'),
-                'version': facts.get('version', 'Unknown'),
-                'serial_number': facts.get('serialnumber', 'Unknown')
+            device_info = {
+                'hostname': facts.get('hostname', 'N/A'),
+                'model': facts.get('model', 'N/A'),
+                'version': facts.get('version', 'N/A'),
             }
+            logger.info(f"Successfully retrieved device facts: {device_info}")
+            return device_info
         except Exception as e:
-            logger.warning(f"Could not retrieve device facts: {str(e)}")
+            logger.warning(f"Could not retrieve device facts: {e}", exc_info=True)
             return {'hostname': self.hostname}
 
-    def verify_path_exists(self, path: str) -> Tuple[bool, str]:
-        """
-        Verify that the remote path exists
-
-        Args:
-            path: Remote path to verify
-
-        Returns:
-            Tuple of (exists, message)
-        """
-        if not self.device:
-            return False, "Device not connected"
-
-        try:
-            # Execute shell command to check if path exists
-            result = self.device.rpc.request_shell_execute(command=f"ls -ld {path}")
-            if result and 'No such file or directory' not in str(result):
-                return True, f"Path {path} exists"
-            else:
-                return False, f"Path {path} does not exist"
-        except Exception as e:
-            logger.warning(f"Could not verify path {path}: {str(e)}")
-            return False, f"Could not verify path: {str(e)}"
-
     def disconnect(self):
-        """
-        Close connection to device
-        """
-        try:
-            if self.scp:
-                self.scp.close()
-                self.scp = None
+        """Closes the connection to the device if it's open."""
+        if self.device and self.device.connected:
+            logger.info("Disconnecting from device.")
+            self.device.close()
+            logger.info("Device connection closed.")
 
-            if self.device:
-                self.device.close()
-                self.device = None
 
-            logger.info(f"Disconnected from {self.hostname}")
-        except Exception as e:
-            logger.warning(f"Error during disconnect: {str(e)}")
-
-# =============================================================================
-# SECTION 5: FLASK API ENDPOINTS
-# =============================================================================
-@app.route('/api/upload-to-router', methods=['POST'])
-def upload_to_router():
-    """
-    API endpoint for uploading files to Juniper routers
-
-    Expected form data:
-        - file: The file to upload
-        - hostname: Router hostname/IP
-        - username: Authentication username
-        - password: Authentication password
-        - path: Upload path (optional)
-
-    Returns:
-        JSON response with success/error status
-    """
-    temp_file_path = None
-    device_manager = None
-
-    try:
-        # Validate request has file
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
-
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
-
-        # Get connection parameters
-        hostname = request.form.get('hostname', '').strip()
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        upload_path = sanitize_path(request.form.get('path', DEFAULT_UPLOAD_PATH))
-
-        # Validate connection parameters
-        conn_params = {
-            'hostname': hostname,
-            'username': username,
-            'password': password
-        }
-
-        is_valid, error_msg = validate_connection_params(conn_params)
-        if not is_valid:
-            return jsonify({'error': error_msg}), 400
-
-        # Validate file
-        file_size = 0
-        if hasattr(file, 'content_length') and file.content_length:
-            file_size = file.content_length
-
-        is_valid, error_msg = validate_file(file.filename, file_size)
-        if not is_valid:
-            return jsonify({'error': error_msg}), 400
-
-        # Secure the filename
-        filename = secure_filename(file.filename)
-        if not filename:
-            return jsonify({'error': 'Invalid filename'}), 400
-
-        # Save file temporarily
-        temp_dir = tempfile.mkdtemp()
-        temp_file_path = os.path.join(temp_dir, filename)
-        file.save(temp_file_path)
-
-        # Get actual file size after saving
-        actual_file_size = os.path.getsize(temp_file_path)
-
-        logger.info(f"Upload request: {filename} ({actual_file_size} bytes) to {hostname}:{upload_path}")
-
-        # Connect to device and upload file
-        device_manager = JuniperDeviceManager(hostname, username, password)
-
-        # Establish connection
-        success, message = device_manager.connect()
-        if not success:
-            return jsonify({'error': f'Connection failed: {message}'}), 500
-
-        # Verify upload path exists (optional check)
-        path_exists, path_msg = device_manager.verify_path_exists(upload_path)
-        if not path_exists:
-            logger.warning(f"Upload path may not exist: {path_msg}")
-
-        # Upload the file
-        success, message = device_manager.upload_file(temp_file_path, upload_path, filename)
-        if not success:
-            return jsonify({'error': f'Upload failed: {message}'}), 500
-
-        # Get device info for response
-        device_info = device_manager.get_device_info()
-
-        # Success response
-        response_data = {
-            'success': True,
-            'message': message,
-            'filename': filename,
-            'size': actual_file_size,
-            'remote_path': f"{upload_path}{filename}",
-            'device_info': device_info,
-            'timestamp': datetime.now().isoformat()
-        }
-
-        logger.info(f"Upload completed successfully: {filename} to {hostname}")
-        return jsonify(response_data), 200
-
-    except Exception as e:
-        error_msg = f"Unexpected error during upload: {str(e)}"
-        logger.error(error_msg)
-        return jsonify({'error': error_msg}), 500
-
-    finally:
-        # Cleanup
-        if device_manager:
-            device_manager.disconnect()
-
-        if temp_file_path and os.path.exists(temp_file_path):
-            try:
-                os.remove(temp_file_path)
-                if os.path.exists(os.path.dirname(temp_file_path)):
-                    os.rmdir(os.path.dirname(temp_file_path))
-            except Exception as e:
-                logger.warning(f"Could not cleanup temporary file: {str(e)}")
-
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """
-    Health check endpoint
-
-    Returns:
-        JSON response with service status
-    """
-    return jsonify({
-        'status': 'healthy',
-        'service': 'Juniper File Uploader',
-        'timestamp': datetime.now().isoformat(),
-        'version': '1.0.0'
-    }), 200
-
-@app.route('/api/supported-extensions', methods=['GET'])
-def get_supported_extensions():
-    """
-    Get list of supported file extensions
-
-    Returns:
-        JSON response with supported extensions
-    """
-    return jsonify({
-        'supported_extensions': list(ALLOWED_EXTENSIONS),
-        'max_file_size': MAX_FILE_SIZE,
-        'default_path': DEFAULT_UPLOAD_PATH
-    }), 200
-
-# =============================================================================
-# SECTION 6: COMMAND LINE INTERFACE
-# =============================================================================
-def create_argument_parser():
-    """
-    Create command line argument parser
-
-    Returns:
-        Configured ArgumentParser instance
-    """
-    parser = argparse.ArgumentParser(
-        description='Juniper Router File Upload Service',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Start the web service
-  python run.py --mode web --port 5000
-
-  # Upload file directly via CLI
-  python run.py --mode cli --hostname 192.168.1.1 --username admin --password secret --file config.txt
-
-  # Upload with custom path
-  python run.py --mode cli --hostname router.example.com --username admin --password secret --file firmware.img --path /var/tmp/uploads/
-        """
-    )
-
-    parser.add_argument('--mode', choices=['web', 'cli'], default='web',
-                       help='Operation mode: web service or CLI upload')
-    parser.add_argument('--port', type=int, default=5000,
-                       help='Port for web service (default: 5000)')
-    parser.add_argument('--host', default='0.0.0.0',
-                       help='Host for web service (default: 0.0.0.0)')
-    parser.add_argument('--debug', action='store_true',
-                       help='Enable debug mode')
-
-    # CLI mode arguments
-    parser.add_argument('--hostname', help='Router hostname or IP address')
-    parser.add_argument('--username', help='Router username')
-    parser.add_argument('--password', help='Router password')
-    parser.add_argument('--file', help='File to upload')
-    parser.add_argument('--path', help=f'Upload path (default: {DEFAULT_UPLOAD_PATH})')
-
-    return parser
-
-def cli_upload(args):
-    """
-    Handle CLI mode file upload
-
-    Args:
-        args: Parsed command line arguments
-
-    Returns:
-        Exit code (0 for success, 1 for failure)
-    """
-    # Validate required arguments
-    required_args = ['hostname', 'username', 'password', 'file']
-    for arg in required_args:
-        if not getattr(args, arg):
-            print(f"Error: --{arg} is required for CLI mode")
-            return 1
-
-    # Validate file exists
-    if not os.path.exists(args.file):
-        print(f"Error: File '{args.file}' not found")
-        return 1
-
-    filename = os.path.basename(args.file)
-    file_size = os.path.getsize(args.file)
-    upload_path = sanitize_path(args.path or DEFAULT_UPLOAD_PATH)
-
-    # Validate file
-    is_valid, error_msg = validate_file(filename, file_size)
-    if not is_valid:
-        print(f"Error: {error_msg}")
-        return 1
-
-    print(f"Uploading {filename} ({file_size} bytes) to {args.hostname}:{upload_path}")
-
+# =================================================================================================
+# SECTION 6: CLI MODE EXECUTION LOGIC
+# This is the main workflow orchestrator when the script is run with `--mode cli`.
+# =================================================================================================
+def cli_upload(args: argparse.Namespace):
+    """Handles the end-to-end file upload process, emitting structured JSON events."""
     device_manager = None
     try:
-        # Connect to device
-        device_manager = JuniperDeviceManager(args.hostname, args.username, args.password)
+        # -----------------------------------------------------------------------------------------
+        # OPERATION START: Announce the beginning of the process.
+        # -----------------------------------------------------------------------------------------
+        send_event("OPERATION_START", "File upload process initiated.", {"total_steps": 5}, run_id=args.run_id)
 
+        # -----------------------------------------------------------------------------------------
+        # STEP 1: INPUT VALIDATION AND NORMALIZATION
+        # -----------------------------------------------------------------------------------------
+        send_event("STEP_START", "Validating file and connection parameters...", run_id=args.run_id)
+        if not all([args.hostname, args.username, args.password, args.file, args.remote_filename]):
+            raise ValueError("Missing required arguments: hostname, username, password, file, and remote_filename are required.")
+        local_file_path = args.file
+        if not os.path.exists(local_file_path):
+            raise FileNotFoundError(f"Source file not found at path: {local_file_path}")
+        is_valid, msg = validate_file(args.remote_filename)
+        if not is_valid:
+            raise ValueError(f"File validation failed: {msg}")
+        upload_directory = sanitize_path(args.path or DEFAULT_UPLOAD_PATH)
+        full_remote_path = os.path.join(upload_directory, args.remote_filename).replace('//','/')
+        send_event("STEP_COMPLETE", "Validation successful.", run_id=args.run_id)
+
+        # -----------------------------------------------------------------------------------------
+        # STEP 2: DEVICE CONNECTION
+        # -----------------------------------------------------------------------------------------
+        send_event("STEP_START", f"Connecting to device: {args.hostname}...", run_id=args.run_id)
+        device_manager = JuniperDeviceManager(args.hostname, args.username, args.password, run_id=args.run_id)
         success, message = device_manager.connect()
         if not success:
-            print(f"Connection failed: {message}")
-            return 1
+            raise ConnectionError(message)
+        send_event("STEP_COMPLETE", "Successfully connected to device.", run_id=args.run_id)
 
-        print("Connected successfully")
-
-        # Upload file
-        success, message = device_manager.upload_file(args.file, upload_path, filename)
+        # -----------------------------------------------------------------------------------------
+        # STEP 3: PRE-FLIGHT CHECKS
+        # -----------------------------------------------------------------------------------------
+        send_event("STEP_START", "Performing pre-flight checks (e.g., disk space)...", run_id=args.run_id)
+        success, message = device_manager.perform_pre_flight_checks(local_file_path, full_remote_path)
         if not success:
-            print(f"Upload failed: {message}")
-            return 1
+            raise ValueError(message)
+        send_event("STEP_COMPLETE", "Pre-flight checks passed.", run_id=args.run_id)
 
-        print(f"Success: {message}")
+        # -----------------------------------------------------------------------------------------
+        # STEP 4: FILE UPLOAD VIA SCP
+        # -----------------------------------------------------------------------------------------
+        send_event("STEP_START", f"Uploading {args.remote_filename} to {upload_directory}...", run_id=args.run_id)
+        success, message = device_manager.upload_file(local_file_path, full_remote_path)
+        if not success:
+            raise IOError(message)
+        send_event("STEP_COMPLETE", "File uploaded successfully.", run_id=args.run_id)
 
-        # Show device info
+        # -----------------------------------------------------------------------------------------
+        # STEP 5: FINALIZE AND DISCONNECT
+        # -----------------------------------------------------------------------------------------
+        send_event("STEP_START", "Gathering final device info and disconnecting...", run_id=args.run_id)
         device_info = device_manager.get_device_info()
-        if device_info:
-            print(f"Device: {device_info.get('hostname', 'Unknown')} ({device_info.get('model', 'Unknown')})")
+        device_manager.disconnect()
+        send_event("STEP_COMPLETE", "Disconnected from device.", run_id=args.run_id)
 
-        return 0
+        # -----------------------------------------------------------------------------------------
+        # FINAL SUCCESS HANDLER: Report a successful outcome.
+        # -----------------------------------------------------------------------------------------
+        final_result = {
+            "success": True,
+            "runId": args.run_id,
+            "details": {
+                "summary": "File was uploaded and verified successfully.",
+                "filename": args.remote_filename,
+                "remote_path": full_remote_path,
+                "device_info": device_info
+            }
+        }
+        print(json.dumps(final_result), flush=True)
+        sys.exit(0)
 
-    except KeyboardInterrupt:
-        print("\nUpload cancelled by user")
-        return 1
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return 1
-    finally:
+        # -----------------------------------------------------------------------------------------
+        # GLOBAL FAILURE HANDLER: Catch any exception and report it gracefully.
+        # -----------------------------------------------------------------------------------------
+        error_result = {
+            "success": False,
+            "runId": args.run_id,
+            "error": { "type": type(e).__name__, "message": str(e) }
+        }
+        print(json.dumps(error_result), flush=True)
         if device_manager:
             device_manager.disconnect()
+        sys.exit(1)
 
-# =============================================================================
-# SECTION 7: MAIN EXECUTION
-# =============================================================================
+
+# =================================================================================================
+# SECTION 7: MAIN EXECUTION BLOCK
+# Parses command-line arguments and triggers the appropriate execution mode.
+# =================================================================================================
 def main():
-    """
-    Main entry point for the application
-    """
-    parser = create_argument_parser()
+    """Main entry point for the application."""
+    parser = argparse.ArgumentParser(
+        description='Juniper File Upload Service with Pre-flight Checks.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    # --- Required Arguments ---
+    parser.add_argument('--run-id', required=True, help='Unique identifier for the run, passed from the backend.')
+    parser.add_argument('--mode', choices=['cli'], required=True, help='Operation mode (only "cli" is fully implemented).')
+    parser.add_argument('--hostname', required=True, help='Router hostname or IP address.')
+    parser.add_argument('--username', required=True, help='Router username for authentication.')
+    parser.add_argument('--password', required=True, help='Router password for authentication.')
+    parser.add_argument('--file', required=True, help='Full path to the local temporary file to upload.')
+    parser.add_argument('--remote-filename', required=True, help='The desired original filename for the file on the remote device.')
+    # --- Optional Arguments ---
+    parser.add_argument('--path', help=f'Remote upload directory on the device.\n(default: {DEFAULT_UPLOAD_PATH})')
+
     args = parser.parse_args()
 
-    # Set up logging level
-    if args.debug:
-        setup_logging("DEBUG")
-    else:
-        setup_logging("INFO")
-
     if args.mode == 'cli':
-        # CLI mode
-        exit_code = cli_upload(args)
-        sys.exit(exit_code)
-    else:
-        # Web service mode
-        print("Starting Juniper File Upload Service...")
-        print(f"Health check: http://{args.host}:{args.port}/api/health")
-        print(f"Upload endpoint: http://{args.host}:{args.port}/api/upload-to-router")
-        print("Press Ctrl+C to stop the service")
-
-        try:
-            app.run(
-                host=args.host,
-                port=args.port,
-                debug=args.debug,
-                threaded=True
-            )
-        except KeyboardInterrupt:
-            print("\nService stopped by user")
-        except Exception as e:
-            print(f"Service error: {str(e)}")
-            sys.exit(1)
+        cli_upload(args)
 
 if __name__ == '__main__':
     main()

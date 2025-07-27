@@ -15,36 +15,18 @@ const path = require("path");
 const fs = require("fs");
 const yaml = require("js-yaml");
 
+const multer = require("multer");
+const { Writable } = require('stream');
+
 const app = express();
 const port = 3001;
 const runHistory = [];
 const MAX_HISTORY_ITEMS = 50;
 
-
 const { executeWithRealTimeUpdates } = require('./utils/executeWithRealTimeUpdates');
 
 // ====================================================================================
-// SECTION 2: GLOBAL EXCEPTION HANDLER
-// ====================================================================================
-// Description: Catches uncaught exceptions to prevent server crashes and ensure graceful shutdown.
-// Purpose: Provides a safety net for unexpected errors with detailed logging.
-process.on("uncaughtException", (err, origin) => {
-  console.error("====== UNCAUGHT EXCEPTION! SHUTTING DOWN ======");
-  console.error("Error:", err.stack || err);
-  console.error("Origin:", origin);
-  process.exit(1);
-});
-
-// ====================================================================================
-// SECTION 3: EXPRESS MIDDLEWARE CONFIGURATION
-// ====================================================================================
-// Description: Configures Express middleware for handling CORS and JSON requests.
-// Purpose: Enables communication with the frontend (http://localhost:3000) and parses incoming JSON.
-app.use(cors());
-app.use(express.json());
-
-// ====================================================================================
-// SECTION 4: PATH CONSTANTS & IN-MEMORY STATE
+// SECTION 2: PATH CONSTANTS & IN-MEMORY STATE
 // ====================================================================================
 // Description: Defines file paths and state for Docker mounts, scripts, templates, and lab statuses.
 // Purpose: Centralizes configuration for consistent access across endpoints.
@@ -56,9 +38,49 @@ const SCRIPT_MOUNT_POINT_IN_CONTAINER = "/app/python-scripts";
 const TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER = path.join(PYTHON_PIPELINE_MOUNT_PATH, "tools", "configuration", "templates.yml");
 const TEMPLATES_DIRECTORY_PATH = path.join(PYTHON_PIPELINE_MOUNT_PATH, "tools", "configuration", "templates");
 const NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER = path.join(PUBLIC_MOUNT_PATH, "navigation.yaml");
+const UPLOAD_TEMP_DIR = path.join(PYTHON_PIPELINE_MOUNT_PATH, "temp_uploads");
+
 const labStatuses = {};
 const testDiscoveryCache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000;
+// ====================================================================================
+// SECTION 3: GLOBAL EXCEPTION HANDLER
+// ====================================================================================
+// Description: Catches uncaught exceptions to prevent server crashes and ensure graceful shutdown.
+// Purpose: Provides a safety net for unexpected errors with detailed logging.
+process.on("uncaughtException", (err, origin) => {
+  console.error("====== UNCAUGHT EXCEPTION! SHUTTING DOWN ======");
+  console.error("Error:", err.stack || err);
+  console.error("Origin:", origin);
+  process.exit(1);
+});
+
+// ====================================================================================
+// SECTION 4: EXPRESS MIDDLEWARE CONFIGURATION
+// ====================================================================================
+// Description: Configures Express middleware for handling CORS and JSON requests.
+// Purpose: Enables communication with the frontend (http://localhost:3000) and parses incoming JSON.
+app.use(cors());
+app.use(express.json());
+// Make sure this function is available or defined as shown in your file
+ensureDirectoryExists(UPLOAD_TEMP_DIR);
+
+const UPLOAD_DIRECTORY_IN_CONTAINER = '/uploads';
+
+// Configure multer to save files directly to the shared /uploads volume.
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, UPLOAD_DIRECTORY_IN_CONTAINER);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    cb(null, `file-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({ storage: storage });
+
+
 
 // ====================================================================================
 // SECTION 5: WEBSOCKET SERVER SETUP
@@ -103,6 +125,13 @@ wss.on("connection", (ws) => {
 // ====================================================================================
 // Description: Utility functions for file operations, template handling, and Docker interactions.
 // Purpose: Abstracts common operations to simplify endpoint logic and improve maintainability.
+//
+function ensureDirectoryExists(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+    console.log(`[BACKEND] Created directory: ${dirPath}`);
+  }
+}
 
 const getTemplatesConfig = () => {
   // Loads and parses templates.yml for configuration management.
@@ -226,6 +255,33 @@ const scanDirectory = (directoryPath) => {
     return { name, type: 'folder', children };
   } else {
     return { name, type: 'file' };
+  }
+};
+// =================================================================================================
+// SECTION 1: HELPER FUNCTIONS
+// THE FIX: These functions were missing, causing the backend to crash. They must be defined
+// here so the endpoint can use them.
+// =================================================================================================
+
+/**
+ * Generates a simple unique identifier for tracking runs.
+ * @returns {string} - A unique identifier string.
+ */
+const generateUniqueId = () => {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
+/**
+ * Safely parses a JSON string, returning null if parsing fails.
+ * @param {string} jsonString - The JSON string to parse.
+ * @returns {Object|null} - The parsed JavaScript object or null on error.
+ */
+const safeJsonParse = (jsonString) => {
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    // Intentionally returning null, the caller will handle it.
+    return null;
   }
 };
 
@@ -774,95 +830,249 @@ app.post("/api/templates/apply", async (req, res) => {
 });
 
 // ===================================================================================
-// FILE: backend/server.js (Partial)
-// SECTION 7.X: SCRIPT EXECUTION WITH REAL-TIME STREAMING (FINAL CORRECTED VERSION)
 // ===================================================================================
-// Description: The definitive endpoint for running all scripts. It uses a simple
-//              pass-through logic by default and applies special parameter processing
-//              conditionally, only for the scripts that require it. This ensures
-//              compatibility for both old and new scripts.
+// FILE: backend/server.js
+//
+// API ROUTE: POST /api/scripts/run-stream (REFACTORED & FIXED)
+//
+// This is the definitive fix. We are replacing the call to the generic
+// `executeWithRealTimeUpdates` utility and implementing the full spawn and
+// stream handling logic directly within this endpoint.
+//
+// This mirrors the working pattern from the `/api/files/upload` endpoint and
+// guarantees that the `runId` is correctly included in every single `progress`
+// message sent to the client, solving the root cause of the UI not updating.
+// ===================================================================================
 
-// ===================================================================================
-// FILE: backend/server.js (Partial)
-// SECTION 7.X: SCRIPT EXECUTION WITH REAL-TIME STREAMING (FINAL CORRECTED VERSION)
-// ===================================================================================
-
-// ===================================================================================
-// SCRIPT EXECUTION ENDPOINT (CORRECTED)
-// ===================================================================================
 app.post("/api/scripts/run-stream", (req, res) => {
+  // -------------------------------------------------------------------------------
+  // SECTION 1: Extract Request Inputs & Generate Run ID
+  // -------------------------------------------------------------------------------
   const { scriptId, parameters, wsClientId } = req.body;
-  const runId = Date.now().toString() + Math.random().toString(36).substring(2, 9);
+  const runId = generateUniqueId(); // Use the existing helper function
 
-  // 1. Validation
-  if (!scriptId || !wsClientId) return res.status(400).json({ success: false, message: "scriptId and wsClientId are required." });
+  // -------------------------------------------------------------------------------
+  // SECTION 2: Validation (Unchanged)
+  // -------------------------------------------------------------------------------
+  if (!scriptId || !wsClientId) {
+    return res.status(400).json({ success: false, message: "scriptId and wsClientId are required." });
+  }
   const clientWs = clients.get(wsClientId);
-  if (!clientWs || clientWs.readyState !== 1) return res.status(404).json({ success: false, message: `WebSocket client not found.` });
+  if (!clientWs || clientWs.readyState !== 1) {
+    return res.status(404).json({ success: false, message: `WebSocket client not found.` });
+  }
   const config = yaml.load(fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
   const scriptDef = config.scripts.find((s) => s.id === scriptId);
-  if (!scriptDef) return res.status(404).json({ success: false, message: `Script definition not found.` });
-
-  // 2. Acknowledge and Pre-process
-  res.status(202).json({ success: true, message: "Script execution started.", runId });
-  let processedParameters = { ...parameters };
-
-  if (scriptId === 'code_upgrade') {
-      console.log('[BACKEND] Removing transient UI parameters (vendor, platform) for code_upgrade script.');
-      delete processedParameters.vendor;
-      delete processedParameters.platform;
+  if (!scriptDef) {
+    return res.status(404).json({ success: false, message: `Script definition not found.` });
   }
 
-  // 3. Construct Docker command
-  const scriptPathInContainer = path.join(PYTHON_PIPELINE_MOUNT_PATH, scriptDef.path, "run.py");
+  // -------------------------------------------------------------------------------
+  // SECTION 3: Acknowledge Request (Unchanged)
+  // -------------------------------------------------------------------------------
+  res.status(202).json({ success: true, message: "Script execution started.", runId });
 
-  // ** THIS IS THE EXPLICIT FIX for the ReferenceError **
+  // -------------------------------------------------------------------------------
+  // SECTION 4: Build Docker Command (Unchanged)
+  // -------------------------------------------------------------------------------
+  const scriptPathInContainer = path.join(PYTHON_PIPELINE_MOUNT_PATH, scriptDef.path, "run.py");
   const mainVolumeMount = `${process.env.HOST_PROJECT_ROOT}/python_pipeline:${PYTHON_PIPELINE_MOUNT_PATH}`;
   const backupVolumeMount = `${process.env.HOST_PROJECT_ROOT}/python_pipeline/tools/backup_and_restore/backups:/backups`;
-
-  const dockerOptions = [
-    "run", "--rm", "--network=host",
-    "-v", mainVolumeMount,
-    "-v", backupVolumeMount,
-  ];
-
+  const dockerOptions = ["run", "--rm", "--network=host", "-v", mainVolumeMount, "-v", backupVolumeMount];
   const commandAndArgs = ["vlabs-python-runner", "stdbuf", "-oL", "-eL", "python", "-u", scriptPathInContainer];
 
-  // Build argument list
-  for (const [key, value] of Object.entries(processedParameters)) {
+  for (const [key, value] of Object.entries(parameters || {})) {
     if (value === null || value === undefined || value === '') continue;
-    if (value === true) {
-      commandAndArgs.push(`--${key}`);
-    } else if (value !== false) {
-      commandAndArgs.push(`--${key}`);
-      commandAndArgs.push(String(value));
-    }
+    if (value === true) { commandAndArgs.push(`--${key}`); }
+    else if (value !== false) { commandAndArgs.push(`--${key}`, String(value)); }
   }
-
   const finalDockerCommand = [...dockerOptions, ...commandAndArgs];
 
-  // 4. Execute
+  // -------------------------------------------------------------------------------
+  // SECTION 5: Log Command and Notify WebSocket of Start (Unchanged)
+  // -------------------------------------------------------------------------------
   console.log('--- EXECUTING DOCKER COMMAND ---');
   console.log(`docker ${finalDockerCommand.join(' ')}`);
   console.log('--------------------------------');
+  if (clientWs.readyState === 1) {
+    clientWs.send(JSON.stringify({ type: "script_start", runId, scriptId }));
+  }
 
-  if (clientWs.readyState === 1) clientWs.send(JSON.stringify({ type: "script_start", runId, scriptId }));
-  executeWithRealTimeUpdates('docker', finalDockerCommand, clientWs, {
-    onClose: (code, fullStdout, fullStderr) => {
-        let finalResult = null;
-        try { finalResult = JSON.parse(fullStdout); } catch(e) { /* Ignore */ }
-        if (finalResult && clientWs.readyState === 1) {
-          clientWs.send(JSON.stringify({ type: "script_output", runId, scriptId, output: finalResult }));
-        }
-        const historyRecord = { runId, timestamp: new Date().toISOString(), scriptId, parameters: processedParameters, isSuccess: code === 0, output: fullStdout, error: fullStderr };
-        runHistory.unshift(historyRecord);
-        if (runHistory.length > MAX_HISTORY_ITEMS) runHistory.pop();
-        if (clientWs.readyState === 1) {
-          clientWs.send(JSON.stringify({ type: "script_end", runId, scriptId, exitCode: code }));
-        }
+  // -------------------------------------------------------------------------------
+  // SECTION 6: THE FIX - Execute with Self-Contained Stream Handling
+  // -------------------------------------------------------------------------------
+  const child = spawn("docker", finalDockerCommand);
+  let fullStdout = '';
+  let fullStderr = '';
+
+  // This function is now smarter. It differentiates between progress logs and other output.
+  const streamOutput = (line, level) => {
+    // --- THE FIX IS HERE ---
+    // We check if the line from stdout is a structured progress log.
+    if (line.trim().startsWith('JSON_PROGRESS:')) {
+      // Add the raw line to the full log for history/debugging.
+      if (level === 'INFO') fullStdout += line;
+
+      console.log(`[SCRIPT][PROGRESS][${runId}] ${line.trim()}`);
+
+      // It IS a progress event. Send it to the client immediately.
+      if (clientWs.readyState === 1) {
+        clientWs.send(JSON.stringify({
+          type: 'progress',
+          runId,
+          scriptId,
+          level,
+          message: line // The frontend is already designed to handle the prefix.
+        }));
+      }
+    } else {
+      // It is NOT a progress event. It's likely part of the final JSON result.
+      // We add it to the stdout log but DO NOT send a progress event for it.
+      if (level === 'INFO') {
+        fullStdout += line;
+        console.log(`[SCRIPT][STDOUT][${runId}] ${line.trim()}`);
+      }
     }
+
+    // Always stream stderr as a progress event.
+    if (level === 'ERROR') {
+      fullStderr += line;
+      console.error(`[SCRIPT][ERROR][${runId}] ${line.trim()}`);
+      if (clientWs.readyState === 1) {
+        clientWs.send(JSON.stringify({
+          type: 'progress', runId, scriptId, level: 'ERROR', message: line
+        }));
+      }
+    }
+  };
+
+  child.stdout.on('data', (data) => streamOutput(data.toString(), 'INFO'));
+  child.stderr.on('data', (data) => streamOutput(data.toString(), 'ERROR'));
+  // -------------------------------------------------------------------------------
+  // SECTION 7: Handle Script Completion
+  // -------------------------------------------------------------------------------
+  child.on('close', (code) => {
+    console.log(`[BACKEND][SPAWN] Script ${scriptId} (${runId}) finished with exit code: ${code}`);
+
+    // Attempt to parse the final line of stdout as the result object.
+    const lastLine = fullStdout.trim().split('\n').pop();
+    const finalResult = safeJsonParse(lastLine);
+
+    if (finalResult) {
+      if (clientWs.readyState === 1) {
+        clientWs.send(JSON.stringify({ type: 'result', runId, scriptId, output: finalResult }));
+      }
+    } else if (code !== 0) {
+       console.error(`[BACKEND][SPAWN] Script failed and final output was not valid JSON. Error: ${fullStderr}`);
+    }
+
+    // Always send the script_end message.
+    if (clientWs.readyState === 1) {
+      clientWs.send(JSON.stringify({
+        type: "script_end",
+        runId,
+        scriptId,
+        exitCode: code,
+      }));
+    }
+
+    // Add to run history (optional)
+    runHistory.unshift({
+      runId, timestamp: new Date().toISOString(), scriptId, parameters,
+      isSuccess: code === 0, output: fullStdout, error: fullStderr,
+    });
+    if (runHistory.length > MAX_HISTORY_ITEMS) runHistory.pop();
   });
 });
+// ===================================================================================
+// NEW UPLOAD ENDPOINT
+// ===================================================================================
+app.post("/api/files/upload", upload.single('file'), (req, res) => {
+  // --- Initialization and Validation ---
+  const { scriptId, wsClientId, remoteFilename, ...otherParameters } = req.body;
+  const runId = generateUniqueId(); // This will now work correctly
 
+  if (!wsClientId) return res.status(400).json({ success: false, message: "wsClientId is required." });
+  if (!req.file) return res.status(400).json({ success: false, message: "File is required." });
+
+  const clientWs = clients.get(wsClientId);
+  if (!clientWs || clientWs.readyState !== 1) {
+    fs.unlinkSync(req.file.path);
+    return res.status(404).json({ success: false, message: `WebSocket client not found or not connected.` });
+  }
+
+  const config = yaml.load(fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
+  const scriptDef = config.scripts.find((s) => s.id === scriptId);
+  if (!scriptDef) {
+    fs.unlinkSync(req.file.path);
+    return res.status(404).json({ success: false, message: `Script definition for '${scriptId}' not found.` });
+  }
+
+  // --- Acknowledge Request and Prepare Command ---
+  res.status(202).json({ success: true, message: "File upload received, starting execution.", runId });
+
+  // Define paths from both the host's and container's perspective.
+  const hostUploadDirectory = path.resolve(process.env.HOST_PROJECT_ROOT, 'python_pipeline/temp_uploads');
+  const scriptPathInContainer = path.join(PYTHON_PIPELINE_MOUNT_PATH, scriptDef.path, "run.py");
+
+  // ✅ YOUR SUGGESTION: The Docker command now includes the critical volume mount.
+  const dockerArgs = [
+    "run", "--rm",
+    "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${PYTHON_PIPELINE_MOUNT_PATH}:ro`,
+    "-v", `${hostUploadDirectory}:/uploads`,
+    "vlabs-python-runner", "stdbuf", "-oL", "-eL", "python", "-u",
+    scriptPathInContainer, "--mode", "cli",
+    "--file", req.file.path,
+    "--remote-filename", req.file.originalname,
+    "--run-id", runId,
+  ];
+
+  const commandLineParams = { ...otherParameters };
+  for (const [key, value] of Object.entries(commandLineParams)) {
+    if (value) dockerArgs.push(`--${key}`, String(value));
+  }
+
+  // --- Execute Script and Stream Output ---
+  console.log('[BACKEND][SPAWN] Executing command:', 'docker', dockerArgs.join(' '));
+
+  if (clientWs.readyState === 1) {
+    clientWs.send(JSON.stringify({ type: "script_start", runId, scriptId }));
+  }
+
+  const child = spawn('docker', dockerArgs);
+  let fullLog = '';
+
+  const streamOutput = (line, level) => {
+    fullLog += line;
+    console.log(`[SCRIPT][${level}] ${line.trim()}`);
+    if (clientWs.readyState === 1) {
+      clientWs.send(JSON.stringify({ type: 'progress', runId, scriptId, level, message: line }));
+    }
+  };
+
+  child.stdout.on('data', (data) => streamOutput(data.toString(), 'INFO'));
+  child.stderr.on('data', (data) => streamOutput(data.toString(), 'ERROR'));
+
+  // --- Handle Script Completion ---
+  child.on('close', (code) => {
+    console.log(`[BACKEND][SPAWN] Script finished with exit code: ${code}`);
+    if (clientWs.readyState === 1) {
+      if (code === 0) {
+        const lastLine = fullLog.trim().split('\n').pop();
+        const finalResult = safeJsonParse(lastLine); // This will now work correctly
+        if (finalResult) {
+          clientWs.send(JSON.stringify({ type: 'result', runId, scriptId, output: finalResult }));
+        }
+      }
+      clientWs.send(JSON.stringify({ type: "script_end", runId, scriptId, exitCode: code }));
+    }
+    fs.unlink(req.file.path, (err) => {
+      if (err)
+        console.error(`[BACKEND] Failed to delete temp file:  ${req.file.path}`, err);
+      else console.log(`[BACKEND] Deleted temp file:  ${req.file.path}`);
+    });
+  });
+});
 // ====================================================================================
 // SECTION 8: SERVER STARTUP
 // ====================================================================================

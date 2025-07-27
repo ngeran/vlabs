@@ -1,9 +1,67 @@
-// src/components/RealTimeProgress/RealTimeDisplay.jsx
+// =================================================================================================
+// FILE:               src/components/RealTimeProgress/RealTimeDisplay.jsx
+//
+// OVERVIEW:
+//   A comprehensive, reusable React component designed to provide a rich, real-time
+//   display for ongoing script executions. It visualizes the progress, live logs, and
+//   final status (success or failure) of an operation being tracked via WebSocket events.
+//
+// KEY FEATURES:
+//   - Dynamic Progress Bar: Shows the overall percentage complete, the current step's
+//     status message, and step counters, with color-coding for different states (running,
+//     success, error).
+//   - Live Log Streaming: Renders a scrollable list of real-time progress events,
+//     with each step individually styled based on its severity (e.g., INFO, ERROR).
+//   - Final Status Banners: Displays a clear, prominent banner upon completion,
+//     indicating whether the operation succeeded or failed.
+//   - Prop-Driven & Reusable: Designed to be a "dumb" component that simply renders the
+//     state given to it via props, making it highly versatile and easy to integrate with
+//     any runner component.
+//   - Clean & Modern UI: Built with TailwindCSS for a polished and responsive user experience.
+//
+// HOW-TO GUIDE (INTEGRATION):
+//   This component is designed to be used within a "runner" component (e.g.,
+//   `FileUploaderRunner.jsx` or `BackupAndRestoreRunner.jsx`).
+//
+//   1.  **Import**:
+//       `import RealTimeDisplay from '../RealTimeProgress/RealTimeDisplay.jsx';`
+//
+//   2.  **State Management**: The parent runner component is responsible for managing the
+//       script's state (typically via the `useScriptRunnerStream` hook).
+//
+//   3.  **Conditional Rendering**: The parent should conditionally render this component. A
+//       robust condition ensures it appears as soon as the process starts:
+//       `{(isTriggered || isRunning || isComplete) && <RealTimeDisplay {...props} />}`
+//
+//   4.  **Prop Passing**: The parent must pass a `realTimeProps` object containing all the
+//       necessary state variables, such as `isRunning`, `isComplete`, `progress`,
+//       `progressPercentage`, `currentStep`, etc.
+//
+//       Example `realTimeProps` object:
+//       const realTimeProps = {
+//         isRunning: scriptRunner.isRunning,
+//         isComplete: scriptRunner.isComplete,
+//         hasError: !!scriptRunner.error,
+//         progress: scriptRunner.progressEvents,
+//         result: scriptRunner.finalResult,
+//         error: scriptRunner.error,
+//         ...progressMetrics, // Contains percentage, currentStep, etc.
+//       };
+// =================================================================================================
+
+// =================================================================================================
+// SECTION 1: IMPORTS
+// All necessary libraries and child components are imported here.
+// =================================================================================================
 import React from 'react';
 import ProgressBar from './ProgressBar.jsx';
 import ProgressStep from './ProgressStep.jsx';
 import { AlertTriangle, CheckCircle, ServerCrash } from 'lucide-react';
 
+// =================================================================================================
+// SECTION 2: COMPONENT DEFINITION
+// The main functional component for the real-time display.
+// =================================================================================================
 const RealTimeDisplay = ({
   isRunning,
   isComplete,
@@ -53,7 +111,8 @@ const RealTimeDisplay = ({
         </h3>
         <ProgressBar
           percentage={progressPercentage}
-          currentStep={latestMessage?.message || currentStep}
+          currentStep={progress.length > 0 ? progress[progress.length - 1].message : currentStep}
+          //currentStep={latestMessage?.message || currentStep}
           totalSteps={totalSteps}
           completedSteps={completedSteps}
           isRunning={isRunning}
@@ -65,9 +124,16 @@ const RealTimeDisplay = ({
         <div className="border-t border-slate-200 pt-4">
           <h4 className="font-semibold text-slate-700 mb-2">Live Log:</h4>
           <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+            {/* ===================================================================
+                THE DEFINITIVE FIX:
+                The `key` prop must be absolutely unique for every item in the list.
+                We combine the event's timestamp (if it exists) with its mandatory
+                index in the array to guarantee uniqueness, even for events that
+                arrive simultaneously or lack a timestamp.
+                =================================================================== */}
             {progress.map((step, index) => (
               <ProgressStep
-                key={step.id || `step-${index}`}
+                key={step.timestamp ? `${step.timestamp}-${index}` : `step-${index}`} // <-- THE FIX IS HERE
                 step={step}
                 isLatest={index === progress.length - 1}
               />

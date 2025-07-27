@@ -1,42 +1,59 @@
 // =========================================================================================
-// FILE: /src/components/runners/BackupAndRestoreRunner.jsx
+//
+// FILE:               /src/components/runners/BackupAndRestoreRunner.jsx
 //
 // OVERVIEW:
-//   This component serves as the main user interface for the Juniper Backup and Restore
-//   script. It provides a structured layout with script options in a sidebar and the main
-//   interaction area in a content panel. The component dynamically renders either a
-//   BackupForm or a RestoreForm based on user selection.
+//   This component serves as the primary user interface for the Juniper Backup and Restore
+//   script. It provides a structured two-column layout, dynamically rendering the
+//   appropriate form (`BackupForm` or `RestoreForm`) and managing the entire lifecycle
+//   of a script execution, from validation to displaying final results.
 //
-//   It utilizes a custom hook (`useScriptRunnerStream`) to manage the real-time
-//   communication with the backend over WebSockets, handle script execution, and
-//   receive progress updates. A key feature of this component is its ability to process
-//   raw progress events and calculate meaningful metrics (e.g., percentage complete,
-//   number of completed steps) to power the RealTimeDisplay component.
+// KEY FEATURES:
+//   - Dynamic Form Rendering: Intelligently switches between the backup and restore UI
+//     based on the 'command' parameter selected in the script options.
+//   - Robust Form Validation: Implements comprehensive, real-time client-side validation.
+//     The "Run Script" button is disabled until all required fields are complete.
+//   - Enhanced Debugging Capabilities: Provides immediate user feedback via a tooltip
+//     on the disabled button explaining what's missing, and logs detailed state changes
+//     to the developer console for easy troubleshooting.
+//   - Proactive Parameter Cleaning: Includes logic to prevent sending mutually exclusive
+//     arguments (`hostname` vs. `inventory_file`) to the backend, avoiding script failures.
+//   - Real-time Progress Visualization: Leverages the `useScriptRunnerStream` hook and
+//     `useMemo` to efficiently process WebSocket events into meaningful UI metrics.
 //
 // DEPENDENCIES:
-//   - React and its `useMemo` hook.
-//   - UI components: `BackupForm`, `RestoreForm`, `ScriptOptionsRenderer`, `RealTimeDisplay`.
-//   - Custom Hook: `useScriptRunnerStream` (from /hooks/useWebSocket.jsx) for script execution logic.
+//   - React (useState, useMemo, useEffect)
+//   - Child UI Components: `BackupForm`, `RestoreForm`, `ScriptOptionsRenderer`,
+//     `RealTimeDisplay`, `DisplayResults`, `DebugDisplay`.
+//   - Custom Hook: `useScriptRunnerStream` for all WebSocket and script lifecycle logic.
 //   - Libraries: `lucide-react` for icons, `react-spinners` for loading animations.
+//
+// HOW-TO GUIDE:
+//   This component is designed to be rendered by a parent runner component (e.g.,
+//   `PythonScriptRunner.jsx`). The parent is responsible for providing the `script`
+//   definition, the overall `parameters` state object, the `onParamChange` handler, and
+//   the `wsContext` (WebSocket context). This component then manages its own internal
+//   UI logic and script execution flow.
+//
 // =========================================================================================
+
 
 // =========================================================================================
 // SECTION 1: IMPORTS & DEPENDENCIES
+// All necessary libraries, hooks, and child components are imported here.
 // =========================================================================================
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { PlayCircle, Layers } from 'lucide-react';
 import PulseLoader from 'react-spinners/PulseLoader';
 
-// Import the specific form UIs for backup and restore operations.
 import BackupForm from '../forms/BackupForm.jsx';
 import RestoreForm from '../forms/RestoreForm.jsx';
-
-// Import shared, reusable components for rendering options and progress.
 import ScriptOptionsRenderer from '../ScriptOptionsRenderer.jsx';
 import RealTimeDisplay from '../RealTimeProgress/RealTimeDisplay.jsx';
 import DisplayResults from '../shared/DisplayResults.jsx';
-import { useScriptRunnerStream } from '../../hooks/useWebSocket.jsx';
 import DebugDisplay from '../shared/DebugDisplay';
+import { useScriptRunnerStream } from '../../hooks/useWebSocket.jsx';
+
 
 // =========================================================================================
 // SECTION 2: COMPONENT DEFINITION
@@ -45,118 +62,106 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
 
   // =========================================================================================
   // SECTION 3: STATE & SCRIPT EXECUTION
-  // Description: Manages the script's lifecycle, including state and execution trigger.
+  // Manages the script's lifecycle via a custom hook and defines the execution trigger.
   // =========================================================================================
-
-  // The `useScriptRunnerStream` hook abstracts all WebSocket logic. It provides:
-  // - `runScript`: A function to start the script execution.
-  // - `resetState`: A function to clear progress and results for a new run.
-  // - State variables: `isRunning`, `isComplete`, `error`, `progressEvents`, `finalResult`.
   const scriptRunner = useScriptRunnerStream(wsContext);
 
   /**
-   * Handles the "Run Script" button click. It prepares the parameters and initiates
-   * the script run with the current script ID.
+   * Triggers the script run after cleaning parameters to prevent backend errors.
    */
   const handleRun = async () => {
     scriptRunner.resetState();
-
-    // ============================================================================
-    // CRITICAL FIX #1: The backend Python script uses a mutually exclusive
-    // group for target selection (--hostname vs --inventory_file). To prevent
-    // an 'exit code 2' error, we must ensure only one of these parameters is
-    // sent to the backend.
-    // ============================================================================
     const runParameters = { ...parameters };
 
+    // Clean parameters to avoid sending mutually exclusive arguments.
     if (runParameters.inventory_file) {
-      // If inventory_file is present, delete the hostname key to avoid conflict.
       delete runParameters.hostname;
     } else {
-      // Otherwise, assume hostname is the target and delete the inventory_file key.
       delete runParameters.inventory_file;
     }
-
-    // ============================================================================
-    // CRITICAL FIX #2: The `command` argument ('backup' or 'restore') is required
-    // by the Python script. If it's not present for any reason, we default it
-    // to 'backup', matching the default UI form. This prevents a different
-    // 'exit code 2' error related to missing required arguments.
-    // ============================================================================
     if (!runParameters.command) {
         runParameters.command = 'backup';
     }
 
     await scriptRunner.runScript({
       scriptId: script.id,
-      // Use the newly cleaned and validated `runParameters` object for execution.
       parameters: runParameters,
     });
   };
 
   // =========================================================================================
-  // SECTION 4: REAL-TIME PROGRESS CALCULATION
-  // Description: Processes raw progress events from the WebSocket stream into structured
-  //              metrics suitable for the RealTimeDisplay component.
+  // SECTION 4: FORM VALIDATION & DEBUGGING
+  // Provides clear reasons for the run button's state, enhancing usability and debugging.
   // =========================================================================================
 
-  // `useMemo` is used to efficiently calculate progress metrics. The calculation only
-  // re-runs when the `progressEvents` array changes, preventing unnecessary re-renders.
+  /**
+   * Checks the form for completeness and returns a human-readable reason if invalid.
+   * @returns {string} - An empty string if the form is valid, or a reason string if invalid.
+   */
+  const getDisabledReason = () => {
+    if (scriptRunner.isRunning) return 'A script is currently running.';
+    if (!parameters.username || !parameters.password) return 'Username and password are required.';
+    if (!parameters.hostname && !parameters.inventory_file) return 'A target host or inventory file must be selected.';
+    if (parameters.command === 'restore' && !parameters.backup_file) return 'A backup file must be selected for the restore operation.';
+    return ''; // Form is valid.
+  };
+
+  const disabledReason = getDisabledReason();
+  const isButtonDisabled = disabledReason !== '';
+
+  /**
+   * DEVELOPER DEBUG HOOK: Logs the button's state to the console whenever it changes.
+   */
+  useEffect(() => {
+    console.log(
+      `[DEBUG] Button state changed. Is Disabled: ${isButtonDisabled}. Reason: '${disabledReason || 'Form is valid'}'`
+    );
+    console.log('[DEBUG] Current Parameters:', parameters);
+  }, [isButtonDisabled, parameters]); // Reruns when button state or parameters change.
+
+
+  // =========================================================================================
+  // SECTION 5: REAL-TIME PROGRESS CALCULATION
+  // Processes raw WebSocket events into structured metrics suitable for the UI.
+  // =========================================================================================
   const progressMetrics = useMemo(() => {
-    const events = scriptRunner.progressEvents || [];
+    const events = scriptRunner.progressEvents.filter(e => e.event_type !== 'LOG_MESSAGE') || [];
     if (events.length === 0) {
       return { totalSteps: 0, completedSteps: 0, progressPercentage: 0, currentStep: 'Waiting to start...' };
     }
 
-    // Determine the total number of steps from the initial operation event.
-    // Fallback to default steps if total_steps is missing or 0.
     const operationStartEvent = events.find(e => e.event_type === 'OPERATION_START');
     const totalSteps = operationStartEvent?.data?.total_steps || (parameters.command === 'restore' ? 5 : 4);
-
-    // Count how many steps have successfully completed.
-    const completedStepEvents = events.filter(
-      e => e.event_type === 'STEP_COMPLETE' && (e.data?.status === 'COMPLETED' || e.level === 'SUCCESS')
-    );
-    const completedSteps = completedStepEvents.length;
-
-    // Calculate the overall progress percentage.
+    const completedSteps = events.filter(e => e.event_type === 'STEP_COMPLETE').length;
     const progressPercentage = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
-    // Find the message from the most recent "STEP_START" event to show as the current status.
-    const lastStepStartEvent = [...events].reverse().find(e => e.event_type === 'STEP_START');
-    const currentStep = lastStepStartEvent ? lastStepStartEvent.message : 'Initializing...';
+    let currentStep = [...events].reverse().find(e => e.event_type === 'STEP_START')?.message || 'Initializing...';
+    if (scriptRunner.isComplete) {
+      currentStep = scriptRunner.error ? 'Operation failed. Please review the error details.' : 'Operation completed successfully.';
+    }
 
     return { totalSteps, completedSteps, progressPercentage, currentStep };
-  }, [scriptRunner.progressEvents, parameters.command]);
+  }, [scriptRunner.progressEvents, scriptRunner.isComplete, scriptRunner.error, parameters.command]);
+
 
   // =========================================================================================
-  // SECTION 5: COMPONENT RENDERING & LAYOUT
-  // Description: Defines the JSX structure of the component, including conditional rendering
-  //              of forms and the real-time progress display.
+  // SECTION 6: COMPONENT RENDERING & LAYOUT
+  // Defines the JSX structure, including the sidebar and main content panel.
   // =========================================================================================
-
-  // This object aggregates all props needed by the RealTimeDisplay component,
-  // including both state flags from the hook and the calculated metrics from `useMemo`.
   const realTimeProps = {
-    isActive: scriptRunner.isRunning,
     isRunning: scriptRunner.isRunning,
     isComplete: scriptRunner.isComplete,
     hasError: !!scriptRunner.error,
-    progress: scriptRunner.progressEvents, // Pass raw events for detailed logging if needed
+    progress: scriptRunner.progressEvents,
     result: scriptRunner.finalResult,
     error: scriptRunner.error,
-    canReset: !scriptRunner.isRunning && (scriptRunner.isComplete || !!scriptRunner.error),
     onReset: scriptRunner.resetState,
-    // Pass the calculated metrics to drive the progress bar and step counts.
-    totalSteps: progressMetrics.totalSteps,
-    completedSteps: progressMetrics.completedSteps,
-    progressPercentage: progressMetrics.progressPercentage,
-    currentStep: progressMetrics.currentStep,
+    ...progressMetrics,
   };
 
   return (
     <div className="flex flex-col md:flex-row gap-8">
-      {/* Sidebar: Displays script options. It's sticky for easy access on long pages. */}
+      {/* Sidebar: Displays script options, sticky for easy access. */}
       <aside className="w-full md:w-72 lg:w-80 flex-shrink-0">
         <div className="sticky top-24 space-y-6 bg-white p-6 rounded-xl shadow-lg shadow-slate-200/50">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center border-b border-slate-200 pb-3">
@@ -166,7 +171,7 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
         </div>
       </aside>
 
-      {/* Main Content: Contains the primary interaction area for the script. */}
+      {/* Main Content: Contains the primary form and interaction area. */}
       <main className="flex-1 space-y-8">
         <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg shadow-slate-200/50">
           <header className="border-b border-slate-200 pb-4 mb-6">
@@ -175,11 +180,10 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
           </header>
 
           <div className="space-y-6">
-            {/* --- CORE LOGIC: Render the correct form based on the 'command' parameter --- */}
+            {/* Dynamically render the correct form based on the 'command' parameter. */}
             {parameters.command === 'restore' ? (
               <RestoreForm parameters={parameters} onParamChange={onParamChange} />
             ) : (
-              // Default to BackupForm if command is not 'restore' or is undefined.
               <BackupForm parameters={parameters} onParamChange={onParamChange} />
             )}
           </div>
@@ -188,8 +192,9 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
             <button
               type="button"
               onClick={handleRun}
-              disabled={scriptRunner.isRunning}
-              className="w-full flex items-center justify-center p-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-400 transition-colors"
+              disabled={isButtonDisabled}
+              title={disabledReason} // UI Debugging: Shows a tooltip explaining why the button is disabled.
+              className="w-full flex items-center justify-center p-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
             >
               {scriptRunner.isRunning
                 ? <PulseLoader color="#fff" size={8} />
@@ -199,26 +204,16 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
           </div>
         </div>
 
-        {/* Conditionally render the RealTimeDisplay only when a script is running or has completed. */}
+        {/* Conditionally render the real-time display, results, and debug panels. */}
         {(scriptRunner.isRunning || scriptRunner.isComplete) && (
           <RealTimeDisplay {...realTimeProps} />
         )}
 
-        {/* Display final results if the script is complete and the capability is enabled */}
-        {scriptRunner.isComplete && script.capabilities?.resultsDisplay && (
-          <DisplayResults
-            result={scriptRunner.finalResult}
-            title={script.resultsDisplay?.title}
-            description={script.resultsDisplay?.description}
-          />
+        {scriptRunner.isComplete && !scriptRunner.error && script.capabilities?.resultsDisplay && (
+          <DisplayResults result={scriptRunner.finalResult} {...script.resultsDisplay} />
         )}
 
-        {/* Conditionally render the DebugDisplay if the capability is enabled */}
-        <DebugDisplay
-            isVisible={script?.capabilities?.enableDebug}
-            progressEvents={scriptRunner.progressEvents}
-            title="Debug Event Stream"
-        />
+        <DebugDisplay isVisible={script?.capabilities?.enableDebug} progressEvents={scriptRunner.progressEvents} />
       </main>
     </div>
   );

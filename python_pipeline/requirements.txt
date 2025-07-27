@@ -8,3 +8,6 @@ tabulate
 psutil
 colorama
 jinja2
+cryptography
+flask
+werkzeug

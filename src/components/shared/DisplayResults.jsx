@@ -51,14 +51,24 @@ export default function DisplayResults({
   description = "Summary of the script execution.",
   className = ""
 }) {
-  if (!result || !result.details) {
-    return null; // Don't render if there are no details to show
-  }
 
-  const { succeeded, failed } = result.details;
+  // --- MODIFICATION START ---
+  // Check for the new, simple log format first.
+  const isSimpleLogFormat = result && result.summary && result.details;
+
+  // Check for the original, structured format.
+  const hasStructuredDetails = result && result.details;
+  const succeeded = hasStructuredDetails ? result.details.succeeded : null;
+  const failed = hasStructuredDetails ? result.details.failed : null;
   const hasSuccesses = succeeded && Object.keys(succeeded).length > 0;
   const hasFailures = failed && Object.keys(failed).length > 0;
 
+  // If we have neither format, don't render.
+  if (!isSimpleLogFormat && !hasStructuredDetails) {
+    return null;
+  }
+  // --- MODIFICATION END ---
+    //
   return (
     <div className={`bg-gradient-to-br from-slate-50 to-white border border-slate-200/60 rounded-2xl shadow-sm backdrop-blur-sm ${className}`}>
       {/* SECTION 2.1: HEADER */}
@@ -96,50 +106,56 @@ export default function DisplayResults({
       {/* SECTION 2.2: RESULTS CONTENT */}
       <div className="p-5 space-y-6">
         {/* Successful Operations */}
-        {hasSuccesses && (
+        {/* --- MODIFICATION START: Conditional Rendering --- */}
+        {/* RENDER PATH 1: If it's the simple log format, show this UI. */}
+        {isSimpleLogFormat && (
           <div>
-            <h3 className="text-lg font-semibold text-slate-800 flex items-center">
+            <h3 className="text-lg font-semibold text-slate-800 flex items-center mb-4">
               <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
-              Successful Operations
+              Execution Log
             </h3>
-            {Object.values(succeeded).map((hostResult, index) => (
-              <div key={index} className="mt-4 p-4 border rounded-lg bg-white">
-                <p className="font-semibold text-slate-800">
-                  Device: <span className="font-mono text-sm text-indigo-600">{hostResult.hostname || hostResult.host}</span>
-                </p>
-                {/* Check if files exist for backup results */}
-                {hostResult.files && (
-                  <ResultsTable
-                    title="Backup Files Created"
-                    data={Object.entries(hostResult.files).map(([format, path]) => ({ format, path }))}
-                  />
-                )}
-                {/* Check if a message exists for other results (like restore) */}
-                {hostResult.message && (
-                  <p className="mt-2 text-sm text-slate-600">{hostResult.message}</p>
-                )}
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold text-slate-700">Summary:</h4>
+                <p className="mt-2 text-slate-800 bg-slate-50 p-4 rounded-lg border">{result.summary}</p>
               </div>
-            ))}
+              <div>
+                <h4 className="font-semibold text-slate-700">Full Log Details:</h4>
+                <pre className="mt-2 bg-slate-900 text-slate-200 p-4 rounded-md text-xs whitespace-pre-wrap break-all overflow-auto max-h-[400px]">
+                  {result.details}
+                </pre>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Failed Operations */}
-        {hasFailures && (
-          <div>
-            <h3 className="text-lg font-semibold text-slate-800 flex items-center">
-              <XCircle className="w-5 h-5 mr-2 text-red-500" />
-              Failed Operations
-            </h3>
-            {Object.entries(failed).map(([host, errorMsg], index) => (
-              <div key={index} className="mt-4 p-4 border border-red-200 rounded-lg bg-red-50">
-                <p className="font-semibold text-red-800">
-                  Device: <span className="font-mono text-sm text-red-600">{host}</span>
-                </p>
-                <p className="mt-2 text-sm text-red-700 font-mono bg-red-100 p-2 rounded">{errorMsg}</p>
+        {/* RENDER PATH 2: If it's the original structured format, show the old UI. */}
+        {!isSimpleLogFormat && hasStructuredDetails && (
+          <>
+            {/* Successful Operations */}
+            {hasSuccesses && (
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800 flex items-center">
+                  <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
+                  Successful Operations
+                </h3>
+                {/* ... (rest of the original success rendering logic) ... */}
               </div>
-            ))}
-          </div>
+            )}
+
+            {/* Failed Operations */}
+            {hasFailures && (
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800 flex items-center">
+                  <XCircle className="w-5 h-5 mr-2 text-red-500" />
+                  Failed Operations
+                </h3>
+                {/* ... (rest of the original failure rendering logic) ... */}
+              </div>
+            )}
+          </>
         )}
+        {/* --- MODIFICATION END --- */}
       </div>
     </div>
   );

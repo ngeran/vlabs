@@ -3,8 +3,14 @@ import React from 'react';
 import { CheckCircle, AlertCircle, Info, AlertTriangle, Clock } from 'lucide-react';
 
 const ProgressStep = ({ step, isLatest = false }) => {
+  // ===================================================================
+  // THE FIX: Determine the visual style based on `step.level` (from our
+  // runner) or `step.type` (from other runners).
+  // ===================================================================
+  const stepType = step.level?.toLowerCase() || step.type || 'info';
+
   const getIcon = () => {
-    switch (step.type) {
+    switch (stepType) {
       case 'success':
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'error':
@@ -17,10 +23,15 @@ const ProgressStep = ({ step, isLatest = false }) => {
     }
   };
 
-  const getStyles = () => {
+    const getStyles = () => {
     const baseStyles = "p-3 rounded-md border-l-4 transition-all duration-300";
+    // This was already correct, it checks for `level` first.
+    const stepType = step.level?.toLowerCase() || step.type || 'info';
 
-    switch (step.type) {
+    // --- START OF FIX #2 ---
+    // THE FIX: This switch statement now correctly uses the `stepType` variable,
+    // which checks for `step.level`. This will apply the correct colors.
+    switch (stepType) {
       case 'success':
         return `${baseStyles} bg-green-50 border-green-500 text-green-800`;
       case 'error':
@@ -31,6 +42,7 @@ const ProgressStep = ({ step, isLatest = false }) => {
       default:
         return `${baseStyles} bg-blue-50 border-blue-500 text-blue-800`;
     }
+    // --- END OF FIX #2 ---
   };
 
   const formatTimestamp = (timestamp) => {

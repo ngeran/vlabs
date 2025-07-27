@@ -45,7 +45,8 @@ import TemplateWorkflow from "./TemplateWorkflow.jsx"; // <-- THIS IMPORT IS RES
 // --- Core Application Hooks ---
 import { useWebSocket } from "../hooks/useWebSocket.jsx";
 import { useHistoryUpdates } from "../hooks/useHistoryUpdates.js";
-
+// --- RUNNERS --
+import FileUploaderRunner from './runners/FileUploaderRunner.jsx';
 
 // =================================================================================================
 // SECTION 2: COMPONENT-LEVEL CONSTANTS
@@ -60,6 +61,7 @@ const API_BASE_URL = "http://localhost:3001";
 const RUNNER_MAP = {
   BackupAndRestoreRunner,
   CodeUpgradeRunner,
+  FileUploaderRunner,
 };
 
 

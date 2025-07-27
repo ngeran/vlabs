@@ -46,6 +46,7 @@ const DEFAULT_WS_CONFIG = {
  * Defines standardized event types for WebSocket communication.
  * This is a best practice to avoid typos and centralize event names.
  */
+
 const WS_EVENTS = {
   // Connection lifecycle events
   CONNECTED: "connected",
@@ -54,6 +55,12 @@ const WS_EVENTS = {
   ERROR: "error",
   MESSAGE: "message",
 
+  // --- START OF FIX: Add new event types ---
+  SCRIPT_START: "script_start",
+  PROGRESS_UPDATE: "progress_update",
+  FINAL_RESULT: "final_result",
+  // --- END OF FIX ---
+
   // Generic script execution events from your service
   SCRIPT_ERROR: "script_error",
   SCRIPT_OUTPUT: "script_output",
@@ -61,10 +68,10 @@ const WS_EVENTS = {
 
   // Specialized template application events from your service
   STATUS: "status",
-  PROGRESS: "progress",
+  PROGRESS: "progress", // <-- MAKE SURE THIS IS "progress"
   COMMIT_PROGRESS: "commit_progress",
   INFO: "info",
-  RESULT: "result",
+  RESULT: "result", // <-- MAKE SURE THIS IS "result"
 };
 
 /**
@@ -129,205 +136,265 @@ const generateUniqueId = () => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
-
 // ================================================================================
+// =================================================================================================
 //
-// HOOK: useScriptRunnerStream (UNCHANGED)
+// HOOK: useScriptRunnerStream (REVISED FOR USER-FRIENDLY MESSAGE HANDLING)
 //
-// ROLE: Your implementation of this hook is excellent and correctly handles the
-//       complex logic of stream buffering and parsing. It requires no changes and
-//       will work perfectly once the underlying WebSocket connection is stable.
+// =================================================================================================
 //
-// ================================================================================
+// OVERVIEW:
+//   This hook is the central state machine for managing script executions. It has been updated
+//   to solve the problem of verbose and unfriendly log messages cluttering the UI.
+//
+// KEY FIX IMPLEMENTED (ISSUE #2):
+//   - A revised `handleProgress` event handler now intelligently categorizes all incoming
+//     data from the WebSocket stream.
+//   - Structured JSON messages (created by our Python script's `send_event` function) are
+//     parsed and treated as first-class, user-facing events.
+//   - All other text-based output (like the noisy `[PY-DEBUG]` logs from PyEZ) is
+//     captured and wrapped into a standard object with a special type: `LOG_MESSAGE`.
+//   - This categorization allows the frontend UI components to easily filter the stream,
+//     showing only the clean, important milestones to the user by default, while retaining
+//     the full, verbose output for an optional debug view.
+//
+// =================================================================================================
 export const useScriptRunnerStream = (wsContext = {}, options = {}) => {
-  //--------------------------------------------------------------------------------
-  // Subsection 2.1: State Management
-  //--------------------------------------------------------------------------------
+  const { websocketService, isConnected, clientId } = wsContext;
+
+  // -----------------------------------------------------------------------------------------------
+  // SECTION 1: STATE MANAGEMENT
+  // -----------------------------------------------------------------------------------------------
+  // Manages the complete lifecycle of a script run, including its current state (idle, running,
+  // etc.), all received events, and the final result or error.
   const [state, setState] = useState({
+    runId: null,
+    currentState: SCRIPT_STATES.IDLE,
     isRunning: false,
     isComplete: false,
-    currentState: SCRIPT_STATES.IDLE,
     progressEvents: [],
     finalResult: null,
     error: null,
-    fullLog: "",
-    logLines: [],
-    runId: null,
     startTime: null,
     endTime: null,
     exitCode: null,
-    totalProgressEvents: 0,
-    lastProgressTime: null,
   });
 
-  //--------------------------------------------------------------------------------
-  // Subsection 2.2: Refs for Stream Buffering and Configuration
-  //--------------------------------------------------------------------------------
-  const stderrBuffer = useRef("");
-  const { isConnected, clientId, websocketService } = wsContext;
-  const config = {
-    apiEndpoint: "http://localhost:3001/api/scripts/run-stream",
-    enableDebugLogging: true,
-    maxLogLines: 1000,
-    ...options,
-  };
-
-  //--------------------------------------------------------------------------------
-  // Subsection 2.3: State and Execution Control Functions
-  //--------------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------------------------
+  // SECTION 2: CORE CONTROL FUNCTIONS
+  // -----------------------------------------------------------------------------------------------
+  // These functions provide the public API for components to interact with the hook,
+  // allowing them to start a new run or reset the state.
   const resetState = useCallback(() => {
-    stderrBuffer.current = "";
     setState({
-      isRunning: false, isComplete: false, currentState: SCRIPT_STATES.IDLE,
-      progressEvents: [], finalResult: null, error: null, fullLog: "",
-      logLines: [], runId: null, startTime: null, endTime: null, exitCode: null,
-      totalProgressEvents: 0, lastProgressTime: null,
+      runId: null,
+      currentState: SCRIPT_STATES.IDLE,
+      isRunning: false,
+      isComplete: false,
+      progressEvents: [],
+      finalResult: null,
+      error: null,
+      startTime: null,
+      endTime: null,
+      exitCode: null,
     });
   }, []);
 
-  const updateState = useCallback((updates) => {
-    setState((prev) => ({ ...prev, ...updates }));
-  }, []);
-  //  ================================================================================
-  //
-  //  ================================================================================
-  const runScript = useCallback(
-    async (scriptData) => {
-      console.log('[DIAG][useScriptRunnerStream] runScript called with:', { scriptData, isConnected, clientId });
-      if (!isConnected || !clientId) {
-        const errorMsg = "WebSocket is not connected. Cannot run script.";
-        console.error('[DIAG][useScriptRunnerStream] Error:', errorMsg);
-        updateState({ error: errorMsg, isComplete: true, currentState: SCRIPT_STATES.FAILED });
-        throw new Error(errorMsg);
-      }
-      const runId = generateUniqueId();
-      console.log('[DIAG][useScriptRunnerStream] Generated runId:', runId);
-      resetState();
-      updateState({ isRunning: true, currentState: SCRIPT_STATES.RUNNING, runId, startTime: new Date().toISOString() });
-      try {
-        const response = await websocketService.runScript({ ...scriptData, runId });
-        console.log('[DIAG][useScriptRunnerStream] runScript response:', response);
-        return response;
-      } catch (error) {
-        console.error('[DIAG][useScriptRunnerStream] runScript failed:', error);
-        updateState({ isRunning: false, currentState: SCRIPT_STATES.FAILED, error: error.message, isComplete: true, endTime: new Date().toISOString() });
-        throw error;
-      }
-    },
-    [isConnected, clientId, resetState, updateState, websocketService]
-  );
-  //--------------------------------------------------------------------------------
-  // Subsection 2.4: WebSocket Event Handlers
-  //--------------------------------------------------------------------------------
-const handleScriptError = useCallback((data) => {
-  console.log('[DIAG][useScriptRunnerStream] handleScriptError received:', data);
-  if (data.type === 'progress' || data.runId === state.runId) {
-    const timestamp = new Date().toISOString();
-    const newProgressEvents = [];
-    const newLogLines = [];
+  const runScript = useCallback(async (scriptData) => {
+    if (!isConnected || !clientId) {
+      const errorMsg = "WebSocket is not connected.";
+      setState(prev => ({
+        ...prev,
+        error: errorMsg,
+        isComplete: true,
+        currentState: SCRIPT_STATES.FAILED
+      }));
+      throw new Error(errorMsg);
+    }
+    const runId = generateUniqueId();
+    resetState();
+    setState(prev => ({
+      ...prev,
+      isRunning: true,
+      currentState: SCRIPT_STATES.RUNNING,
+      runId,
+      startTime: new Date().toISOString()
+    }));
+    try {
+      return await websocketService.runScript({ ...scriptData, runId });
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        isRunning: false,
+        isComplete: true,
+        currentState: SCRIPT_STATES.FAILED,
+        error: error.message,
+        endTime: new Date().toISOString()
+      }));
+      throw error;
+    }
+  }, [isConnected, clientId, websocketService, resetState]);
 
-    if (data.type === 'progress') {
-      newProgressEvents.push(data);
-      newLogLines.push({ timestamp, line: data.message || JSON.stringify(data), type: 'progress' });
+  // -----------------------------------------------------------------------------------------------
+  // SECTION 3: UNIFIED EVENT HANDLERS (WITH MESSAGE CATEGORIZATION)
+  // -----------------------------------------------------------------------------------------------
+  // These handlers are the heart of the hook, listening to WebSocket messages and updating
+  // the state accordingly.
+  const handleScriptStart = useCallback((data) => {
+    // Reset the state from any previous run.
+    resetState();
+    // Set the core state to "running" and capture the runId and start time.
+    setState(prev => ({
+      ...prev,
+      isRunning: true,
+      currentState: SCRIPT_STATES.RUNNING,
+      runId: data.runId,
+      startTime: new Date().toISOString(),
+      // We start with an empty progressEvents array now.
+      progressEvents: [],
+    }));
+  }, [resetState]); // The dependency is correct.
+  // ===============================================================================================
+  // =============================================================================================
+//
+//  DEFINITIVE & FINAL HANDLER: handleProgress
+//
+//  OVERVIEW:
+//    This is the final, correct implementation, validated by the debug logs. It works
+//    by establishing a clear order of operations that handles both script runner types.
+//
+//  THE LOGIC:
+//    1. IT CHECKS FOR "DIRECT EVENTS" FIRST: It immediately inspects the parent `data`
+//       object for an `event_type`. This correctly processes all messages from the
+//       Backup/Restore runner without any unnecessary parsing.
+//
+//    2. IT FALLS BACK TO "WRAPPED EVENTS": Only if the message is not a direct event does
+//       it look inside `data.message` to find JSON. This correctly handles the
+//       File Uploader and any other generic log output.
+//
+// =============================================================================================
+const handleProgress = useCallback((data) => {
+  setState(prevState => {
+    // Section 1: Run Validation (No changes)
+    if (!prevState.runId || data.runId !== prevState.runId) {
+      return prevState;
+    }
 
-      // Handle OPERATION_COMPLETE to update completion state
-      if (data.event_type === 'OPERATION_COMPLETE') {
-        setState((prev) => ({
-          ...prev,
-          isRunning: false,
-          isComplete: true,
-          endTime: timestamp,
-          currentState: data.level === 'SUCCESS' ? SCRIPT_STATES.COMPLETED : SCRIPT_STATES.FAILED,
-          error: data.level === 'SUCCESS' ? null : (data.message || 'Script failed'),
-          fullLog: prev.fullLog + newLogLines.map(l => l.line).join('\n') + '\n',
-          logLines: [...prev.logLines, ...newLogLines].slice(-config.maxLogLines),
-          progressEvents: [...prev.progressEvents, ...newProgressEvents],
-          totalProgressEvents: prev.totalProgressEvents + newProgressEvents.length,
-          lastProgressTime: timestamp,
-        }));
-        return; // Exit early to avoid redundant state update
-      }
-    } else {
-      const rawChunk = data.error || data.message || "";
-      stderrBuffer.current += rawChunk;
-      const lines = stderrBuffer.current.split('\n');
-      stderrBuffer.current = lines.pop() || "";
+    let eventsToAdd = [];
+
+    // ---------------------------------------------------------------------------------
+    // SECTION 2: THE CORRECT LOGIC
+    // ---------------------------------------------------------------------------------
+
+    // --- PRIORITY #1: Check for a "Direct Event" (for Backup/Restore) ---
+    // If the top-level data object itself has an event_type, we know it's a clean,
+    // pre-parsed event. We trust it completely and add it.
+    if (data.event_type) {
+      eventsToAdd.push(data);
+    }
+    // --- PRIORITY #2: Fallback for "Wrapped Events" or Logs (for File Uploader) ---
+    // If it's not a direct event, we then check inside the `message` property.
+    else if (data.message) {
+      const lines = data.message.trim().split('\n');
       for (const line of lines) {
-        if (!line) continue;
-        newLogLines.push({ timestamp, line, type: "stderr" });
-        if (line.startsWith("JSON_PROGRESS:")) {
-          const jsonContent = line.substring("JSON_PROGRESS:".length);
-          const progressObjects = extractJsonFromLine(jsonContent);
-          if (progressObjects.length > 0) newProgressEvents.push(...progressObjects);
+        if (!line) continue; // Skip empty lines
+
+        // We use the robust parsing logic that handles prefixes.
+        const firstBraceIndex = line.indexOf('{');
+        let parsedJson = null;
+
+        if (firstBraceIndex !== -1) {
+          parsedJson = safeJsonParse(line.substring(firstBraceIndex));
+        }
+
+        // Case 2a: The line contained a valid, wrapped event.
+        if (parsedJson && parsedJson.event_type) {
+          eventsToAdd.push({ ...parsedJson, runId: data.runId });
+        }
+        // Case 2b: The line is a generic log or a final result object.
+        else {
+          eventsToAdd.push({
+            type: 'progress',
+            level: data.level || 'INFO',
+            message: line,
+            timestamp: new Date().toISOString(),
+            event_type: 'LOG_MESSAGE', // Classify for the debug view.
+            runId: data.runId,
+          });
         }
       }
     }
 
-    if (newProgressEvents.length > 0 || newLogLines.length > 0) {
-      console.log('[DIAG][useScriptRunnerStream] Updating state with:', { newProgressEvents, newLogLines });
-      setState((prev) => ({
-        ...prev,
-        fullLog: prev.fullLog + newLogLines.map(l => l.line).join('\n') + '\n',
-        logLines: [...prev.logLines, ...newLogLines].slice(-config.maxLogLines),
-        progressEvents: [...prev.progressEvents, ...newProgressEvents],
-        totalProgressEvents: prev.totalProgressEvents + newProgressEvents.length,
-        lastProgressTime: timestamp,
-      }));
+    if (eventsToAdd.length === 0) {
+      return prevState;
     }
-  }
-}, [state.runId, config.maxLogLines]);
-//  ============================================================================================
-const handleScriptOutput = useCallback((data) => {
-  console.log('[DIAG][useScriptRunnerStream] handleScriptOutput received:', data);
-  if (data.type === 'progress' || data.runId === state.runId) { // Allow progress events without runId
-    const result = typeof data.output === "string" ? safeJsonParse(data.output) : data.output;
-    setState((prev) => ({ ...prev, finalResult: result }));
-  }
-}, [state.runId]);
 
-const handleScriptEnd = useCallback((data) => {
-  console.log('[DIAG][useScriptRunnerStream] handleScriptEnd received:', data);
-  if (data.type === 'progress' || data.runId === state.runId) { // Allow progress events without runId
-    const endTime = new Date().toISOString();
-    const exitCode = data.exitCode || 0;
-    setState((prev) => {
-      const isSuccess = exitCode === 0 && prev.finalResult?.success !== false;
-      let finalError = prev.error;
-      if (!isSuccess && !finalError) finalError = prev.finalResult?.message || `Script exited with code ${exitCode}.`;
-      return {
-        ...prev,
-        isRunning: false,
-        isComplete: true,
-        endTime,
-        exitCode,
-        error: finalError,
-        currentState: isSuccess ? SCRIPT_STATES.COMPLETED : SCRIPT_STATES.FAILED,
-      };
+    // Section 3: Immutable State Update (No changes)
+    return {
+      ...prevState,
+      progressEvents: [...prevState.progressEvents, ...eventsToAdd],
+    };
+  });
+}, []);
+  // ===============================================================================================
+  //                               HANDLE RESULTS
+  // ===============================================================================================
+  const handleResult = useCallback((data) => {
+    setState(prevState => (prevState.runId && data.runId === prevState.runId)
+      ? { ...prevState, finalResult: data.output }
+      : prevState
+    );
+  }, []);
+
+  const handleScriptEnd = useCallback((data) => {
+    setState(prevState => {
+      if (prevState.runId && data.runId === prevState.runId) {
+        const finalResultEvent = prevState.progressEvents.find(e => e.success === true || e.success === false);
+        return {
+          ...prevState,
+          isRunning: false,
+          isComplete: true,
+          finalResult: prevState.finalResult || finalResultEvent,
+          exitCode: data.exitCode,
+          currentState: (data.exitCode === 0 && !prevState.error) ? SCRIPT_STATES.COMPLETED : SCRIPT_STATES.FAILED,
+          endTime: new Date().toISOString(),
+        };
+      }
+      return prevState;
     });
-  }
-}, [state.runId]);
-  //--------------------------------------------------------------------------------
-  // Subsection 2.5: WebSocket Event Subscriptions
-  //--------------------------------------------------------------------------------
+  }, []);
+
+  // -----------------------------------------------------------------------------------------------
+  // SECTION 4: EFFECT HOOK FOR EVENT SUBSCRIPTION
+  // -----------------------------------------------------------------------------------------------
+  // This effect hook connects the event handlers to the WebSocket service when the component mounts
+  // and cleans up the subscriptions when it unmounts.
   useEffect(() => {
-  if (!websocketService || !state.runId) return;
-  console.log('[DIAG][useScriptRunnerStream] Setting up listeners for runId:', state.runId);
-  const unsubscribers = [
-    websocketService.on(WS_EVENTS.PROGRESS, handleScriptError),
-    websocketService.on(WS_EVENTS.RESULT, handleScriptOutput),
-    // Remove or keep handleScriptEnd if needed for other scripts
-    websocketService.on(WS_EVENTS.ERROR, handleScriptEnd),
-  ];
-  return () => {
-    console.log('[DIAG][useScriptRunnerStream] Cleaning up listeners for runId:', state.runId);
-    unsubscribers.forEach((unsubscribe) => unsubscribe());
-  };
-}, [websocketService, state.runId, handleScriptError, handleScriptOutput, handleScriptEnd]);
-  //--------------------------------------------------------------------------------
-  // Subsection 2.6: Computed Properties & Return Interface
-  //--------------------------------------------------------------------------------
-  const duration = state.startTime && state.endTime ? new Date(state.endTime).getTime() - new Date(state.startTime).getTime() : null;
-  return { ...state, duration, runScript, resetState };
+    if (!websocketService) return;
+
+    // Map WebSocket event names to their corresponding handlers.
+    const eventMap = {
+      [WS_EVENTS.SCRIPT_START]: handleScriptStart,
+      [WS_EVENTS.PROGRESS]: handleProgress, // Uses the new, smarter handler
+      [WS_EVENTS.RESULT]: handleResult,
+      [WS_EVENTS.SCRIPT_END]: handleScriptEnd,
+      // You could add error handling here as well
+    };
+
+    // Subscribe to each event and store the returned unsubscribe function.
+    const unsubscribers = Object.entries(eventMap).map(([eventName, handler]) => {
+      return websocketService.on(eventName, handler);
+    });
+
+    // Return a cleanup function that runs on unmount.
+    return () => unsubscribers.forEach(unsubscribe => unsubscribe());
+  }, [websocketService, handleScriptStart, handleProgress, handleResult, handleScriptEnd]);
+
+  // -----------------------------------------------------------------------------------------------
+  // SECTION 5: RETURNED API
+  // -----------------------------------------------------------------------------------------------
+  // Exposes the complete state and control functions to the consuming component.
+  return { ...state, runScript, resetState };
 };
 
 // ================================================================================
@@ -363,12 +430,20 @@ export const useWebSocket = (options = {}) => {
 
   const handleConnected = useCallback(() => {
     console.log("🟢 [HOOK] Service reported: Connected");
-    setConnectionState({ isConnected: true, connectionError: null, clientId: websocketService.clientId });
+    setConnectionState({
+      isConnected: true,
+      connectionError: null,
+      clientId: websocketService.clientId
+    });
   }, []);
 
   const handleDisconnected = useCallback(() => {
     console.log("🔴 [HOOK] Service reported: Disconnected");
-    setConnectionState({ isConnected: false, connectionError: 'Disconnected', clientId: null });
+    setConnectionState({
+      isConnected: false,
+      connectionError: 'Disconnected',
+      clientId: null
+    });
   }, []);
 
   const handleClientId = useCallback(({ clientId }) => {
@@ -378,7 +453,11 @@ export const useWebSocket = (options = {}) => {
 
   const handleError = useCallback((data) => {
     console.error("❌ [HOOK] Service reported: Error", data);
-    setConnectionState(prev => ({ ...prev, isConnected: false, connectionError: data.error }));
+    setConnectionState(prev => ({
+      ...prev,
+      isConnected: false,
+      connectionError: data.error
+    }));
   }, []);
 
   // --------------------------------------------------------------------------------
@@ -429,7 +508,6 @@ export const useWebSocket = (options = {}) => {
   };
 };
 
-
 // ================================================================================
 //
 // HOOK: useTemplateApplication
@@ -453,7 +531,14 @@ export const useTemplateApplication = (wsContext = {}, options = {}) => {
   const { onResult, onError, enableDebugLogging = false } = options;
 
   const resetState = useCallback(() => {
-    setApplicationState({ isApplying: false, isComplete: false, progress: null, result: null, error: null, duration: null });
+    setApplicationState({
+      isApplying: false,
+      isComplete: false,
+      progress: null,
+      result: null,
+      error: null,
+      duration: null
+    });
   }, []);
 
   const applyTemplate = useCallback(async (templateData) => {
@@ -461,11 +546,23 @@ export const useTemplateApplication = (wsContext = {}, options = {}) => {
       throw new Error("WebSocket connection not available.");
     }
     resetState();
-    setApplicationState(prev => ({ ...prev, isApplying: true, startTime: performance.now() }));
+    setApplicationState(prev => ({
+      ...prev,
+      isApplying: true,
+      startTime: performance.now()
+    }));
     try {
-      return await websocketService.applyTemplate({ ...templateData, wsClientId: clientId });
+      return await websocketService.applyTemplate({
+        ...templateData,
+        wsClientId: clientId
+      });
     } catch (error) {
-      setApplicationState(prev => ({ ...prev, isApplying: false, isComplete: true, error: error.message }));
+      setApplicationState(prev => ({
+        ...prev,
+        isApplying: false,
+        isComplete: true,
+        error: error.message
+      }));
       throw error;
     }
   }, [isConnected, clientId, websocketService, resetState]);
@@ -474,6 +571,7 @@ export const useTemplateApplication = (wsContext = {}, options = {}) => {
     const pythonPayload = data.data;
     setApplicationState(prev => ({ ...prev, progress: pythonPayload }));
   }, []);
+
   const handleResult = useCallback((data) => {
     const endTime = performance.now();
     setApplicationState(prev => ({

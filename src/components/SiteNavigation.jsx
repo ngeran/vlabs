@@ -28,7 +28,7 @@ const SiteNavigation = () => {
       setIsLoading(true);
       try {
         const response = await fetch(
-          "http://localhost:3001/api/navigation/menu",
+          "http://172.27.200.112:3001/api/navigation/menu",
         );
         if (!response.ok) throw new Error("Network response was not ok");
         const data = await response.json();

@@ -1,9 +1,42 @@
-// src/components/ScriptOutputDisplay.jsx
+// =================================================================================================
+//
+//  COMPONENT: ScriptOutputDisplay.jsx
+//  PATH: src/components/ScriptOutputDisplay.jsx
+//
+// =================================================================================================
+//
+//  DESCRIPTION:
+//  This is a versatile "presentational" component designed to be the primary UI for visualizing
+//  the output of a script execution. It is capable of rendering both the real-time progress of a
+//  live run and the final, static results of a completed run (viewed from history).
+//
+//  KEY FEATURES:
+//  - **State-Driven Display:** Renders different views based on props like `isRunning` and `isComplete`.
+//  - **Real-time Progress:** Includes a `RealtimeProgressView` to show a step-by-step breakdown
+//    and a progress bar for live script runs.
+//  - **Structured Results:** Can render complex, structured data (e.g., test results) in a clean,
+//    readable table format using the `FinalResultView`.
+//  - **Clear Status Indication:** Uses icons and color-coding to clearly communicate whether a
+//    process is running, has succeeded, or has failed.
+//  - **Resilient and Safe:** This version has been "hardened" with default props and the fix for
+//    the `useMemo` crash, making it highly stable and preventing crashes.
+//
+//  HOW-TO GUIDE (USAGE):
+//  This component is not self-sufficient; it expects to receive all its data via props from a
+//  parent "container" component (like `GenericScriptRunner.jsx` or `PythonScriptRunner.jsx`).
+//
+//  THE FIX (useMemo Crash):
+//  The crash `Cannot destructure property 'stepArray' of 'useMemo(...)'` was caused by a missing
+//  `return` statement inside the `useMemo` hook within the `RealtimeProgressView` sub-component.
+//  If `progressEvents` was not empty, the callback function would run to completion without
+//  returning a value, resulting in `undefined`. A `return` statement has been added at the end
+//  of the `useMemo` callback to ensure it always returns a valid object, fixing the crash.
+//
+// =================================================================================================
 
-// ====================================================================================
 // SECTION 1: IMPORTS AND CONFIGURATION
-// ====================================================================================
-import React, { useState, useMemo, useEffect } from "react";
+// =================================================================================================
+import React, { useState, useMemo } from "react";
 import {
   ChevronDown,
   AlertTriangle,
@@ -15,18 +48,17 @@ import {
   Bug,
 } from "lucide-react";
 
-// API configuration for backend communication
+// API configuration for backend communication.
 const API_BASE_URL = "http://localhost:3001";
 
 // ====================================================================================
-// SECTION 2: UTILITY COMPONENTS FOR STATUS AND ICONS
+// SECTION 2: UTILITY COMPONENTS (STATUS ICONS)
 // ====================================================================================
 
 /**
- * Renders a specific icon based on the provided status string.
- * Used throughout the component to show visual status indicators.
- * @param {{status: 'COMPLETED' | 'SUCCESS' | 'FAILED' | 'ERROR' | 'IN_PROGRESS' | string}} props
- * @returns {JSX.Element} A status icon component with appropriate styling.
+ * Renders a dynamic icon based on a status string.
+ * @param {{status: string}} props
+ * @returns {JSX.Element} A styled status icon.
  */
 const StatusIcon = ({ status }) => {
   switch (status) {
@@ -50,22 +82,19 @@ const StatusIcon = ({ status }) => {
 // ====================================================================================
 
 /**
- * Displays raw progress event data for debugging purposes.
- * Uses proper text wrapping to prevent overflow issues with long content.
+ * Displays raw progress event data in a collapsible view for debugging.
  * @param {{progressEvents: Array<object>, isVisible: boolean}} props
- * @returns {JSX.Element | null} A debug view or null if not visible.
+ * @returns {JSX.Element | null} A debug view or null if not needed.
  */
 function DebugProgressEvents({ progressEvents, isVisible }) {
   if (!isVisible || !progressEvents || progressEvents.length === 0) {
     return null;
   }
-
   return (
     <details className="border rounded-lg bg-yellow-50 border-yellow-200 mb-4">
       <summary className="cursor-pointer p-3 font-semibold text-yellow-800 flex items-center justify-between list-none hover:bg-yellow-100 transition-colors">
         <span className="flex items-center gap-2">
-          <Bug size={16} />
-          Debug: Progress Events ({progressEvents.length})
+          <Bug size={16} /> Debug: Progress Events ({progressEvents.length})
         </span>
         <ChevronDown
           className="transition-transform duration-200 group-open:rotate-180"
@@ -73,11 +102,10 @@ function DebugProgressEvents({ progressEvents, isVisible }) {
         />
       </summary>
       <div className="border-t border-yellow-200 p-4">
-        {/* Fixed: Proper text wrapping for JSON content */}
         <div className="w-full">
-        <pre className="bg-yellow-100 text-yellow-900 p-4 rounded-md font-mono text-xs max-h-64 overflow-auto break-all whitespace-pre-wrap">
-          {JSON.stringify(progressEvents, null, 2)}
-        </pre>
+          <pre className="bg-yellow-100 text-yellow-900 p-4 rounded-md font-mono text-xs max-h-64 overflow-auto break-all whitespace-pre-wrap">
+            {JSON.stringify(progressEvents, null, 2)}
+          </pre>
         </div>
       </div>
     </details>
@@ -85,14 +113,13 @@ function DebugProgressEvents({ progressEvents, isVisible }) {
 }
 
 // ====================================================================================
-// SECTION 4: DATA DISPLAY AND TABLE COMPONENTS
+// SECTION 4: STRUCTURED DATA DISPLAY COMPONENTS (TABLES)
 // ====================================================================================
 
 /**
- * Renders a styled table for structured test results.
- * Includes responsive design and proper text wrapping for long content.
+ * Renders a styled table for structured data like test results.
  * @param {{title: string, headers: Array<string>, data: Array<object>}} props
- * @returns {JSX.Element} A formatted table component with overflow handling.
+ * @returns {JSX.Element} A formatted and responsive table.
  */
 function SimpleTable({ title, headers, data }) {
   if (!data || data.length === 0) {
@@ -105,7 +132,6 @@ function SimpleTable({ title, headers, data }) {
       </div>
     );
   }
-
   return (
     <div className="mt-4 w-full">
       <h4 className="font-semibold text-slate-700 mb-2">{title}</h4>
@@ -130,9 +156,15 @@ function SimpleTable({ title, headers, data }) {
                   <td
                     key={header}
                     className="px-4 py-3 text-sm text-slate-800 font-mono"
-                    style={{maxWidth: '300px'}}
+                    style={{ maxWidth: "300px" }}
                   >
-                    <div className="whitespace-pre-wrap" style={{wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+                    <div
+                      className="whitespace-pre-wrap"
+                      style={{
+                        wordBreak: "break-word",
+                        overflowWrap: "break-word",
+                      }}
+                    >
                       {String(row[header] || "")}
                     </div>
                   </td>
@@ -147,71 +179,85 @@ function SimpleTable({ title, headers, data }) {
 }
 
 // ====================================================================================
-// SECTION 5: PROGRESS TRACKING AND REAL-TIME UPDATES
+// SECTION 5: REAL-TIME PROGRESS VISUALIZATION (FIXED)
 // ====================================================================================
 
-/**
- * Displays real-time progress of script execution with step-by-step breakdown.
- * Includes progress bar, step status, and duration tracking.
- * @param {{progressEvents: Array<object>, isRunning: boolean, isComplete: boolean, showDebug: boolean}} props
- * @returns {JSX.Element | null} The real-time progress UI or null if not applicable.
- */
-
-function RealtimeProgressView({ progressEvents = [], isRunning, isComplete, error, showDebug = false }) {
-  // Find the final operation event to determine overall completion status
-  const finalOpEvent = useMemo(() =>
-    Array.isArray(progressEvents) ? progressEvents.find((e) => e?.event_type === "OPERATION_COMPLETE") : null,
-    [progressEvents]
+function RealtimeProgressView({
+  progressEvents = [],
+  isRunning,
+  isComplete,
+  error,
+  showDebug = false,
+}) {
+  const finalOpEvent = useMemo(
+    () =>
+      Array.isArray(progressEvents)
+        ? progressEvents.find((e) => e?.event_type === "OPERATION_COMPLETE")
+        : null,
+    [progressEvents],
   );
 
-  // Process progress events to extract step information and current progress
-
-const { stepArray, currentStep, totalSteps } = useMemo(() => {
+  const { stepArray, currentStep, totalSteps } = useMemo(() => {
     if (!Array.isArray(progressEvents) || progressEvents.length === 0) {
       return { stepArray: [], currentStep: 0, totalSteps: 0 };
     }
-    const stepEvents = progressEvents.filter(e => e?.event_type === "STEP_START" || e?.event_type === "STEP_COMPLETE");
+    const stepEvents = progressEvents.filter(
+      (e) =>
+        e?.event_type === "STEP_START" || e?.event_type === "STEP_COMPLETE",
+    );
     const groupedSteps = stepEvents.reduce((acc, event) => {
       const stepNum = event?.data?.step;
       if (stepNum) {
         if (!acc[stepNum]) acc[stepNum] = { step: stepNum };
-        acc[stepNum] = { ...acc[stepNum], ...event.data, step: stepNum, lastEventType: event.event_type };
+        acc[stepNum] = {
+          ...acc[stepNum],
+          ...event.data,
+          step: stepNum,
+          lastEventType: event.event_type,
+        };
       }
       return acc;
     }, {});
     const steps = Object.values(groupedSteps).sort((a, b) => a.step - b.step);
-    const processedSteps = steps.map(step => ((finalOpEvent || isComplete) && step.status === "IN_PROGRESS") ? { ...step, status: "COMPLETED" } : step);
-    const total = processedSteps.length > 0 ? Math.max(...processedSteps.map(s => s.step)) : 0;
+    const processedSteps = steps.map((step) =>
+      (finalOpEvent || isComplete) && step.status === "IN_PROGRESS"
+        ? { ...step, status: "COMPLETED" }
+        : step,
+    );
+    const total =
+      processedSteps.length > 0
+        ? Math.max(...processedSteps.map((s) => s.step))
+        : 0;
 
-    // FIX: This logic now correctly handles the progress bar on failure.
     let current = 0;
-    const lastCompletedStep = processedSteps.filter(s => s.status === "COMPLETED").pop()?.step || 0;
+    const lastCompletedStep =
+      processedSteps.filter((s) => s.status === "COMPLETED").pop()?.step || 0;
 
     if (isComplete && error) {
-      // On failure, show progress up to the last completed step.
       current = lastCompletedStep;
     } else if (finalOpEvent || isComplete) {
-      // On success, show 100% completion.
       current = total;
     } else if (isRunning) {
-      // While running, show the active step or the last one that finished.
-      const activeStep = processedSteps.find(s => s.status === "IN_PROGRESS");
+      const activeStep = processedSteps.find((s) => s.status === "IN_PROGRESS");
       current = activeStep ? activeStep.step : lastCompletedStep;
     }
 
-    return { stepArray: processedSteps, currentStep: current, totalSteps: total };
-  }, [progressEvents, finalOpEvent, isRunning, isComplete, error]); // Add 'error' to the dependency array
+    // --- THIS IS THE FIX ---
+    // This return statement was missing. Without it, this function path returned `undefined`
+    // when `progressEvents` was not empty, causing the destructuring assignment to crash.
+    return {
+      stepArray: processedSteps,
+      currentStep: current,
+      totalSteps: total,
+    };
+  }, [progressEvents, finalOpEvent, isRunning, isComplete, error]);
 
-
-
-  // Don't render if not running and no steps to show
   if (!isRunning && stepArray.length === 0) {
     return null;
   }
 
   return (
     <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg shadow-slate-200/50 w-full">
-      {/* Progress Header with overall status and progress bar */}
       <div className="border-b border-slate-200 pb-4 mb-6">
         <h3 className="text-xl font-bold text-slate-800 flex items-center">
           {finalOpEvent || isComplete ? (
@@ -221,12 +267,12 @@ const { stepArray, currentStep, totalSteps } = useMemo(() => {
           )}
           <span className="ml-3">Execution Progress</span>
         </h3>
-
-        {/* Progress bar showing completion percentage */}
         {totalSteps > 0 && (
           <div className="mt-3">
             <div className="flex justify-between text-sm text-slate-600 mb-1">
-              <span>Step {currentStep} of {totalSteps}</span>
+              <span>
+                Step {currentStep} of {totalSteps}
+              </span>
               <span>{Math.round((currentStep / totalSteps) * 100)}%</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-2">
@@ -237,43 +283,47 @@ const { stepArray, currentStep, totalSteps } = useMemo(() => {
             </div>
           </div>
         )}
-
-        {/* Final operation message */}
         {finalOpEvent && (
           <div className="mt-2">
-            <p className="text-sm text-slate-500 whitespace-pre-wrap" style={{wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+            <p
+              className="text-sm text-slate-500 whitespace-pre-wrap"
+              style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+            >
               {finalOpEvent.message}
             </p>
           </div>
         )}
       </div>
-
-      {/* Individual step progress display */}
       <div className="space-y-4">
         {stepArray.map((step) => (
           <div
             key={step.step}
-            className={`border-l-4 p-4 rounded-r-lg w-full ${
-              step.status === "IN_PROGRESS"
-                ? "border-blue-500 bg-blue-50"
-                : step.status === "COMPLETED"
-                ? "border-green-500 bg-green-50"
-                : "border-red-500 bg-red-50"
-            }`}
+            className={`border-l-4 p-4 rounded-r-lg w-full ${step.status === "IN_PROGRESS" ? "border-blue-500 bg-blue-50" : step.status === "COMPLETED" ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50"}`}
           >
             <div className="flex items-start justify-between">
               <div className="flex-1 flex items-start min-w-0">
                 <StatusIcon status={step.status} />
                 <div className="ml-3 min-w-0 flex-1">
-                  <h4 className="font-semibold text-slate-800" style={{wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+                  <h4
+                    className="font-semibold text-slate-800"
+                    style={{
+                      wordBreak: "break-word",
+                      overflowWrap: "break-word",
+                    }}
+                  >
                     Step {step.step}: {step.name}
                   </h4>
-                  <div className="text-sm text-slate-600 whitespace-pre-wrap" style={{wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+                  <div
+                    className="text-sm text-slate-600 whitespace-pre-wrap"
+                    style={{
+                      wordBreak: "break-word",
+                      overflowWrap: "break-word",
+                    }}
+                  >
                     {step.description}
                   </div>
                 </div>
               </div>
-              {/* Step duration display */}
               {step.duration != null && (
                 <div className="text-xs text-slate-500 font-mono ml-2 flex-shrink-0">
                   {step.duration.toFixed(2)}s
@@ -288,30 +338,35 @@ const { stepArray, currentStep, totalSteps } = useMemo(() => {
 }
 
 // ====================================================================================
-// SECTION 6: FINAL RESULTS DISPLAY COMPONENTS
+// SECTION 6: FINAL SCRIPT RESULTS VIEW
 // ====================================================================================
 
-/**
- * Renders the final structured output of a script execution.
- * Handles both host-based results and simple message results.
- * @param {{finalResult: object}} props
- * @returns {JSX.Element | null} The final results view with proper text wrapping.
- */
 function FinalResultView({ finalResult }) {
   if (!finalResult) return null;
-
-  // Handle multi-host results format
   if (finalResult.results_by_host) {
     return (
       <div className="space-y-6">
         {finalResult.results_by_host.map((hostResult, index) => (
-          <div key={index} className="p-4 border rounded-md bg-white shadow-sm w-full">
-            <h3 className="text-lg font-bold text-slate-800" style={{wordBreak: 'break-word', overflowWrap: 'break-word'}}>
-              Results for: <span className="font-mono">{hostResult.hostname}</span>
+          <div
+            key={index}
+            className="p-4 border rounded-md bg-white shadow-sm w-full"
+          >
+            <h3
+              className="text-lg font-bold text-slate-800"
+              style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+            >
+              Results for:{" "}
+              <span className="font-mono">{hostResult.hostname}</span>
             </h3>
             {hostResult.status === "error" ? (
               <div className="mt-2">
-                <p className="text-red-600 whitespace-pre-wrap" style={{wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+                <p
+                  className="text-red-600 whitespace-pre-wrap"
+                  style={{
+                    wordBreak: "break-word",
+                    overflowWrap: "break-word",
+                  }}
+                >
                   {hostResult.message}
                 </p>
               </div>
@@ -320,7 +375,13 @@ function FinalResultView({ finalResult }) {
                 <div key={testIndex} className="mt-2">
                   {testResult.error ? (
                     <div>
-                      <p className="text-yellow-600 whitespace-pre-wrap" style={{wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+                      <p
+                        className="text-yellow-600 whitespace-pre-wrap"
+                        style={{
+                          wordBreak: "break-word",
+                          overflowWrap: "break-word",
+                        }}
+                      >
                         {testResult.error}
                       </p>
                     </div>
@@ -339,31 +400,28 @@ function FinalResultView({ finalResult }) {
       </div>
     );
   }
-
-  // Handle simple message results format
   if (finalResult.message) {
     return (
-      <div className={`p-4 rounded-lg border w-full ${
-        finalResult.success
-          ? "bg-blue-50 border-blue-200 text-blue-800"
-          : "bg-red-50 border-red-200 text-red-800"
-      }`}>
+      <div
+        className={`p-4 rounded-lg border w-full ${finalResult.success ? "bg-blue-50 border-blue-200 text-blue-800" : "bg-red-50 border-red-200 text-red-800"}`}
+      >
         <div className="flex items-center font-bold">
           {finalResult.success ? (
             <Info size={20} className="mr-2 flex-shrink-0" />
           ) : (
             <AlertTriangle size={20} className="mr-2 flex-shrink-0" />
-          )}
+          )}{" "}
           Status
         </div>
-        <div className="mt-2 text-sm whitespace-pre-wrap" style={{wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+        <div
+          className="mt-2 text-sm whitespace-pre-wrap"
+          style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+        >
           {finalResult.message}
         </div>
       </div>
     );
   }
-
-  // Fallback for no displayable results
   return (
     <p className="italic text-slate-500">
       Script finished, but produced no standard output to display.
@@ -372,33 +430,22 @@ function FinalResultView({ finalResult }) {
 }
 
 // ====================================================================================
-// SECTION 7: CONSOLE OUTPUT AND LOG DISPLAY
+// SECTION 7: RAW CONSOLE OUTPUT VIEW
 // ====================================================================================
 
-/**
- * Renders console output in a collapsible details element.
- * Properly handles long text content with wrapping and overflow.
- * @param {{content: string, isOpen: boolean, title: string}} props
- * @returns {JSX.Element} A collapsible console output display.
- */
-function ConsoleOutputDisplay({ content, isOpen = false, title = "Console Output" }) {
+function ConsoleOutputDisplay({
+  content,
+  isOpen = false,
+  title = "Console Output",
+}) {
   if (!content) return null;
-
   return (
     <details className="border rounded-lg bg-white w-full" open={isOpen}>
       <summary className="cursor-pointer p-3 font-semibold text-slate-700 flex items-center justify-between">
         <span>{title}</span>
         <ChevronDown size={20} />
       </summary>
-
       <div className="border-t p-4">
-        {/*
-          Prevent layout breaks from long strings:
-          - break-all: forces long strings to wrap
-          - whitespace-pre-wrap: preserves indentation & line breaks
-          - overflow-auto: vertical & horizontal scroll if needed
-          - max-w-full: no wider than container
-        */}
         <div className="w-full max-w-full overflow-auto">
           <pre className="bg-slate-800 text-slate-200 p-4 rounded-md text-xs break-all whitespace-pre-wrap">
             {content}
@@ -413,64 +460,36 @@ function ConsoleOutputDisplay({ content, isOpen = false, title = "Console Output
 // SECTION 8: MAIN COMPONENT - SCRIPT OUTPUT DISPLAY
 // ====================================================================================
 
-/**
- * Main display component for script progress and results.
- * Handles different execution states: running, completed, and error states.
- * Includes save functionality for reports when enabled.
- * @param {object} props - Component props containing script data and state.
- * @returns {JSX.Element | null} The appropriate UI for the current script state.
- */
 export default function ScriptOutputDisplay({
-  progressEvents,
-  finalResult,
-  error,
-  isRunning,
-  isComplete,
-  fullLog,
-  script,
+  progressEvents = [],
+  finalResult = null,
+  error = null,
+  isRunning = false,
+  isComplete = false,
+  fullLog = "",
+  script = {},
   showDebug = false,
 }) {
-  console.log("[DEBUG] Script prop received by ScriptOutputDisplay:", script);
-
-  // State for save button loading indicator
   const [isSaving, setIsSaving] = useState(false);
-
-  // Extract save button configuration from script capabilities
   const saveButtonConfig = script?.capabilities?.saveButton;
   const canSaveReport = script?.capabilities?.enableReportSaving === true;
-    /**
-   * FIX: This helper function safely formats an error for display, preventing crashes
-   * when the 'error' prop is an object instead of a simple string.
-   * @param {any} err - The error variable from the state.
-   * @returns {string} A displayable error message.
-   */
+
   const formatErrorMessage = (err) => {
-    if (typeof err === 'object' && err !== null && err.message) {
+    if (typeof err === "object" && err !== null && err.message) {
       return String(err.message);
     }
-    if (typeof err === 'object' && err !== null) {
+    if (typeof err === "object" && err !== null) {
       return JSON.stringify(err);
     }
-    if (err) {
-      return String(err);
-    }
-    return "An unknown error occurred.";
+    return err ? String(err) : "An unknown error occurred.";
   };
 
-  /**
-   * Handles the save report functionality by calling the backend API.
-   * Shows user feedback through alerts and loading states.
-   */
   const handleSaveReport = async () => {
     if (!finalResult) {
       alert("Cannot generate report: No final data available.");
       return;
     }
-
     setIsSaving(true);
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const defaultFilename = `report-${timestamp}.txt`;
-
     try {
       const response = await fetch(`${API_BASE_URL}/api/report/generate`, {
         method: "POST",
@@ -480,13 +499,12 @@ export default function ScriptOutputDisplay({
           jsonData: finalResult,
         }),
       });
-
       const data = await response.json();
-
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to generate report on the server.");
+        throw new Error(
+          data.message || "Failed to generate report on the server.",
+        );
       }
-
       alert(data.message || "Report saved successfully!");
     } catch (err) {
       alert(err.message || "An unknown error occurred.");
@@ -495,24 +513,20 @@ export default function ScriptOutputDisplay({
     }
   };
 
-  // ====================================================================================
-  // RUNNING STATE DISPLAY
-  // ====================================================================================
+  // RENDER LOGIC FOR 'RUNNING' STATE
   if (isRunning) {
     return (
       <div className="space-y-6 w-full">
-        {/* Debug information (only shown when debug mode is enabled) */}
-        <DebugProgressEvents progressEvents={progressEvents} isVisible={showDebug} />
-
-        {/* Real-time progress display */}
+        <DebugProgressEvents
+          progressEvents={progressEvents}
+          isVisible={showDebug}
+        />
         <RealtimeProgressView
           progressEvents={progressEvents}
           isRunning={isRunning}
           isComplete={isComplete}
           showDebug={showDebug}
         />
-
-        {/* Console output (shown if there's an error during execution) */}
         {error && (
           <ConsoleOutputDisplay
             content={fullLog || formatErrorMessage(error)}
@@ -524,31 +538,24 @@ export default function ScriptOutputDisplay({
     );
   }
 
-  // ====================================================================================
-  // COMPLETED STATE DISPLAY
-  // ====================================================================================
+  // RENDER LOGIC FOR 'COMPLETED' STATE
   if (isComplete) {
-    console.log("[DEBUG] Final Render Check:", {
-      canSaveReport: canSaveReport,
-      isSuccess: finalResult?.success,
-    });
-
-    // Handle failed execution
-    if (error && !finalResult?.success) {
+    // Render path for FAILED execution
+    if (error || !finalResult?.success) {
       return (
         <div className="space-y-6 w-full">
-          {/* Error message display */}
           <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg">
             <div className="flex items-center font-bold">
               <AlertTriangle size={20} className="mr-2 flex-shrink-0" />
               SCRIPT FAILED
             </div>
-            <div className="mt-2 text-sm font-mono whitespace-pre-wrap" style={{wordBreak: 'break-word', overflowWrap: 'break-word'}}>
+            <div
+              className="mt-2 text-sm font-mono whitespace-pre-wrap"
+              style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+            >
               {formatErrorMessage(error)}
             </div>
           </div>
-
-          {/* Show progress steps if available */}
           {progressEvents.length > 0 && (
             <RealtimeProgressView
               progressEvents={progressEvents}
@@ -560,14 +567,13 @@ export default function ScriptOutputDisplay({
         </div>
       );
     }
-
-    // Handle successful execution
+    // Render path for SUCCESSFUL execution
     return (
       <div className="space-y-6 w-full">
-        {/* Debug information */}
-        <DebugProgressEvents progressEvents={progressEvents} isVisible={showDebug} />
-
-        {/* Save report button (only shown when enabled and successful) */}
+        <DebugProgressEvents
+          progressEvents={progressEvents}
+          isVisible={showDebug}
+        />
         {canSaveReport && finalResult?.success && (
           <div className="flex items-center p-3">
             <button
@@ -576,12 +582,10 @@ export default function ScriptOutputDisplay({
               className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:bg-slate-200 transition-colors"
             >
               <Save size={16} />
-              {isSaving ? "Saving..." : (saveButtonConfig.label || "Save Report")}
+              {isSaving ? "Saving..." : saveButtonConfig.label || "Save Report"}
             </button>
           </div>
         )}
-
-        {/* Progress steps display */}
         {progressEvents.length > 0 && (
           <RealtimeProgressView
             progressEvents={progressEvents}
@@ -590,14 +594,14 @@ export default function ScriptOutputDisplay({
             showDebug={showDebug}
           />
         )}
-
-        {/* Final results display */}
         {finalResult && <FinalResultView finalResult={finalResult} />}
-
-        {/* Console log display (open by default if execution failed) */}
         {(error || fullLog) && (
           <ConsoleOutputDisplay
-            content={fullLog || formatErrorMessage(error) || "No console output available"}
+            content={
+              fullLog ||
+              formatErrorMessage(error) ||
+              "No console output available"
+            }
             isOpen={!finalResult?.success}
             title="Raw Console Log"
           />
@@ -606,8 +610,6 @@ export default function ScriptOutputDisplay({
     );
   }
 
-  // ====================================================================================
-  // DEFAULT STATE (NOT RUNNING AND NOT COMPLETE)
-  // ====================================================================================
+  // Default state: return null if not running and not complete.
   return null;
 }

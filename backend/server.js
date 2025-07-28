@@ -16,14 +16,16 @@ const fs = require("fs");
 const yaml = require("js-yaml");
 
 const multer = require("multer");
-const { Writable } = require('stream');
+const { Writable } = require("stream");
 
 const app = express();
 const port = 3001;
 const runHistory = [];
 const MAX_HISTORY_ITEMS = 50;
 
-const { executeWithRealTimeUpdates } = require('./utils/executeWithRealTimeUpdates');
+const {
+  executeWithRealTimeUpdates,
+} = require("./utils/executeWithRealTimeUpdates");
 
 // ====================================================================================
 // SECTION 2: PATH CONSTANTS & IN-MEMORY STATE
@@ -32,12 +34,31 @@ const { executeWithRealTimeUpdates } = require('./utils/executeWithRealTimeUpdat
 // Purpose: Centralizes configuration for consistent access across endpoints.
 const PYTHON_PIPELINE_MOUNT_PATH = "/python_pipeline";
 const PUBLIC_MOUNT_PATH = "/public";
-const SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER = path.join(PYTHON_PIPELINE_MOUNT_PATH, "scripts.yaml");
-const PYTHON_PIPELINE_PATH_ON_HOST = path.join(process.env.HOST_PROJECT_ROOT, "python_pipeline");
+const SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER = path.join(
+  PYTHON_PIPELINE_MOUNT_PATH,
+  "scripts.yaml",
+);
+const PYTHON_PIPELINE_PATH_ON_HOST = path.join(
+  process.env.HOST_PROJECT_ROOT,
+  "python_pipeline",
+);
 const SCRIPT_MOUNT_POINT_IN_CONTAINER = "/app/python-scripts";
-const TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER = path.join(PYTHON_PIPELINE_MOUNT_PATH, "tools", "configuration", "templates.yml");
-const TEMPLATES_DIRECTORY_PATH = path.join(PYTHON_PIPELINE_MOUNT_PATH, "tools", "configuration", "templates");
-const NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER = path.join(PUBLIC_MOUNT_PATH, "navigation.yaml");
+const TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER = path.join(
+  PYTHON_PIPELINE_MOUNT_PATH,
+  "tools",
+  "configuration",
+  "templates.yml",
+);
+const TEMPLATES_DIRECTORY_PATH = path.join(
+  PYTHON_PIPELINE_MOUNT_PATH,
+  "tools",
+  "configuration",
+  "templates",
+);
+const NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER = path.join(
+  PUBLIC_MOUNT_PATH,
+  "navigation.yaml",
+);
 const UPLOAD_TEMP_DIR = path.join(PYTHON_PIPELINE_MOUNT_PATH, "temp_uploads");
 
 const labStatuses = {};
@@ -65,7 +86,7 @@ app.use(express.json());
 // Make sure this function is available or defined as shown in your file
 ensureDirectoryExists(UPLOAD_TEMP_DIR);
 
-const UPLOAD_DIRECTORY_IN_CONTAINER = '/uploads';
+const UPLOAD_DIRECTORY_IN_CONTAINER = "/uploads";
 
 // Configure multer to save files directly to the shared /uploads volume.
 const storage = multer.diskStorage({
@@ -73,14 +94,13 @@ const storage = multer.diskStorage({
     cb(null, UPLOAD_DIRECTORY_IN_CONTAINER);
   },
   filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    const uniqueSuffix =
+      Date.now() + "-" + Math.random().toString(36).substring(2, 9);
     cb(null, `file-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
+  },
 });
 
 const upload = multer({ storage: storage });
-
-
 
 // ====================================================================================
 // SECTION 5: WEBSOCKET SERVER SETUP
@@ -155,26 +175,40 @@ const getTemplateContent = (file) => {
     if (!fs.existsSync(p)) return null;
     return fs.readFileSync(p, "utf8");
   } catch (e) {
-    console.error(`[BACKEND] Error reading template file ${file}: ${e.message}`);
+    console.error(
+      `[BACKEND] Error reading template file ${file}: ${e.message}`,
+    );
     return null;
   }
 };
 
 const getScriptIndividualMetadata = (scriptDefinition) => {
   // Retrieves metadata for a specific script from its metadata.yml.
-  if (!scriptDefinition || !scriptDefinition.path || !scriptDefinition.metadataFile) {
+  if (
+    !scriptDefinition ||
+    !scriptDefinition.path ||
+    !scriptDefinition.metadataFile
+  ) {
     console.error("[BACKEND] Invalid script definition:", scriptDefinition);
     return null;
   }
   try {
-    const metadataPath = path.join(PYTHON_PIPELINE_MOUNT_PATH, scriptDefinition.path, scriptDefinition.metadataFile);
+    const metadataPath = path.join(
+      PYTHON_PIPELINE_MOUNT_PATH,
+      scriptDefinition.path,
+      scriptDefinition.metadataFile,
+    );
     if (!fs.existsSync(metadataPath)) {
-      console.warn(`[BACKEND] Metadata file not found for script "${scriptDefinition.id}" at: ${metadataPath}`);
+      console.warn(
+        `[BACKEND] Metadata file not found for script "${scriptDefinition.id}" at: ${metadataPath}`,
+      );
       return null;
     }
     return yaml.load(fs.readFileSync(metadataPath, "utf8"));
   } catch (e) {
-    console.error(`[BACKEND] Error processing metadata for script "${scriptDefinition.id}": ${e.message}`);
+    console.error(
+      `[BACKEND] Error processing metadata for script "${scriptDefinition.id}": ${e.message}`,
+    );
     return null;
   }
 };
@@ -184,22 +218,52 @@ const executeTestDiscovery = (scriptId, environment = "development") => {
   return new Promise((resolve, reject) => {
     const cacheKey = `${scriptId}-${environment}`;
     const cached = testDiscoveryCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) return resolve(cached.data);
-    const scriptsCfg = yaml.load(fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION)
+      return resolve(cached.data);
+    const scriptsCfg = yaml.load(
+      fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
+    );
     const scriptDef = scriptsCfg.scripts.find((s) => s.id === scriptId);
-    if (!scriptDef) return reject(new Error(`Script definition not found for ID: ${scriptId}`));
+    if (!scriptDef)
+      return reject(
+        new Error(`Script definition not found for ID: ${scriptId}`),
+      );
 
-    const scriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, scriptDef.path, "run.py");
-    const args = ["run", "--rm", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`, "vlabs-python-runner", "python", scriptPath, "--list_tests", "--environment", environment];
+    const scriptPath = path.join(
+      SCRIPT_MOUNT_POINT_IN_CONTAINER,
+      scriptDef.path,
+      "run.py",
+    );
+    const args = [
+      "run",
+      "--rm",
+      "-v",
+      `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+      "vlabs-python-runner",
+      "python",
+      scriptPath,
+      "--list_tests",
+      "--environment",
+      environment,
+    ];
 
     exec(`docker ${args.join(" ")}`, { timeout: 60000 }, (err, stdout) => {
-      if (err) return reject(new Error(`Test discovery failed: ${err.message}`));
+      if (err)
+        return reject(new Error(`Test discovery failed: ${err.message}`));
       try {
-        const result = { ...JSON.parse(stdout), backend_metadata: { discovery_time: new Date().toISOString() } };
-        testDiscoveryCache.set(cacheKey, { data: result, timestamp: Date.now() });
+        const result = {
+          ...JSON.parse(stdout),
+          backend_metadata: { discovery_time: new Date().toISOString() },
+        };
+        testDiscoveryCache.set(cacheKey, {
+          data: result,
+          timestamp: Date.now(),
+        });
         resolve(result);
       } catch (pErr) {
-        reject(new Error(`Failed to parse test discovery output: ${pErr.message}`));
+        reject(
+          new Error(`Failed to parse test discovery output: ${pErr.message}`),
+        );
       }
     });
   });
@@ -227,18 +291,52 @@ const getDockerComposeStatus = (labPath) => {
   return new Promise((resolve) => {
     const labDirectory = path.join(PUBLIC_MOUNT_PATH, labPath);
     const dockerComposeFilePath = path.join(labDirectory, "docker-compose.yml");
-    if (!fs.existsSync(dockerComposeFilePath)) return resolve({ status: "stopped", message: "Lab definition file not found." });
+    if (!fs.existsSync(dockerComposeFilePath))
+      return resolve({
+        status: "stopped",
+        message: "Lab definition file not found.",
+      });
 
     const command = `docker compose -f "${dockerComposeFilePath}" ps --format json`;
     exec(command, { cwd: labDirectory }, (error, stdout) => {
-      if (error) return resolve({ status: "stopped", message: `Docker Compose command failed: ${error.message}` });
-      if (!stdout.trim()) return resolve({ status: "stopped", message: "No active containers found." });
+      if (error)
+        return resolve({
+          status: "stopped",
+          message: `Docker Compose command failed: ${error.message}`,
+        });
+      if (!stdout.trim())
+        return resolve({
+          status: "stopped",
+          message: "No active containers found.",
+        });
 
-      let services = stdout.trim().split("\n").map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+      let services = stdout
+        .trim()
+        .split("\n")
+        .map((l) => {
+          try {
+            return JSON.parse(l);
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean);
 
-      if (services.every(s => s.State === "running")) return resolve({ status: "running", message: "All lab containers are running." });
-      if (services.some(s => s.State === "exited" || s.State === "degraded")) return resolve({ status: "failed", message: "Some lab containers are unhealthy." });
-      if (services.some(s => s.State === "starting")) return resolve({ status: "starting", message: "Lab containers are starting." });
+      if (services.every((s) => s.State === "running"))
+        return resolve({
+          status: "running",
+          message: "All lab containers are running.",
+        });
+      if (services.some((s) => s.State === "exited" || s.State === "degraded"))
+        return resolve({
+          status: "failed",
+          message: "Some lab containers are unhealthy.",
+        });
+      if (services.some((s) => s.State === "starting"))
+        return resolve({
+          status: "starting",
+          message: "Lab containers are starting.",
+        });
 
       resolve({ status: "unknown", message: "Lab status is indeterminate." });
     });
@@ -249,12 +347,12 @@ const scanDirectory = (directoryPath) => {
   const stats = fs.statSync(directoryPath);
   const name = path.basename(directoryPath);
   if (stats.isDirectory()) {
-    const children = fs.readdirSync(directoryPath).map(child =>
-      scanDirectory(path.join(directoryPath, child))
-    );
-    return { name, type: 'folder', children };
+    const children = fs
+      .readdirSync(directoryPath)
+      .map((child) => scanDirectory(path.join(directoryPath, child)));
+    return { name, type: "folder", children };
   } else {
-    return { name, type: 'file' };
+    return { name, type: "file" };
   }
 };
 // =================================================================================================
@@ -292,35 +390,53 @@ const safeJsonParse = (jsonString) => {
 // Purpose: Handles HTTP requests from the frontend for various operations.
 //
 // NEW ENDPOINT: Fetch Software Versions for the Code Upgrade tool
-app.get('/api/software-versions', (req, res) => {
-  const filePath = path.join(PYTHON_PIPELINE_MOUNT_PATH, 'tools', 'code_upgrade', 'data', 'SoftwareVersions.yml');
+app.get("/api/software-versions", (req, res) => {
+  const filePath = path.join(
+    PYTHON_PIPELINE_MOUNT_PATH,
+    "tools",
+    "code_upgrade",
+    "data",
+    "SoftwareVersions.yml",
+  );
   console.log(`[API][software-versions] Attempting to read: ${filePath}`);
 
   try {
     if (!fs.existsSync(filePath)) {
       console.error(`[API][software-versions] File not found at ${filePath}`);
-      return res.status(404).json({ success: false, message: 'SoftwareVersions.yml not found on the server.' });
+      return res.status(404).json({
+        success: false,
+        message: "SoftwareVersions.yml not found on the server.",
+      });
     }
 
-    const fileContents = fs.readFileSync(filePath, 'utf8');
+    const fileContents = fs.readFileSync(filePath, "utf8");
     const data = yaml.load(fileContents);
 
-    console.log(`[API][software-versions] Successfully parsed SoftwareVersions.yml.`);
+    console.log(
+      `[API][software-versions] Successfully parsed SoftwareVersions.yml.`,
+    );
     res.json(data);
-
   } catch (error) {
-    console.error(`[API][software-versions] Error processing file: ${error.message}`);
-    res.status(500).json({ success: false, message: 'Failed to read or parse software versions file.', error: error.message });
+    console.error(
+      `[API][software-versions] Error processing file: ${error.message}`,
+    );
+    res.status(500).json({
+      success: false,
+      message: "Failed to read or parse software versions file.",
+      error: error.message,
+    });
   }
 });
 
 // =======TEST API curl http://localhost:3001/api/inventory-tree ======================
-app.get('/api/inventory-tree', (req, res) => {
-  const basePath = '/python_pipeline/tools/code_upgrade';
-  const upgradePath = path.join(basePath, 'upgrade_path', 'vendor');
+app.get("/api/inventory-tree", (req, res) => {
+  const basePath = "/python_pipeline/tools/code_upgrade";
+  const upgradePath = path.join(basePath, "upgrade_path", "vendor");
 
   console.log(`[INFO] API call to /api/inventory-tree received.`);
-  console.log(`[DEBUG] Attempting to scan directory at absolute container path: ${upgradePath}`);
+  console.log(
+    `[DEBUG] Attempting to scan directory at absolute container path: ${upgradePath}`,
+  );
 
   try {
     if (fs.existsSync(upgradePath)) {
@@ -333,20 +449,29 @@ app.get('/api/inventory-tree', (req, res) => {
       const debugInfo = {
         path_searched: upgradePath,
         base_mount_exists: fs.existsSync(basePath),
-        base_mount_contents: fs.existsSync(basePath) ? fs.readdirSync(basePath) : [],
-        upgrade_path_exists: fs.existsSync(path.join(basePath, 'upgrade_path')),
-        upgrade_path_contents: fs.existsSync(path.join(basePath, 'upgrade_path')) ?
-          fs.readdirSync(path.join(basePath, 'upgrade_path')) : []
+        base_mount_contents: fs.existsSync(basePath)
+          ? fs.readdirSync(basePath)
+          : [],
+        upgrade_path_exists: fs.existsSync(path.join(basePath, "upgrade_path")),
+        upgrade_path_contents: fs.existsSync(
+          path.join(basePath, "upgrade_path"),
+        )
+          ? fs.readdirSync(path.join(basePath, "upgrade_path"))
+          : [],
       };
       console.error(`[DEBUG] Debug info:`, debugInfo);
       res.status(404).json({
-        error: 'Directory not found on server.',
-        debug: debugInfo
+        error: "Directory not found on server.",
+        debug: debugInfo,
       });
     }
   } catch (error) {
-    console.error(`[FATAL] An error occurred during the scan: ${error.message}`);
-    res.status(500).json({ error: 'Failed to scan directory', details: error.message });
+    console.error(
+      `[FATAL] An error occurred during the scan: ${error.message}`,
+    );
+    res
+      .status(500)
+      .json({ error: "Failed to scan directory", details: error.message });
   }
 });
 
@@ -354,20 +479,33 @@ app.get('/api/inventory-tree', (req, res) => {
 app.get("/api/scripts/list", (req, res) => {
   // Lists all scripts with their metadata for the script runner UI.
   try {
-    const config = yaml.load(fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
+    const config = yaml.load(
+      fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
+    );
     if (!config || !Array.isArray(config.scripts)) {
-      console.error(`[BACKEND] Scripts configuration malformed or missing at: ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}`);
-      return res.status(500).json({ success: false, message: "Scripts configuration malformed." });
+      console.error(
+        `[BACKEND] Scripts configuration malformed or missing at: ${SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER}`,
+      );
+      return res
+        .status(500)
+        .json({ success: false, message: "Scripts configuration malformed." });
     }
-    const scripts = config.scripts.map((scriptDef) => {
-      const metadata = getScriptIndividualMetadata(scriptDef);
-      return metadata ? { ...scriptDef, ...metadata } : null;
-    }).filter(Boolean);
-    console.log(`[BACKEND] Found scripts: ${scripts.map(s => s.id).join(', ')}`);
+    const scripts = config.scripts
+      .map((scriptDef) => {
+        const metadata = getScriptIndividualMetadata(scriptDef);
+        return metadata ? { ...scriptDef, ...metadata } : null;
+      })
+      .filter(Boolean);
+    console.log(
+      `[BACKEND] Found scripts: ${scripts.map((s) => s.id).join(", ")}`,
+    );
     res.json({ success: true, scripts });
   } catch (e) {
     console.error(`[BACKEND] Failed to load script list: ${e.message}`);
-    res.status(500).json({ success: false, message: `Failed to load script list: ${e.message}` });
+    res.status(500).json({
+      success: false,
+      message: `Failed to load script list: ${e.message}`,
+    });
   }
 });
 
@@ -375,12 +513,18 @@ app.post("/api/scripts/discover-tests", async (req, res) => {
   // Discovers JSNAPy tests for a script.
   try {
     const { scriptId, environment = "development" } = req.body;
-    if (!scriptId) return res.status(400).json({ success: false, message: "scriptId is required" });
+    if (!scriptId)
+      return res
+        .status(400)
+        .json({ success: false, message: "scriptId is required" });
     const discoveryResult = await executeTestDiscovery(scriptId, environment);
     res.json({ success: true, ...discoveryResult });
   } catch (error) {
     console.error(`[BACKEND] Test discovery failed: ${error.message}`);
-    res.status(500).json({ success: false, message: `Test discovery failed: ${error.message}` });
+    res.status(500).json({
+      success: false,
+      message: `Test discovery failed: ${error.message}`,
+    });
   }
 });
 
@@ -388,9 +532,14 @@ app.post("/api/templates/discover", (req, res) => {
   // Discovers configuration templates, optionally by category.
   const { category } = req.body;
   const templatesConfig = getTemplatesConfig();
-  if (!templatesConfig) return res.status(500).json({ success: false, message: "Templates configuration not found." });
+  if (!templatesConfig)
+    return res
+      .status(500)
+      .json({ success: false, message: "Templates configuration not found." });
   const categorizedTemplates = {};
-  for (const [templateId, templateDef] of Object.entries(templatesConfig.templates)) {
+  for (const [templateId, templateDef] of Object.entries(
+    templatesConfig.templates,
+  )) {
     if (category && templateDef.category !== category) continue;
     const cat = templateDef.category || "General";
     if (!categorizedTemplates[cat]) categorizedTemplates[cat] = [];
@@ -404,27 +553,54 @@ app.get("/api/templates/:templateId", (req, res) => {
   const { templateId } = req.params;
   const templatesConfig = getTemplatesConfig();
   const templateDef = templatesConfig?.templates[templateId];
-  if (!templateDef) return res.status(404).json({ success: false, message: `Template with ID "${templateId}" not found.` });
+  if (!templateDef)
+    return res.status(404).json({
+      success: false,
+      message: `Template with ID "${templateId}" not found.`,
+    });
   const templateContent = getTemplateContent(templateDef.template_file);
-  if (!templateContent) return res.status(500).json({ success: false, message: "Failed to read template file." });
-  res.json({ success: true, template: { id: templateId, ...templateDef, template_content: templateContent } });
+  if (!templateContent)
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to read template file." });
+  res.json({
+    success: true,
+    template: {
+      id: templateId,
+      ...templateDef,
+      template_content: templateContent,
+    },
+  });
 });
 
 app.get("/api/inventories/list", (req, res) => {
   // Lists inventory files from /python_pipeline/data.
   const dataDir = path.join(PYTHON_PIPELINE_MOUNT_PATH, "data");
   try {
-    if (!fs.existsSync(dataDir)) return res.status(200).json({ success: true, inventories: [], message: "Inventory directory not found." });
+    if (!fs.existsSync(dataDir))
+      return res.status(200).json({
+        success: true,
+        inventories: [],
+        message: "Inventory directory not found.",
+      });
     const files = fs.readdirSync(dataDir);
-    const inventoryFiles = files.filter(file => /\.(ya?ml|ini)$/i.test(file)).map(file => ({
-      value: path.join(PYTHON_PIPELINE_MOUNT_PATH, "data", file),
-      label: file
-    }));
-    console.log(`[BACKEND] Found inventories: ${inventoryFiles.map(f => f.label).join(', ')}`);
+    const inventoryFiles = files
+      .filter((file) => /\.(ya?ml|ini)$/i.test(file))
+      .map((file) => ({
+        value: path.join(PYTHON_PIPELINE_MOUNT_PATH, "data", file),
+        label: file,
+      }));
+    console.log(
+      `[BACKEND] Found inventories: ${inventoryFiles.map((f) => f.label).join(", ")}`,
+    );
     res.json({ success: true, inventories: inventoryFiles });
   } catch (error) {
     console.error(`[BACKEND] Failed to list inventory files: ${error.message}`);
-    res.status(500).json({ success: false, message: "Failed to list inventory files", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Failed to list inventory files",
+      error: error.message,
+    });
   }
 });
 
@@ -437,19 +613,34 @@ app.get("/api/navigation/menu", (req, res) => {
   // Retrieves the navigation menu structure.
   try {
     if (!fs.existsSync(NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER)) {
-      console.error(`[BACKEND] Navigation config file not found: ${NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER}`);
-      return res.status(500).json({ success: false, message: "Navigation configuration file not found." });
+      console.error(
+        `[BACKEND] Navigation config file not found: ${NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER}`,
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Navigation configuration file not found.",
+      });
     }
-    const config = yaml.load(fs.readFileSync(NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
+    const config = yaml.load(
+      fs.readFileSync(NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
+    );
     if (config && Array.isArray(config.menu)) {
       res.json({ success: true, menu: config.menu });
     } else {
-      console.error(`[BACKEND] Navigation configuration malformed at: ${NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER}`);
-      res.status(500).json({ success: false, message: "Navigation configuration malformed." });
+      console.error(
+        `[BACKEND] Navigation configuration malformed at: ${NAVIGATION_CONFIG_FILE_PATH_IN_CONTAINER}`,
+      );
+      res.status(500).json({
+        success: false,
+        message: "Navigation configuration malformed.",
+      });
     }
   } catch (e) {
     console.error(`[BACKEND] Failed to load navigation menu: ${e.message}`);
-    res.status(500).json({ success: false, message: `Failed to load navigation menu: ${e.message}` });
+    res.status(500).json({
+      success: false,
+      message: `Failed to load navigation menu: ${e.message}`,
+    });
   }
 });
 // =============================================================================================
@@ -463,8 +654,14 @@ app.get("/api/backups/devices", (req, res) => {
 
     // Check if /app/backups exists
     if (!fs.existsSync(backupBasePath)) {
-      console.error(`[BACKEND] Backups directory does not exist: ${backupBasePath}`);
-      return res.json({ success: true, devices: [], message: `Backups directory not found in container: ${backupBasePath}. Ensure the volume mount is correctly configured in docker-compose.yml.` });
+      console.error(
+        `[BACKEND] Backups directory does not exist: ${backupBasePath}`,
+      );
+      return res.json({
+        success: true,
+        devices: [],
+        message: `Backups directory not found in container: ${backupBasePath}. Ensure the volume mount is correctly configured in docker-compose.yml.`,
+      });
     }
 
     // Check directory permissions
@@ -472,18 +669,31 @@ app.get("/api/backups/devices", (req, res) => {
       fs.accessSync(backupBasePath, fs.constants.R_OK);
       console.log(`[BACKEND] Backups directory is readable: ${backupBasePath}`);
     } catch (error) {
-      console.error(`[BACKEND] Backups directory is not readable: ${backupBasePath}, Error: ${error.message}`);
-      return res.status(500).json({ success: false, message: `Backups directory not readable: ${error.message}` });
+      console.error(
+        `[BACKEND] Backups directory is not readable: ${backupBasePath}, Error: ${error.message}`,
+      );
+      return res.status(500).json({
+        success: false,
+        message: `Backups directory not readable: ${error.message}`,
+      });
     }
 
     // Log directory contents
     let deviceFolders = [];
     try {
       deviceFolders = fs.readdirSync(backupBasePath);
-      console.log(`[BACKEND] Device folders found: ${deviceFolders.join(', ') || 'none'}`);
+      console.log(
+        `[BACKEND] Device folders found: ${deviceFolders.join(", ") || "none"}`,
+      );
     } catch (error) {
-      console.error(`[BACKEND] Error reading backups directory ${backupBasePath}: ${error.message}`);
-      return res.json({ success: true, devices: [], message: `Error reading backups directory: ${error.message}` });
+      console.error(
+        `[BACKEND] Error reading backups directory ${backupBasePath}: ${error.message}`,
+      );
+      return res.json({
+        success: true,
+        devices: [],
+        message: `Error reading backups directory: ${error.message}`,
+      });
     }
 
     const devices = [];
@@ -492,31 +702,46 @@ app.get("/api/backups/devices", (req, res) => {
       try {
         const stat = fs.statSync(deviceDir);
         if (stat.isDirectory()) {
-          const backups = fs.readdirSync(deviceDir)
-            .filter(file => file.endsWith('.conf'))
-            .map(file => {
+          const backups = fs
+            .readdirSync(deviceDir)
+            .filter((file) => file.endsWith(".conf"))
+            .map((file) => {
               const filePath = path.join(backupBasePath, deviceIp, file);
               console.log(`[BACKEND] Found backup file: ${filePath}`);
               return {
                 value: filePath,
-                label: file
+                label: file,
               };
             });
-          console.log(`[BACKEND] Backups for ${deviceIp}: ${backups.map(b => b.label).join(', ') || 'none'}`);
+          console.log(
+            `[BACKEND] Backups for ${deviceIp}: ${backups.map((b) => b.label).join(", ") || "none"}`,
+          );
           if (backups.length > 0) {
             devices.push({ deviceIp, backups });
           }
         }
       } catch (error) {
-        console.error(`[BACKEND] Error processing device directory ${deviceDir}: ${error.message}`);
+        console.error(
+          `[BACKEND] Error processing device directory ${deviceDir}: ${error.message}`,
+        );
       }
     }
 
     console.log(`[BACKEND] Found devices: ${JSON.stringify(devices)}`);
-    return res.json({ success: true, devices, message: devices.length === 0 ? "No devices with valid backups found." : undefined });
+    return res.json({
+      success: true,
+      devices,
+      message:
+        devices.length === 0
+          ? "No devices with valid backups found."
+          : undefined,
+    });
   } catch (error) {
     console.error(`[BACKEND] Error fetching backups: ${error.message}`);
-    return res.status(500).json({ success: false, message: `Error fetching backups: ${error.message}` });
+    return res.status(500).json({
+      success: false,
+      message: `Error fetching backups: ${error.message}`,
+    });
   }
 });
 
@@ -533,7 +758,11 @@ app.get("/api/backups/host/:hostname", (req, res) => {
     // Check if the device directory exists
     if (!fs.existsSync(deviceDir)) {
       console.error(`[BACKEND] Device directory not found: ${deviceDir}`);
-      return res.json({ success: true, backups: [], message: `No backups found for host ${hostname}.` });
+      return res.json({
+        success: true,
+        backups: [],
+        message: `No backups found for host ${hostname}.`,
+      });
     }
 
     // Check directory permissions
@@ -541,34 +770,49 @@ app.get("/api/backups/host/:hostname", (req, res) => {
       fs.accessSync(deviceDir, fs.constants.R_OK);
       console.log(`[BACKEND] Device directory is readable: ${deviceDir}`);
     } catch (error) {
-      console.error(`[BACKEND] Device directory is not readable: ${deviceDir}, Error: ${error.message}`);
-      return res.status(500).json({ success: false, message: `Device directory not readable: ${error.message}` });
+      console.error(
+        `[BACKEND] Device directory is not readable: ${deviceDir}, Error: ${error.message}`,
+      );
+      return res.status(500).json({
+        success: false,
+        message: `Device directory not readable: ${error.message}`,
+      });
     }
 
     // Read backup files
     let backups = [];
     try {
-      backups = fs.readdirSync(deviceDir)
-        .filter(file => file.endsWith('.conf'))
-        .map(file => ({
+      backups = fs
+        .readdirSync(deviceDir)
+        .filter((file) => file.endsWith(".conf"))
+        .map((file) => ({
           value: path.join(backupBasePath, hostname, file),
-          label: file
+          label: file,
         }));
-      console.log(`[BACKEND] Backups for ${hostname}: ${backups.map(b => b.label).join(', ') || 'none'}`);
+      console.log(
+        `[BACKEND] Backups for ${hostname}: ${backups.map((b) => b.label).join(", ") || "none"}`,
+      );
     } catch (error) {
-      console.error(`[BACKEND] Error reading backups for ${hostname}: ${error.message}`);
-      return res.status(500).json({ success: false, message: `Error reading backups: ${error.message}` });
+      console.error(
+        `[BACKEND] Error reading backups for ${hostname}: ${error.message}`,
+      );
+      return res.status(500).json({
+        success: false,
+        message: `Error reading backups: ${error.message}`,
+      });
     }
 
     return res.json({ success: true, backups });
   } catch (error) {
-    console.error(`[BACKEND] Error fetching backups for ${hostname}: ${error.message}`);
-    return res.status(500).json({ success: false, message: `Error fetching backups: ${error.message}` });
+    console.error(
+      `[BACKEND] Error fetching backups for ${hostname}: ${error.message}`,
+    );
+    return res.status(500).json({
+      success: false,
+      message: `Error fetching backups: ${error.message}`,
+    });
   }
 });
-
-
-
 
 app.get("/api/health", (req, res) => {
   // Health check endpoint for server status.
@@ -578,15 +822,30 @@ app.get("/api/health", (req, res) => {
 app.post("/api/labs/launch", async (req, res) => {
   // Launches a lab using Docker Compose.
   const { labPath } = req.body;
-  if (!labPath) return res.status(400).json({ success: false, message: "labPath is required." });
+  if (!labPath)
+    return res
+      .status(400)
+      .json({ success: false, message: "labPath is required." });
   const labDirectory = path.join(PUBLIC_MOUNT_PATH, labPath);
-  if (!fs.existsSync(path.join(labDirectory, "docker-compose.yml"))) return res.status(404).json({ success: false, message: "Lab definition file not found." });
-  labStatuses[labPath] = { status: "starting", message: "Initiating lab launch..." };
+  if (!fs.existsSync(path.join(labDirectory, "docker-compose.yml")))
+    return res
+      .status(404)
+      .json({ success: false, message: "Lab definition file not found." });
+  labStatuses[labPath] = {
+    status: "starting",
+    message: "Initiating lab launch...",
+  };
   const command = `docker compose -f "${path.join(labDirectory, "docker-compose.yml")}" up -d`;
   exec(command, { cwd: labDirectory }, (error) => {
     if (error) {
-      labStatuses[labPath] = { status: "failed", message: `Launch failed: ${error.message}` };
-      return res.status(500).json({ success: false, message: `Failed to launch lab: ${error.message}` });
+      labStatuses[labPath] = {
+        status: "failed",
+        message: `Launch failed: ${error.message}`,
+      };
+      return res.status(500).json({
+        success: false,
+        message: `Failed to launch lab: ${error.message}`,
+      });
     }
     res.json({ success: true, message: "Lab launch command sent." });
   });
@@ -595,15 +854,30 @@ app.post("/api/labs/launch", async (req, res) => {
 app.post("/api/labs/stop", (req, res) => {
   // Stops a lab using Docker Compose.
   const { labPath } = req.body;
-  if (!labPath) return res.status(400).json({ success: false, message: "labPath is required." });
+  if (!labPath)
+    return res
+      .status(400)
+      .json({ success: false, message: "labPath is required." });
   const labDirectory = path.join(PUBLIC_MOUNT_PATH, labPath);
-  if (!fs.existsSync(path.join(labDirectory, "docker-compose.yml"))) return res.status(404).json({ success: false, message: "Lab definition file not found." });
-  labStatuses[labPath] = { status: "stopping", message: "Initiating lab stop..." };
+  if (!fs.existsSync(path.join(labDirectory, "docker-compose.yml")))
+    return res
+      .status(404)
+      .json({ success: false, message: "Lab definition file not found." });
+  labStatuses[labPath] = {
+    status: "stopping",
+    message: "Initiating lab stop...",
+  };
   const command = `docker compose -f "${path.join(labDirectory, "docker-compose.yml")}" down`;
   exec(command, { cwd: labDirectory }, (error) => {
     if (error) {
-      labStatuses[labPath] = { status: "failed", message: `Stop failed: ${error.message}` };
-      return res.status(500).json({ success: false, message: `Failed to stop lab: ${error.message}` });
+      labStatuses[labPath] = {
+        status: "failed",
+        message: `Stop failed: ${error.message}`,
+      };
+      return res.status(500).json({
+        success: false,
+        message: `Failed to stop lab: ${error.message}`,
+      });
     }
     labStatuses[labPath] = { status: "stopped", message: "Lab stopped." };
     res.json({ success: true, message: "Lab stopped successfully." });
@@ -613,7 +887,10 @@ app.post("/api/labs/stop", (req, res) => {
 app.get("/api/labs/status-by-path", async (req, res) => {
   // Retrieves status for a specific lab.
   const { labPath } = req.query;
-  if (!labPath) return res.status(400).json({ success: false, message: "labPath is required." });
+  if (!labPath)
+    return res
+      .status(400)
+      .json({ success: false, message: "labPath is required." });
   const status = await getDockerComposeStatus(labPath);
   labStatuses[labPath] = status;
   res.json(status);
@@ -636,26 +913,40 @@ app.get("/api/labs/all-statuses", async (req, res) => {
 app.post("/api/scripts/run", async (req, res) => {
   const { scriptId, parameters, wsClientId } = req.body;
 
-  console.log(`[DEBUG][API] /api/scripts/run called for scriptId: ${scriptId} with wsClientId: ${wsClientId}`);
+  console.log(
+    `[DEBUG][API] /api/scripts/run called for scriptId: ${scriptId} with wsClientId: ${wsClientId}`,
+  );
   console.log(`[DEBUG][API] Original parameters:`, parameters);
 
   // 1. Validate WebSocket Client ID
   if (!wsClientId) {
-    return res.status(400).json({ success: false, message: "WebSocket Client ID is required for real-time updates." });
+    return res.status(400).json({
+      success: false,
+      message: "WebSocket Client ID is required for real-time updates.",
+    });
   }
   const clientWs = clients.get(wsClientId);
   if (!clientWs || clientWs.readyState !== 1) {
-    return res.status(404).json({ success: false, message: "WebSocket client not found or is not open." });
+    return res.status(404).json({
+      success: false,
+      message: "WebSocket client not found or is not open.",
+    });
   }
 
   // 2. Validate Script ID and find script definition
   if (!scriptId) {
-    return res.status(400).json({ success: false, message: "scriptId is required." });
+    return res
+      .status(400)
+      .json({ success: false, message: "scriptId is required." });
   }
-  const config = yaml.load(fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
+  const config = yaml.load(
+    fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
+  );
   const scriptDef = config.scripts.find((s) => s.id === scriptId);
   if (!scriptDef) {
-    return res.status(404).json({ success: false, message: "Script definition not found." });
+    return res
+      .status(404)
+      .json({ success: false, message: "Script definition not found." });
   }
 
   // 3. Process parameters - RESOLVE INVENTORY FILE TO HOSTNAMES
@@ -664,16 +955,18 @@ app.post("/api/scripts/run", async (req, res) => {
   if (parameters && parameters.inventory_file) {
     try {
       // Read the inventory file from the host filesystem
-        // Extract just the filename from the parameters (remove any path prefixes)
+      // Extract just the filename from the parameters (remove any path prefixes)
       const filename = path.basename(parameters.inventory_file);
-      const inventoryFilePath = path.join('/python_pipeline/data', filename);
-      console.log(`[DEBUG][API] Reading inventory file from: ${inventoryFilePath}`);
+      const inventoryFilePath = path.join("/python_pipeline/data", filename);
+      console.log(
+        `[DEBUG][API] Reading inventory file from: ${inventoryFilePath}`,
+      );
 
       if (!fs.existsSync(inventoryFilePath)) {
         throw new Error(`Inventory file not found: ${inventoryFilePath}`);
       }
 
-      const inventoryContent = fs.readFileSync(inventoryFilePath, 'utf8');
+      const inventoryContent = fs.readFileSync(inventoryFilePath, "utf8");
       const inventoryData = yaml.load(inventoryContent);
 
       // Extract hostnames from your specific inventory format
@@ -696,25 +989,31 @@ app.post("/api/scripts/run", async (req, res) => {
       }
 
       if (hostnames.length === 0) {
-        throw new Error(`No hosts found in inventory file: ${parameters.inventory_file}`);
+        throw new Error(
+          `No hosts found in inventory file: ${parameters.inventory_file}`,
+        );
       }
 
       // Convert hostnames array to comma-separated string
-      const hostnameString = hostnames.join(',');
-      console.log(`[DEBUG][API] Resolved hostnames from inventory: ${hostnameString}`);
+      const hostnameString = hostnames.join(",");
+      console.log(
+        `[DEBUG][API] Resolved hostnames from inventory: ${hostnameString}`,
+      );
 
       // Replace inventory_file parameter with hostname parameter
       processedParameters = {
         ...parameters,
-        hostname: hostnameString
+        hostname: hostnameString,
       };
       delete processedParameters.inventory_file;
-
     } catch (error) {
-      console.error(`[DEBUG][API] Error processing inventory file:`, error.message);
+      console.error(
+        `[DEBUG][API] Error processing inventory file:`,
+        error.message,
+      );
       return res.status(400).json({
         success: false,
-        message: `Error processing inventory file: ${error.message}`
+        message: `Error processing inventory file: ${error.message}`,
       });
     }
   }
@@ -722,16 +1021,30 @@ app.post("/api/scripts/run", async (req, res) => {
   console.log(`[DEBUG][API] Processed parameters:`, processedParameters);
 
   // 4. Immediately respond to the client to indicate the process has started
-  res.status(202).json({ success: true, message: `Script '${scriptId}' execution started.` });
+  res.status(202).json({
+    success: true,
+    message: `Script '${scriptId}' execution started.`,
+  });
 
   // 5. Construct Docker arguments
-  const scriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, scriptDef.path, "run.py");
+  const scriptPath = path.join(
+    SCRIPT_MOUNT_POINT_IN_CONTAINER,
+    scriptDef.path,
+    "run.py",
+  );
   const dockerArgs = [
-    "run", "--rm", "--network=host",
-    "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+    "run",
+    "--rm",
+    "--network=host",
+    "-v",
+    `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
     "vlabs-python-runner",
-    "stdbuf", "-oL", "-eL", "python", "-u",
-    scriptPath
+    "stdbuf",
+    "-oL",
+    "-eL",
+    "python",
+    "-u",
+    scriptPath,
   ];
 
   // Add processed parameters to Docker command
@@ -744,10 +1057,10 @@ app.post("/api/scripts/run", async (req, res) => {
     }
   }
 
-  console.log('[DEBUG][API] Final Docker command:', dockerArgs.join(' '));
+  console.log("[DEBUG][API] Final Docker command:", dockerArgs.join(" "));
 
   // 6. Execute the script
-  executeWithRealTimeUpdates('docker', dockerArgs, clientWs);
+  executeWithRealTimeUpdates("docker", dockerArgs, clientWs);
 });
 //  ===========================================================================================
 //  ================================= GENERATE REPORT  ========================================
@@ -757,12 +1070,15 @@ app.post("/api/report/generate", (req, res) => {
   // Generates and saves a report from script results.
   const { savePath, jsonData } = req.body;
   if (!jsonData || !savePath) {
-    return res.status(400).json({ success: false, message: "jsonData and savePath are required." });
+    return res
+      .status(400)
+      .json({ success: false, message: "jsonData and savePath are required." });
   }
   try {
     const destinationDir = path.join(PYTHON_PIPELINE_MOUNT_PATH, savePath);
     ensureDirectoryExists(destinationDir);
-    const hostname = jsonData.results_by_host?.[0]?.hostname || 'generic-report';
+    const hostname =
+      jsonData.results_by_host?.[0]?.hostname || "generic-report";
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = `${hostname}_${timestamp}.json`;
     const filepath = path.join(destinationDir, filename);
@@ -771,38 +1087,86 @@ app.post("/api/report/generate", (req, res) => {
     return res.json({ success: true, message: `Results saved to ${filename}` });
   } catch (error) {
     console.error(`[BACKEND] Error saving report: ${error.message}`);
-    return res.status(500).json({ success: false, message: "An internal error occurred while saving the report.", error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "An internal error occurred while saving the report.",
+      error: error.message,
+    });
   }
 });
 
 app.post("/api/templates/generate", (req, res) => {
   // Renders a Jinja2 template with provided parameters.
   const { templateId, parameters } = req.body;
-  if (!templateId) return res.status(400).json({ success: false, message: "templateId is required" });
+  if (!templateId)
+    return res
+      .status(400)
+      .json({ success: false, message: "templateId is required" });
   const templatesConfig = getTemplatesConfig();
   const templateDef = templatesConfig?.templates[templateId];
-  if (!templateDef) return res.status(404).json({ success: false, message: `Template with ID "${templateId}" not found.` });
+  if (!templateDef)
+    return res.status(404).json({
+      success: false,
+      message: `Template with ID "${templateId}" not found.`,
+    });
   const templateContent = getTemplateContent(templateDef.template_file);
-  if (!templateContent) return res.status(500).json({ success: false, message: "Failed to read template file." });
+  if (!templateContent)
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to read template file." });
 
-  const renderScriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, "tools", "configuration", "utils", "render_template.py");
-  const dockerArgs = ["run", "--rm", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`, "vlabs-python-runner", "python", renderScriptPath, "--template-content", templateContent, "--parameters", JSON.stringify(parameters || {})];
+  const renderScriptPath = path.join(
+    SCRIPT_MOUNT_POINT_IN_CONTAINER,
+    "tools",
+    "configuration",
+    "utils",
+    "render_template.py",
+  );
+  const dockerArgs = [
+    "run",
+    "--rm",
+    "-v",
+    `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+    "vlabs-python-runner",
+    "python",
+    renderScriptPath,
+    "--template-content",
+    templateContent,
+    "--parameters",
+    JSON.stringify(parameters || {}),
+  ];
 
   const child = spawn("docker", dockerArgs);
-  let stdoutData = "", stderrData = "";
-  child.stdout.on("data", (data) => { stdoutData += data.toString(); });
-  child.stderr.on("data", (data) => { stderrData += data.toString(); });
+  let stdoutData = "",
+    stderrData = "";
+  child.stdout.on("data", (data) => {
+    stdoutData += data.toString();
+  });
+  child.stderr.on("data", (data) => {
+    stderrData += data.toString();
+  });
   child.on("close", (code) => {
-    if (code !== 0) return res.status(500).json({ success: false, message: `Template rendering failed: ${stderrData}`, error: stderrData });
+    if (code !== 0)
+      return res.status(500).json({
+        success: false,
+        message: `Template rendering failed: ${stderrData}`,
+        error: stderrData,
+      });
     try {
       const result = JSON.parse(stdoutData);
       if (result.success) {
         res.json({ success: true, rendered_config: result.rendered_config });
       } else {
-        res.status(500).json({ success: false, message: result.error, error: result.error });
+        res
+          .status(500)
+          .json({ success: false, message: result.error, error: result.error });
       }
     } catch (parseError) {
-      res.status(500).json({ success: false, message: "Failed to parse template rendering output.", error: stdoutData });
+      res.status(500).json({
+        success: false,
+        message: "Failed to parse template rendering output.",
+        error: stdoutData,
+      });
     }
   });
 });
@@ -810,23 +1174,60 @@ app.post("/api/templates/generate", (req, res) => {
 //  ============== APPLY RENDRED TEMPLATE TO TARGET HOST ====================
 //  =========================================================================
 app.post("/api/templates/apply", async (req, res) => {
-  const { wsClientId, templateId, renderedConfig, targetHostname, username, password } = req.body;
-  if (!wsClientId) return res.status(400).json({ success: false, message: "WebSocket Client ID is required." });
+  const {
+    wsClientId,
+    templateId,
+    renderedConfig,
+    targetHostname,
+    username,
+    password,
+  } = req.body;
+  if (!wsClientId)
+    return res
+      .status(400)
+      .json({ success: false, message: "WebSocket Client ID is required." });
 
   const clientWs = clients.get(wsClientId);
-  if (!clientWs || clientWs.readyState !== 1) return res.status(404).json({ success: false, message: "WebSocket client not found or not open." });
+  if (!clientWs || clientWs.readyState !== 1)
+    return res.status(404).json({
+      success: false,
+      message: "WebSocket client not found or not open.",
+    });
 
   res.status(202).json({ success: true, message: "Apply process started." });
 
-  const runScriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, "tools", "configuration", "run.py");
+  const runScriptPath = path.join(
+    SCRIPT_MOUNT_POINT_IN_CONTAINER,
+    "tools",
+    "configuration",
+    "run.py",
+  );
   const dockerArgs = [
-    "run", "--rm", "--network=host", "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
-    "vlabs-python-runner", "stdbuf", "-oL", "-eL", "python", "-u", runScriptPath,
-    '--template_id', templateId, '--rendered_config', renderedConfig, '--target_host', targetHostname,
-    '--username', username, '--password', password,
+    "run",
+    "--rm",
+    "--network=host",
+    "-v",
+    `${PYTHON_PIPELINE_PATH_ON_HOST}:${SCRIPT_MOUNT_POINT_IN_CONTAINER}`,
+    "vlabs-python-runner",
+    "stdbuf",
+    "-oL",
+    "-eL",
+    "python",
+    "-u",
+    runScriptPath,
+    "--template_id",
+    templateId,
+    "--rendered_config",
+    renderedConfig,
+    "--target_host",
+    targetHostname,
+    "--username",
+    username,
+    "--password",
+    password,
   ];
 
-  executeWithRealTimeUpdates('docker', dockerArgs, clientWs);
+  executeWithRealTimeUpdates("docker", dockerArgs, clientWs);
 });
 
 // ===================================================================================
@@ -855,45 +1256,79 @@ app.post("/api/scripts/run-stream", (req, res) => {
   // SECTION 2: Validation (Unchanged)
   // -------------------------------------------------------------------------------
   if (!scriptId || !wsClientId) {
-    return res.status(400).json({ success: false, message: "scriptId and wsClientId are required." });
+    return res.status(400).json({
+      success: false,
+      message: "scriptId and wsClientId are required.",
+    });
   }
   const clientWs = clients.get(wsClientId);
   if (!clientWs || clientWs.readyState !== 1) {
-    return res.status(404).json({ success: false, message: `WebSocket client not found.` });
+    return res
+      .status(404)
+      .json({ success: false, message: `WebSocket client not found.` });
   }
-  const config = yaml.load(fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
+  const config = yaml.load(
+    fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
+  );
   const scriptDef = config.scripts.find((s) => s.id === scriptId);
   if (!scriptDef) {
-    return res.status(404).json({ success: false, message: `Script definition not found.` });
+    return res
+      .status(404)
+      .json({ success: false, message: `Script definition not found.` });
   }
 
   // -------------------------------------------------------------------------------
   // SECTION 3: Acknowledge Request (Unchanged)
   // -------------------------------------------------------------------------------
-  res.status(202).json({ success: true, message: "Script execution started.", runId });
+  res
+    .status(202)
+    .json({ success: true, message: "Script execution started.", runId });
 
   // -------------------------------------------------------------------------------
   // SECTION 4: Build Docker Command (Unchanged)
   // -------------------------------------------------------------------------------
-  const scriptPathInContainer = path.join(PYTHON_PIPELINE_MOUNT_PATH, scriptDef.path, "run.py");
+  const scriptPathInContainer = path.join(
+    PYTHON_PIPELINE_MOUNT_PATH,
+    scriptDef.path,
+    "run.py",
+  );
   const mainVolumeMount = `${process.env.HOST_PROJECT_ROOT}/python_pipeline:${PYTHON_PIPELINE_MOUNT_PATH}`;
   const backupVolumeMount = `${process.env.HOST_PROJECT_ROOT}/python_pipeline/tools/backup_and_restore/backups:/backups`;
-  const dockerOptions = ["run", "--rm", "--network=host", "-v", mainVolumeMount, "-v", backupVolumeMount];
-  const commandAndArgs = ["vlabs-python-runner", "stdbuf", "-oL", "-eL", "python", "-u", scriptPathInContainer];
+  const dockerOptions = [
+    "run",
+    "--rm",
+    "--network=host",
+    "-v",
+    mainVolumeMount,
+    "-v",
+    backupVolumeMount,
+  ];
+  const commandAndArgs = [
+    "vlabs-python-runner",
+    "stdbuf",
+    "-oL",
+    "-eL",
+    "python",
+    "-u",
+    scriptPathInContainer,
+  ];
 
   for (const [key, value] of Object.entries(parameters || {})) {
-    if (value === null || value === undefined || value === '') continue;
-    if (value === true) { commandAndArgs.push(`--${key}`); }
-    else if (value !== false) { commandAndArgs.push(`--${key}`, String(value)); }
+    if (value === null || value === undefined || value === "") continue;
+    if (value === true) {
+      commandAndArgs.push(`--${key}`);
+    } else if (value !== false) {
+      commandAndArgs.push(`--${key}`, String(value));
+    }
   }
   const finalDockerCommand = [...dockerOptions, ...commandAndArgs];
 
   // -------------------------------------------------------------------------------
   // SECTION 5: Log Command and Notify WebSocket of Start (Unchanged)
   // -------------------------------------------------------------------------------
-  console.log('--- EXECUTING DOCKER COMMAND ---');
-  console.log(`docker ${finalDockerCommand.join(' ')}`);
-  console.log('--------------------------------');
+  console.log("--- EXECUTING DOCKER COMMAND ---");
+  console.log(`docker ${finalDockerCommand.join(" ")}`);
+  console.log("--------------------------------");
   if (clientWs.readyState === 1) {
     clientWs.send(JSON.stringify({ type: "script_start", runId, scriptId }));
   }
@@ -902,129 +1337,226 @@ app.post("/api/scripts/run-stream", (req, res) => {
   // SECTION 6: THE FIX - Execute with Self-Contained Stream Handling
   // -------------------------------------------------------------------------------
   const child = spawn("docker", finalDockerCommand);
-  let fullStdout = '';
-  let fullStderr = '';
+  let fullStdout = "";
+  let fullStderr = "";
 
   // This function is now smarter. It differentiates between progress logs and other output.
   const streamOutput = (line, level) => {
     // --- THE FIX IS HERE ---
     // We check if the line from stdout is a structured progress log.
-    if (line.trim().startsWith('JSON_PROGRESS:')) {
+    if (line.trim().startsWith("JSON_PROGRESS:")) {
       // Add the raw line to the full log for history/debugging.
-      if (level === 'INFO') fullStdout += line;
+      if (level === "INFO") fullStdout += line;
 
       console.log(`[SCRIPT][PROGRESS][${runId}] ${line.trim()}`);
 
       // It IS a progress event. Send it to the client immediately.
       if (clientWs.readyState === 1) {
-        clientWs.send(JSON.stringify({
-          type: 'progress',
-          runId,
-          scriptId,
-          level,
-          message: line // The frontend is already designed to handle the prefix.
-        }));
+        clientWs.send(
+          JSON.stringify({
+            type: "progress",
+            runId,
+            scriptId,
+            level,
+            message: line, // The frontend is already designed to handle the prefix.
+          }),
+        );
       }
     } else {
       // It is NOT a progress event. It's likely part of the final JSON result.
       // We add it to the stdout log but DO NOT send a progress event for it.
-      if (level === 'INFO') {
+      if (level === "INFO") {
         fullStdout += line;
         console.log(`[SCRIPT][STDOUT][${runId}] ${line.trim()}`);
       }
     }
 
     // Always stream stderr as a progress event.
-    if (level === 'ERROR') {
+    if (level === "ERROR") {
       fullStderr += line;
       console.error(`[SCRIPT][ERROR][${runId}] ${line.trim()}`);
       if (clientWs.readyState === 1) {
-        clientWs.send(JSON.stringify({
-          type: 'progress', runId, scriptId, level: 'ERROR', message: line
-        }));
+        clientWs.send(
+          JSON.stringify({
+            type: "progress",
+            runId,
+            scriptId,
+            level: "ERROR",
+            message: line,
+          }),
+        );
       }
     }
   };
 
-  child.stdout.on('data', (data) => streamOutput(data.toString(), 'INFO'));
-  child.stderr.on('data', (data) => streamOutput(data.toString(), 'ERROR'));
+  child.stdout.on("data", (data) => streamOutput(data.toString(), "INFO"));
+  child.stderr.on("data", (data) => streamOutput(data.toString(), "ERROR"));
   // -------------------------------------------------------------------------------
   // SECTION 7: Handle Script Completion
   // -------------------------------------------------------------------------------
-  child.on('close', (code) => {
-    console.log(`[BACKEND][SPAWN] Script ${scriptId} (${runId}) finished with exit code: ${code}`);
+  // ===================================================================================
+  // FILE: backend/server.js
+  // SECTION: The 'close' event handler for a script execution process.
+  // ===================================================================================
 
-    // Attempt to parse the final line of stdout as the result object.
-    const lastLine = fullStdout.trim().split('\n').pop();
-    const finalResult = safeJsonParse(lastLine);
+  // This event handler fires when the Docker process for a script execution terminates.
+  child.on("close", (code) => {
+    console.log(
+      `[BACKEND][SPAWN] Script ${scriptId} (${runId}) finished with exit code: ${code}`,
+    );
+
+    // PART 7.1: NOTIFY THE ORIGINAL RUNNER
+    // These messages are sent ONLY to the client who started the run. They are needed
+    // by the useScriptRunnerStream hook to stop its local loading state.
+    const lastLine = fullStdout.trim().split("\n").pop();
+    const finalResult = safeJsonParse(lastLine); // Ensure safeJsonParse is defined
 
     if (finalResult) {
       if (clientWs.readyState === 1) {
-        clientWs.send(JSON.stringify({ type: 'result', runId, scriptId, output: finalResult }));
+        clientWs.send(
+          JSON.stringify({
+            type: "result",
+            runId,
+            scriptId,
+            output: finalResult,
+          }),
+        );
       }
-    } else if (code !== 0) {
-       console.error(`[BACKEND][SPAWN] Script failed and final output was not valid JSON. Error: ${fullStderr}`);
     }
 
-    // Always send the script_end message.
+    // Send the MINIMAL script_end event. The frontend no longer uses this for history.
     if (clientWs.readyState === 1) {
-      clientWs.send(JSON.stringify({
-        type: "script_end",
-        runId,
-        scriptId,
-        exitCode: code,
-      }));
+      clientWs.send(
+        JSON.stringify({
+          type: "script_end",
+          runId,
+          scriptId,
+          exitCode: code,
+        }),
+      );
     }
 
-    // Add to run history (optional)
-    runHistory.unshift({
-      runId, timestamp: new Date().toISOString(), scriptId, parameters,
-      isSuccess: code === 0, output: fullStdout, error: fullStderr,
+    // PART 7.2: UPDATE THE MASTER HISTORY ON THE SERVER
+    // The server, as the single source of truth, updates its own list.
+    const newHistoryRecord = {
+      runId,
+      timestamp: new Date().toISOString(),
+      scriptId,
+      parameters,
+      isSuccess: code === 0,
+      output: fullStdout, // Storing full output for historical view
+      error: fullStderr,
+    };
+
+    runHistory.unshift(newHistoryRecord);
+
+    // Keep the history array from growing indefinitely.
+    if (runHistory.length > MAX_HISTORY_ITEMS) {
+      // Ensure MAX_HISTORY_ITEMS is defined
+      runHistory.pop();
+    }
+
+    // PART 7.3: BROADCAST THE ENTIRE UPDATED HISTORY TO EVERYONE
+    // This is the definitive fix.
+    console.log(
+      "[WebSocket] Broadcasting 'history_updated' to all connected clients.",
+    );
+
+    // Prepare the payload. The payload is the entire, up-to-date history array.
+    const historyUpdatePayload = JSON.stringify({
+      type: "history_updated",
+      history: runHistory,
     });
-    if (runHistory.length > MAX_HISTORY_ITEMS) runHistory.pop();
-  });
-});
+
+    // Iterate over EVERY client connected to the WebSocket Server (`wss`) and send the update.
+    wss.clients.forEach((client) => {
+      // Check if the client's connection is currently open before trying to send.
+      if (client.readyState === 1) {
+        // WebSocket.OPEN
+        client.send(historyUpdatePayload);
+      }
+    });
+  }); // End of the 'close' event handler
+}); // End of the app.post('/api/scripts/run-stream', ...) route handler
 // ===================================================================================
 // NEW UPLOAD ENDPOINT
 // ===================================================================================
-app.post("/api/files/upload", upload.single('file'), (req, res) => {
+app.post("/api/files/upload", upload.single("file"), (req, res) => {
   // --- Initialization and Validation ---
   const { scriptId, wsClientId, remoteFilename, ...otherParameters } = req.body;
   const runId = generateUniqueId(); // This will now work correctly
 
-  if (!wsClientId) return res.status(400).json({ success: false, message: "wsClientId is required." });
-  if (!req.file) return res.status(400).json({ success: false, message: "File is required." });
+  if (!wsClientId)
+    return res
+      .status(400)
+      .json({ success: false, message: "wsClientId is required." });
+  if (!req.file)
+    return res
+      .status(400)
+      .json({ success: false, message: "File is required." });
 
   const clientWs = clients.get(wsClientId);
   if (!clientWs || clientWs.readyState !== 1) {
     fs.unlinkSync(req.file.path);
-    return res.status(404).json({ success: false, message: `WebSocket client not found or not connected.` });
+    return res.status(404).json({
+      success: false,
+      message: `WebSocket client not found or not connected.`,
+    });
   }
 
-  const config = yaml.load(fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
+  const config = yaml.load(
+    fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
+  );
   const scriptDef = config.scripts.find((s) => s.id === scriptId);
   if (!scriptDef) {
     fs.unlinkSync(req.file.path);
-    return res.status(404).json({ success: false, message: `Script definition for '${scriptId}' not found.` });
+    return res.status(404).json({
+      success: false,
+      message: `Script definition for '${scriptId}' not found.`,
+    });
   }
 
   // --- Acknowledge Request and Prepare Command ---
-  res.status(202).json({ success: true, message: "File upload received, starting execution.", runId });
+  res.status(202).json({
+    success: true,
+    message: "File upload received, starting execution.",
+    runId,
+  });
 
   // Define paths from both the host's and container's perspective.
-  const hostUploadDirectory = path.resolve(process.env.HOST_PROJECT_ROOT, 'python_pipeline/temp_uploads');
-  const scriptPathInContainer = path.join(PYTHON_PIPELINE_MOUNT_PATH, scriptDef.path, "run.py");
+  const hostUploadDirectory = path.resolve(
+    process.env.HOST_PROJECT_ROOT,
+    "python_pipeline/temp_uploads",
+  );
+  const scriptPathInContainer = path.join(
+    PYTHON_PIPELINE_MOUNT_PATH,
+    scriptDef.path,
+    "run.py",
+  );
 
   // ✅ YOUR SUGGESTION: The Docker command now includes the critical volume mount.
   const dockerArgs = [
-    "run", "--rm",
-    "-v", `${PYTHON_PIPELINE_PATH_ON_HOST}:${PYTHON_PIPELINE_MOUNT_PATH}:ro`,
-    "-v", `${hostUploadDirectory}:/uploads`,
-    "vlabs-python-runner", "stdbuf", "-oL", "-eL", "python", "-u",
-    scriptPathInContainer, "--mode", "cli",
-    "--file", req.file.path,
-    "--remote-filename", req.file.originalname,
-    "--run-id", runId,
+    "run",
+    "--rm",
+    "-v",
+    `${PYTHON_PIPELINE_PATH_ON_HOST}:${PYTHON_PIPELINE_MOUNT_PATH}:ro`,
+    "-v",
+    `${hostUploadDirectory}:/uploads`,
+    "vlabs-python-runner",
+    "stdbuf",
+    "-oL",
+    "-eL",
+    "python",
+    "-u",
+    scriptPathInContainer,
+    "--mode",
+    "cli",
+    "--file",
+    req.file.path,
+    "--remote-filename",
+    req.file.originalname,
+    "--run-id",
+    runId,
   ];
 
   const commandLineParams = { ...otherParameters };
@@ -1033,42 +1565,66 @@ app.post("/api/files/upload", upload.single('file'), (req, res) => {
   }
 
   // --- Execute Script and Stream Output ---
-  console.log('[BACKEND][SPAWN] Executing command:', 'docker', dockerArgs.join(' '));
+  console.log(
+    "[BACKEND][SPAWN] Executing command:",
+    "docker",
+    dockerArgs.join(" "),
+  );
 
   if (clientWs.readyState === 1) {
     clientWs.send(JSON.stringify({ type: "script_start", runId, scriptId }));
   }
 
-  const child = spawn('docker', dockerArgs);
-  let fullLog = '';
+  const child = spawn("docker", dockerArgs);
+  let fullLog = "";
 
   const streamOutput = (line, level) => {
     fullLog += line;
     console.log(`[SCRIPT][${level}] ${line.trim()}`);
     if (clientWs.readyState === 1) {
-      clientWs.send(JSON.stringify({ type: 'progress', runId, scriptId, level, message: line }));
+      clientWs.send(
+        JSON.stringify({
+          type: "progress",
+          runId,
+          scriptId,
+          level,
+          message: line,
+        }),
+      );
     }
   };
 
-  child.stdout.on('data', (data) => streamOutput(data.toString(), 'INFO'));
-  child.stderr.on('data', (data) => streamOutput(data.toString(), 'ERROR'));
+  child.stdout.on("data", (data) => streamOutput(data.toString(), "INFO"));
+  child.stderr.on("data", (data) => streamOutput(data.toString(), "ERROR"));
 
   // --- Handle Script Completion ---
-  child.on('close', (code) => {
+  child.on("close", (code) => {
     console.log(`[BACKEND][SPAWN] Script finished with exit code: ${code}`);
     if (clientWs.readyState === 1) {
       if (code === 0) {
-        const lastLine = fullLog.trim().split('\n').pop();
+        const lastLine = fullLog.trim().split("\n").pop();
         const finalResult = safeJsonParse(lastLine); // This will now work correctly
         if (finalResult) {
-          clientWs.send(JSON.stringify({ type: 'result', runId, scriptId, output: finalResult }));
+          clientWs.send(
+            JSON.stringify({
+              type: "result",
+              runId,
+              scriptId,
+              output: finalResult,
+            }),
+          );
         }
       }
-      clientWs.send(JSON.stringify({ type: "script_end", runId, scriptId, exitCode: code }));
+      clientWs.send(
+        JSON.stringify({ type: "script_end", runId, scriptId, exitCode: code }),
+      );
     }
     fs.unlink(req.file.path, (err) => {
       if (err)
-        console.error(`[BACKEND] Failed to delete temp file:  ${req.file.path}`, err);
+        console.error(
+          `[BACKEND] Failed to delete temp file:  ${req.file.path}`,
+          err,
+        );
       else console.log(`[BACKEND] Deleted temp file:  ${req.file.path}`);
     });
   });
@@ -1079,9 +1635,15 @@ app.post("/api/files/upload", upload.single('file'), (req, res) => {
 // Description: Starts the Express and WebSocket server and logs configuration details.
 // Purpose: Initializes the backend service for operation.
 server.listen(port, () => {
-  console.log(`[BACKEND] Express & WebSocket Server listening at http://localhost:${port}`);
-  console.log(`[BACKEND] Python pipeline host path: ${PYTHON_PIPELINE_PATH_ON_HOST}`);
-  console.log(`[BACKEND] Python pipeline container mount: ${PYTHON_PIPELINE_MOUNT_PATH}`);
+  console.log(
+    `[BACKEND] Express & WebSocket Server listening at http://localhost:${port}`,
+  );
+  console.log(
+    `[BACKEND] Python pipeline host path: ${PYTHON_PIPELINE_PATH_ON_HOST}`,
+  );
+  console.log(
+    `[BACKEND] Python pipeline container mount: ${PYTHON_PIPELINE_MOUNT_PATH}`,
+  );
   console.log(`[BACKEND] Public container mount: ${PUBLIC_MOUNT_PATH}`);
   console.log(`[BACKEND] Backup directory mount: /app/backups`);
 });

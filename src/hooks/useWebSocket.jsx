@@ -161,7 +161,9 @@ const generateUniqueId = () => {
 // =================================================================================================
 export const useScriptRunnerStream = (wsContext = {}, options = {}) => {
   const { websocketService, isConnected, clientId } = wsContext;
-
+  // --- START OF FIX: Destructure the new onRunComplete callback from options ---
+  const { onRunComplete } = options;
+  // --- END OF FIX ---
   // -----------------------------------------------------------------------------------------------
   // SECTION 1: STATE MANAGEMENT
   // -----------------------------------------------------------------------------------------------
@@ -179,13 +181,19 @@ export const useScriptRunnerStream = (wsContext = {}, options = {}) => {
     endTime: null,
     exitCode: null,
   });
-
+  // --- START OF FIX: Add a ref to track completion state ---
+  // This prevents the callback from firing multiple times or on initial load.
+  const hasCompleted = useRef(false);
+  // --- END OF FIX ---
   // -----------------------------------------------------------------------------------------------
   // SECTION 2: CORE CONTROL FUNCTIONS
   // -----------------------------------------------------------------------------------------------
   // These functions provide the public API for components to interact with the hook,
   // allowing them to start a new run or reset the state.
   const resetState = useCallback(() => {
+    // --- START OF FIX: Reset the completion ref ---
+    hasCompleted.current = false;
+    // --- END OF FIX ---
     setState({
       runId: null,
       currentState: SCRIPT_STATES.IDLE,
@@ -200,163 +208,178 @@ export const useScriptRunnerStream = (wsContext = {}, options = {}) => {
     });
   }, []);
 
-  const runScript = useCallback(async (scriptData) => {
-    if (!isConnected || !clientId) {
-      const errorMsg = "WebSocket is not connected.";
-      setState(prev => ({
+  const runScript = useCallback(
+    async (scriptData) => {
+      if (!isConnected || !clientId) {
+        const errorMsg = "WebSocket is not connected.";
+        setState((prev) => ({
+          ...prev,
+          error: errorMsg,
+          isComplete: true,
+          currentState: SCRIPT_STATES.FAILED,
+        }));
+        throw new Error(errorMsg);
+      }
+      const runId = generateUniqueId();
+      // --- START OF FIX: Reset the completion ref before a new run ---
+      hasCompleted.current = false;
+      // --- END OF FIX ---
+      resetState();
+      setState((prev) => ({
         ...prev,
-        error: errorMsg,
-        isComplete: true,
-        currentState: SCRIPT_STATES.FAILED
+        isRunning: true,
+        currentState: SCRIPT_STATES.RUNNING,
+        runId,
+        startTime: new Date().toISOString(),
       }));
-      throw new Error(errorMsg);
-    }
-    const runId = generateUniqueId();
-    resetState();
-    setState(prev => ({
-      ...prev,
-      isRunning: true,
-      currentState: SCRIPT_STATES.RUNNING,
-      runId,
-      startTime: new Date().toISOString()
-    }));
-    try {
-      return await websocketService.runScript({ ...scriptData, runId });
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        isRunning: false,
-        isComplete: true,
-        currentState: SCRIPT_STATES.FAILED,
-        error: error.message,
-        endTime: new Date().toISOString()
-      }));
-      throw error;
-    }
-  }, [isConnected, clientId, websocketService, resetState]);
+      try {
+        return await websocketService.runScript({ ...scriptData, runId });
+      } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          isRunning: false,
+          isComplete: true,
+          currentState: SCRIPT_STATES.FAILED,
+          error: error.message,
+          endTime: new Date().toISOString(),
+        }));
+        throw error;
+      }
+    },
+    [isConnected, clientId, websocketService, resetState],
+  );
 
   // -----------------------------------------------------------------------------------------------
   // SECTION 3: UNIFIED EVENT HANDLERS (WITH MESSAGE CATEGORIZATION)
   // -----------------------------------------------------------------------------------------------
   // These handlers are the heart of the hook, listening to WebSocket messages and updating
   // the state accordingly.
-  const handleScriptStart = useCallback((data) => {
-    // Reset the state from any previous run.
-    resetState();
-    // Set the core state to "running" and capture the runId and start time.
-    setState(prev => ({
-      ...prev,
-      isRunning: true,
-      currentState: SCRIPT_STATES.RUNNING,
-      runId: data.runId,
-      startTime: new Date().toISOString(),
-      // We start with an empty progressEvents array now.
-      progressEvents: [],
-    }));
-  }, [resetState]); // The dependency is correct.
+  const handleScriptStart = useCallback(
+    (data) => {
+      // Reset the state from any previous run.
+      resetState();
+      // Set the core state to "running" and capture the runId and start time.
+      setState((prev) => ({
+        ...prev,
+        isRunning: true,
+        currentState: SCRIPT_STATES.RUNNING,
+        runId: data.runId,
+        startTime: new Date().toISOString(),
+        // We start with an empty progressEvents array now.
+        progressEvents: [],
+      }));
+    },
+    [resetState],
+  ); // The dependency is correct.
   // ===============================================================================================
   // =============================================================================================
-//
-//  DEFINITIVE & FINAL HANDLER: handleProgress
-//
-//  OVERVIEW:
-//    This is the final, correct implementation, validated by the debug logs. It works
-//    by establishing a clear order of operations that handles both script runner types.
-//
-//  THE LOGIC:
-//    1. IT CHECKS FOR "DIRECT EVENTS" FIRST: It immediately inspects the parent `data`
-//       object for an `event_type`. This correctly processes all messages from the
-//       Backup/Restore runner without any unnecessary parsing.
-//
-//    2. IT FALLS BACK TO "WRAPPED EVENTS": Only if the message is not a direct event does
-//       it look inside `data.message` to find JSON. This correctly handles the
-//       File Uploader and any other generic log output.
-//
-// =============================================================================================
-const handleProgress = useCallback((data) => {
-  setState(prevState => {
-    // Section 1: Run Validation (No changes)
-    if (!prevState.runId || data.runId !== prevState.runId) {
-      return prevState;
-    }
+  //
+  //  DEFINITIVE & FINAL HANDLER: handleProgress
+  //
+  //  OVERVIEW:
+  //    This is the final, correct implementation, validated by the debug logs. It works
+  //    by establishing a clear order of operations that handles both script runner types.
+  //
+  //  THE LOGIC:
+  //    1. IT CHECKS FOR "DIRECT EVENTS" FIRST: It immediately inspects the parent `data`
+  //       object for an `event_type`. This correctly processes all messages from the
+  //       Backup/Restore runner without any unnecessary parsing.
+  //
+  //    2. IT FALLS BACK TO "WRAPPED EVENTS": Only if the message is not a direct event does
+  //       it look inside `data.message` to find JSON. This correctly handles the
+  //       File Uploader and any other generic log output.
+  //
+  // =============================================================================================
+  const handleProgress = useCallback((data) => {
+    setState((prevState) => {
+      // Section 1: Run Validation (No changes)
+      if (!prevState.runId || data.runId !== prevState.runId) {
+        return prevState;
+      }
 
-    let eventsToAdd = [];
+      let eventsToAdd = [];
 
-    // ---------------------------------------------------------------------------------
-    // SECTION 2: THE CORRECT LOGIC
-    // ---------------------------------------------------------------------------------
+      // ---------------------------------------------------------------------------------
+      // SECTION 2: THE CORRECT LOGIC
+      // ---------------------------------------------------------------------------------
 
-    // --- PRIORITY #1: Check for a "Direct Event" (for Backup/Restore) ---
-    // If the top-level data object itself has an event_type, we know it's a clean,
-    // pre-parsed event. We trust it completely and add it.
-    if (data.event_type) {
-      eventsToAdd.push(data);
-    }
-    // --- PRIORITY #2: Fallback for "Wrapped Events" or Logs (for File Uploader) ---
-    // If it's not a direct event, we then check inside the `message` property.
-    else if (data.message) {
-      const lines = data.message.trim().split('\n');
-      for (const line of lines) {
-        if (!line) continue; // Skip empty lines
+      // --- PRIORITY #1: Check for a "Direct Event" (for Backup/Restore) ---
+      // If the top-level data object itself has an event_type, we know it's a clean,
+      // pre-parsed event. We trust it completely and add it.
+      if (data.event_type) {
+        eventsToAdd.push(data);
+      }
+      // --- PRIORITY #2: Fallback for "Wrapped Events" or Logs (for File Uploader) ---
+      // If it's not a direct event, we then check inside the `message` property.
+      else if (data.message) {
+        const lines = data.message.trim().split("\n");
+        for (const line of lines) {
+          if (!line) continue; // Skip empty lines
 
-        // We use the robust parsing logic that handles prefixes.
-        const firstBraceIndex = line.indexOf('{');
-        let parsedJson = null;
+          // We use the robust parsing logic that handles prefixes.
+          const firstBraceIndex = line.indexOf("{");
+          let parsedJson = null;
 
-        if (firstBraceIndex !== -1) {
-          parsedJson = safeJsonParse(line.substring(firstBraceIndex));
-        }
+          if (firstBraceIndex !== -1) {
+            parsedJson = safeJsonParse(line.substring(firstBraceIndex));
+          }
 
-        // Case 2a: The line contained a valid, wrapped event.
-        if (parsedJson && parsedJson.event_type) {
-          eventsToAdd.push({ ...parsedJson, runId: data.runId });
-        }
-        // Case 2b: The line is a generic log or a final result object.
-        else {
-          eventsToAdd.push({
-            type: 'progress',
-            level: data.level || 'INFO',
-            message: line,
-            timestamp: new Date().toISOString(),
-            event_type: 'LOG_MESSAGE', // Classify for the debug view.
-            runId: data.runId,
-          });
+          // Case 2a: The line contained a valid, wrapped event.
+          if (parsedJson && parsedJson.event_type) {
+            eventsToAdd.push({ ...parsedJson, runId: data.runId });
+          }
+          // Case 2b: The line is a generic log or a final result object.
+          else {
+            eventsToAdd.push({
+              type: "progress",
+              level: data.level || "INFO",
+              message: line,
+              timestamp: new Date().toISOString(),
+              event_type: "LOG_MESSAGE", // Classify for the debug view.
+              runId: data.runId,
+            });
+          }
         }
       }
-    }
 
-    if (eventsToAdd.length === 0) {
-      return prevState;
-    }
+      if (eventsToAdd.length === 0) {
+        return prevState;
+      }
 
-    // Section 3: Immutable State Update (No changes)
-    return {
-      ...prevState,
-      progressEvents: [...prevState.progressEvents, ...eventsToAdd],
-    };
-  });
-}, []);
+      // Section 3: Immutable State Update (No changes)
+      return {
+        ...prevState,
+        progressEvents: [...prevState.progressEvents, ...eventsToAdd],
+      };
+    });
+  }, []);
   // ===============================================================================================
   //                               HANDLE RESULTS
   // ===============================================================================================
   const handleResult = useCallback((data) => {
-    setState(prevState => (prevState.runId && data.runId === prevState.runId)
-      ? { ...prevState, finalResult: data.output }
-      : prevState
+    setState((prevState) =>
+      prevState.runId && data.runId === prevState.runId
+        ? { ...prevState, finalResult: data.output }
+        : prevState,
     );
   }, []);
 
   const handleScriptEnd = useCallback((data) => {
-    setState(prevState => {
+    setState((prevState) => {
       if (prevState.runId && data.runId === prevState.runId) {
-        const finalResultEvent = prevState.progressEvents.find(e => e.success === true || e.success === false);
+        const finalResultEvent = prevState.progressEvents.find(
+          (e) => e.success === true || e.success === false,
+        );
         return {
           ...prevState,
           isRunning: false,
           isComplete: true,
           finalResult: prevState.finalResult || finalResultEvent,
           exitCode: data.exitCode,
-          currentState: (data.exitCode === 0 && !prevState.error) ? SCRIPT_STATES.COMPLETED : SCRIPT_STATES.FAILED,
+          currentState:
+            data.exitCode === 0 && !prevState.error
+              ? SCRIPT_STATES.COMPLETED
+              : SCRIPT_STATES.FAILED,
           endTime: new Date().toISOString(),
         };
       }
@@ -369,6 +392,20 @@ const handleProgress = useCallback((data) => {
   // -----------------------------------------------------------------------------------------------
   // This effect hook connects the event handlers to the WebSocket service when the component mounts
   // and cleans up the subscriptions when it unmounts.
+  // --- START OF FIX: Add a new useEffect to watch for run completion ---
+  useEffect(() => {
+    // If the run is complete AND we haven't already fired the callback for this run...
+    if (state.isComplete && !hasCompleted.current) {
+      console.log(
+        "[useScriptRunnerStream] Run complete. Firing onRunComplete callback.",
+      );
+      // Mark that we have fired the callback for this run.
+      hasCompleted.current = true;
+      // Execute the callback function passed from the parent component.
+      onRunComplete?.();
+    }
+  }, [state.isComplete, onRunComplete]);
+  // --- END OF FIX ---
   useEffect(() => {
     if (!websocketService) return;
 
@@ -382,13 +419,21 @@ const handleProgress = useCallback((data) => {
     };
 
     // Subscribe to each event and store the returned unsubscribe function.
-    const unsubscribers = Object.entries(eventMap).map(([eventName, handler]) => {
-      return websocketService.on(eventName, handler);
-    });
+    const unsubscribers = Object.entries(eventMap).map(
+      ([eventName, handler]) => {
+        return websocketService.on(eventName, handler);
+      },
+    );
 
     // Return a cleanup function that runs on unmount.
-    return () => unsubscribers.forEach(unsubscribe => unsubscribe());
-  }, [websocketService, handleScriptStart, handleProgress, handleResult, handleScriptEnd]);
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  }, [
+    websocketService,
+    handleScriptStart,
+    handleProgress,
+    handleResult,
+    handleScriptEnd,
+  ]);
 
   // -----------------------------------------------------------------------------------------------
   // SECTION 5: RETURNED API
@@ -433,7 +478,7 @@ export const useWebSocket = (options = {}) => {
     setConnectionState({
       isConnected: true,
       connectionError: null,
-      clientId: websocketService.clientId
+      clientId: websocketService.clientId,
     });
   }, []);
 
@@ -441,22 +486,22 @@ export const useWebSocket = (options = {}) => {
     console.log("🔴 [HOOK] Service reported: Disconnected");
     setConnectionState({
       isConnected: false,
-      connectionError: 'Disconnected',
-      clientId: null
+      connectionError: "Disconnected",
+      clientId: null,
     });
   }, []);
 
   const handleClientId = useCallback(({ clientId }) => {
     console.log(`🆔 [HOOK] Service reported: Client ID assigned (${clientId})`);
-    setConnectionState(prev => ({ ...prev, clientId }));
+    setConnectionState((prev) => ({ ...prev, clientId }));
   }, []);
 
   const handleError = useCallback((data) => {
     console.error("❌ [HOOK] Service reported: Error", data);
-    setConnectionState(prev => ({
+    setConnectionState((prev) => ({
       ...prev,
       isConnected: false,
-      connectionError: data.error
+      connectionError: data.error,
     }));
   }, []);
 
@@ -491,10 +536,19 @@ export const useWebSocket = (options = {}) => {
     // We DO NOT call `websocketService.disconnect()`, which leaves the underlying
     // connection intact and prevents the 1006 error.
     return () => {
-      console.log("🧹 [HOOK] Cleaning up WebSocket listeners ONLY. The connection will persist.");
+      console.log(
+        "🧹 [HOOK] Cleaning up WebSocket listeners ONLY. The connection will persist.",
+      );
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [config.autoConnect, config.wsUrl, handleConnected, handleDisconnected, handleClientId, handleError]);
+  }, [
+    config.autoConnect,
+    config.wsUrl,
+    handleConnected,
+    handleDisconnected,
+    handleClientId,
+    handleError,
+  ]);
 
   // --------------------------------------------------------------------------------
   // Subsection 3.4: Return API
@@ -537,64 +591,73 @@ export const useTemplateApplication = (wsContext = {}, options = {}) => {
       progress: null,
       result: null,
       error: null,
-      duration: null
+      duration: null,
     });
   }, []);
 
-  const applyTemplate = useCallback(async (templateData) => {
-    if (!isConnected || !websocketService) {
-      throw new Error("WebSocket connection not available.");
-    }
-    resetState();
-    setApplicationState(prev => ({
-      ...prev,
-      isApplying: true,
-      startTime: performance.now()
-    }));
-    try {
-      return await websocketService.applyTemplate({
-        ...templateData,
-        wsClientId: clientId
-      });
-    } catch (error) {
-      setApplicationState(prev => ({
+  const applyTemplate = useCallback(
+    async (templateData) => {
+      if (!isConnected || !websocketService) {
+        throw new Error("WebSocket connection not available.");
+      }
+      resetState();
+      setApplicationState((prev) => ({
         ...prev,
-        isApplying: false,
-        isComplete: true,
-        error: error.message
+        isApplying: true,
+        startTime: performance.now(),
       }));
-      throw error;
-    }
-  }, [isConnected, clientId, websocketService, resetState]);
+      try {
+        return await websocketService.applyTemplate({
+          ...templateData,
+          wsClientId: clientId,
+        });
+      } catch (error) {
+        setApplicationState((prev) => ({
+          ...prev,
+          isApplying: false,
+          isComplete: true,
+          error: error.message,
+        }));
+        throw error;
+      }
+    },
+    [isConnected, clientId, websocketService, resetState],
+  );
 
   const handleProgressUpdate = useCallback((data) => {
     const pythonPayload = data.data;
-    setApplicationState(prev => ({ ...prev, progress: pythonPayload }));
+    setApplicationState((prev) => ({ ...prev, progress: pythonPayload }));
   }, []);
 
-  const handleResult = useCallback((data) => {
-    const endTime = performance.now();
-    setApplicationState(prev => ({
-      ...prev,
-      isApplying: false,
-      isComplete: true,
-      result: data.data,
-      duration: endTime - (prev.startTime || endTime),
-    }));
-    onResult?.(data);
-  }, [onResult]);
+  const handleResult = useCallback(
+    (data) => {
+      const endTime = performance.now();
+      setApplicationState((prev) => ({
+        ...prev,
+        isApplying: false,
+        isComplete: true,
+        result: data.data,
+        duration: endTime - (prev.startTime || endTime),
+      }));
+      onResult?.(data);
+    },
+    [onResult],
+  );
 
-  const handleError = useCallback((data) => {
-    const endTime = performance.now();
-    setApplicationState(prev => ({
-      ...prev,
-      isApplying: false,
-      isComplete: true,
-      error: data.message,
-      duration: endTime - (prev.startTime || endTime),
-    }));
-    onError?.(data);
-  }, [onError]);
+  const handleError = useCallback(
+    (data) => {
+      const endTime = performance.now();
+      setApplicationState((prev) => ({
+        ...prev,
+        isApplying: false,
+        isComplete: true,
+        error: data.message,
+        duration: endTime - (prev.startTime || endTime),
+      }));
+      onError?.(data);
+    },
+    [onError],
+  );
 
   useEffect(() => {
     if (!websocketService) return;
@@ -605,7 +668,7 @@ export const useTemplateApplication = (wsContext = {}, options = {}) => {
       websocketService.on(WS_EVENTS.ERROR, handleError),
     ];
 
-    return () => unsubscribers.forEach(unsubscriber => unsubscriber());
+    return () => unsubscribers.forEach((unsubscriber) => unsubscriber());
   }, [websocketService, handleProgressUpdate, handleResult, handleError]);
 
   return {

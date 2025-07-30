@@ -1,28 +1,33 @@
 // =================================================================================================
-// COMPONENT: PythonScriptRunner.jsx
 //
-// ROLE:
-//   This component serves as the top-level orchestrator and router for the entire script execution
-//   interface. It is the central nervous system that manages application state, user selections,
-//   and decides which specialized UI ("runner") to display to the user.
+// COMPONENT:          PythonScriptRunner.jsx (Clean Baseline Version)
+// FILE:               src/components/PythonScriptRunner.jsx
 //
-// DESCRIPTION:
-//   - Fetches the master list of all available scripts on initial load.
-//   - Manages state for the currently selected script and all associated parameters.
-//   - Implements a hybrid routing system:
-//     1. Prioritizes a `runnerComponent` key in a script's metadata for new, refactored components.
-//     2. Falls back to a `switch` statement based on script `id` for backward compatibility with
-//        legacy, self-contained components like TemplateWorkflow and JsnapyRunner.
+// OVERVIEW:
+//   This is a clean, stable, foundational version of the script runner's main component. Its sole
+//   purpose is to act as a UI router, displaying the correct interface for the user's selected
+//   script. It has been intentionally stripped of all history-related functionality to provide a
+//   stable baseline for development.
+//
+// KEY FEATURES:
+//   - Pure UI Router: Its primary responsibility is to decide which runner component to render.
+//   - Stateful Runner Delegation: This component does NOT manage the state of an active script
+//     run. It delegates that responsibility entirely to the individual, self-contained runner
+//     components, which is a proven, stable architectural pattern.
+//   - Metadata-Driven: Uses a `RUNNER_MAP` to dynamically render specialized UIs based on a
+//     `runnerComponent` key in a script's metadata file.
 //
 // DEPENDENCIES:
-//   - React Hooks: (useState, useEffect, useMemo, useCallback) for state and lifecycle management.
-//   - Custom Components: All possible runners and UI elements it can display.
-//   - Custom Hooks: (useWebSocket, useHistoryUpdates) for core services.
+//   - React Core Hooks: (useState, useEffect, useMemo, useCallback) for state and lifecycle.
+//   - Custom Hooks: `useWebSocket` for providing the global connection context to child runners.
+//   - UI Components: All runner components, `RunnerNavBar`, and `RunnerDashboard`.
+//
 // =================================================================================================
+
 
 // SECTION 1: IMPORTS
 // -------------------------------------------------------------------------------------------------
-// All necessary libraries and components are imported here.
+// All unnecessary imports related to history have been removed.
 
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import PulseLoader from "react-spinners/PulseLoader";
@@ -31,33 +36,26 @@ import toast from "react-hot-toast";
 // --- High-Level UI Components ---
 import RunnerNavBar from "./RunnerNavBar.jsx";
 import RunnerDashboard from "./RunnerDashboard.jsx";
-import ScriptOutputDisplay from "./ScriptOutputDisplay.jsx";
-import HistoryDrawer from "./HistoryDrawer.jsx";
+// ScriptOutputDisplay and HistoryDrawer are no longer needed by this component.
 
 // --- Specialized "Feature Runner" Components ---
-// These are the components that the router will choose between.
 import BackupAndRestoreRunner from './runners/BackupAndRestoreRunner.jsx';
 import CodeUpgradeRunner from './runners/CodeUpgradeRunner.jsx';
 import GenericScriptRunner from "./GenericScriptRunner.jsx";
 import JsnapyRunner from "./JsnapyRunner.jsx";
-import TemplateWorkflow from "./TemplateWorkflow.jsx"; // <-- THIS IMPORT IS RESTORED
+import TemplateWorkflow from "./TemplateWorkflow.jsx";
+import FileUploaderRunner from './runners/FileUploaderRunner.jsx';
 
 // --- Core Application Hooks ---
 import { useWebSocket } from "../hooks/useWebSocket.jsx";
-import { useHistoryUpdates } from "../hooks/useHistoryUpdates.js";
-// --- RUNNERS --
-import FileUploaderRunner from './runners/FileUploaderRunner.jsx';
+// `useHistoryUpdates` hook has been removed.
 
-// =================================================================================================
+
 // SECTION 2: COMPONENT-LEVEL CONSTANTS
 // -------------------------------------------------------------------------------------------------
 
 const API_BASE_URL = "http://localhost:3001";
 
-/**
- * A mapping from the string identifier in the metadata (`runnerComponent`) to the
- * actual, imported React component. This is the core of the new routing system.
- */
 const RUNNER_MAP = {
   BackupAndRestoreRunner,
   CodeUpgradeRunner,
@@ -65,27 +63,22 @@ const RUNNER_MAP = {
 };
 
 
-// =================================================================================================
 // SECTION 3: MAIN COMPONENT DEFINITION & STATE MANAGEMENT
 // -------------------------------------------------------------------------------------------------
 
 function PythonScriptRunner() {
-  // --- State Declarations ---
+  // --- State Declarations (Minimal & Clean) ---
   const [allScripts, setAllScripts] = useState([]);
   const [selectedScriptId, setSelectedScriptId] = useState("");
   const [scriptParameters, setScriptParameters] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
-  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
-  const [historyOutput, setHistoryOutput] = useState(null);
+  // All history-related state has been removed.
 
   // --- Hooks for Core Services ---
   const wsContext = useWebSocket({ autoConnect: true });
-  const { history: historyItems, isLoading: isLoadingHistory } = useHistoryUpdates({
-    websocketService: wsContext.websocketService,
-  });
+  // The `useHistoryUpdates` hook call has been removed.
 
-  // =================================================================================================
+
   // SECTION 4: DATA FETCHING & INITIALIZATION
   // -------------------------------------------------------------------------------------------------
 
@@ -111,7 +104,6 @@ function PythonScriptRunner() {
   }, []);
 
 
-  // =================================================================================================
   // SECTION 5: MEMOIZED DERIVED STATE & EVENT HANDLERS
   // -------------------------------------------------------------------------------------------------
 
@@ -119,8 +111,6 @@ function PythonScriptRunner() {
   const currentParameters = useMemo(() => scriptParameters[selectedScriptId] || {}, [selectedScriptId, scriptParameters]);
 
   const handleScriptChange = useCallback((id) => {
-    setSelectedHistoryId(null);
-    setHistoryOutput(null);
     setSelectedScriptId(id);
     const script = allScripts.find((s) => s.id === id);
     if (script?.parameters) {
@@ -140,45 +130,22 @@ function PythonScriptRunner() {
     }));
   }, [selectedScriptId]);
 
-  const handleSelectHistoryItem = useCallback((runId) => {
-    const item = historyItems.find((h) => h.runId === runId);
-    if (item) {
-      setSelectedHistoryId(runId);
-      setSelectedScriptId(item.scriptId);
-      setHistoryOutput({
-        finalResult: item.isSuccess ? JSON.parse(item.output) : null,
-        error: item.isSuccess ? null : item.error,
-        isComplete: true, isRunning: false,
-      });
-      setIsHistoryDrawerOpen(false);
-    }
-  }, [historyItems]);
-
-  const handleViewHistory = useCallback(() => setIsHistoryDrawerOpen((prev) => !prev), []);
+  // All history-related event handlers have been removed.
 
 
-  // =================================================================================================
-  // SECTION 6: UI ROUTER LOGIC (CORRECTED HYBRID APPROACH)
+  // SECTION 6: UI ROUTER LOGIC
   // -------------------------------------------------------------------------------------------------
-  // This function implements the metadata-driven routing to decide which UI to render.
+  // The router is now simplified, with no logic for displaying history.
 
   const renderToolUI = () => {
-    // Priority 1: Handle displaying historical runs.
-    if (selectedHistoryId && historyOutput) {
-      return <ScriptOutputDisplay {...historyOutput} script={selectedScript} />;
-    }
-
-    // Priority 2: Show the dashboard if no script is selected.
+    // Priority 1: Show the dashboard if no script is selected.
     if (!selectedScript) {
       return <RunnerDashboard />;
     }
 
-    // --- THIS IS THE CRITICAL CHANGE ---
-    // First, try the new metadata-driven routing system.
+    // Priority 2: Use the metadata-driven routing system.
     const RunnerComponent = RUNNER_MAP[selectedScript.runnerComponent];
     if (RunnerComponent) {
-      // If the script specifies a `runnerComponent` in its metadata, we render it.
-      // This is the new, preferred path for refactored tools like Backup & Restore.
       return <RunnerComponent
         script={selectedScript}
         parameters={currentParameters}
@@ -187,17 +154,13 @@ function PythonScriptRunner() {
       />;
     }
 
-    // If no `runnerComponent` was found, fall back to the original `switch` statement.
-    // This provides backward compatibility for legacy components that take over the whole page.
+    // Priority 3: Fall back to the legacy switch statement.
     switch (selectedScript.id) {
       case 'jsnapy_runner':
         return <JsnapyRunner wsContext={wsContext} script={selectedScript} />;
-
-      case 'template_workflow': // Use the actual script ID from its YAML file.
-        return <TemplateWorkflow wsContext={wsContext} />; // <-- THIS NOW WORKS AGAIN.
-
+      case 'template_workflow':
+        return <TemplateWorkflow wsContext={wsContext} />;
       default:
-        // For all other simple scripts that don't have a special case, use the GenericScriptRunner.
         return <GenericScriptRunner
           script={selectedScript}
           parameters={currentParameters}
@@ -208,10 +171,8 @@ function PythonScriptRunner() {
   };
 
 
-  // =================================================================================================
   // SECTION 7: MAIN RENDER METHOD
   // -------------------------------------------------------------------------------------------------
-  // Assembles the final UI layout.
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen"><PulseLoader color="#3b82f6" /></div>;
@@ -224,21 +185,16 @@ function PythonScriptRunner() {
         selectedScriptId={selectedScriptId}
         onScriptChange={handleScriptChange}
         onReset={() => handleScriptChange("")}
-        onViewHistory={handleViewHistory}
-        historyItemCount={historyItems.length}
         isWsConnected={wsContext.isConnected}
+        // All history-related props have been removed to prevent child components from crashing.
+        onViewHistory={null}
+        historyItemCount={0}
+        isActionInProgress={false}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderToolUI()}
       </main>
-      <HistoryDrawer
-        history={historyItems}
-        isLoading={isLoadingHistory}
-        isOpen={isHistoryDrawerOpen}
-        onClose={() => setIsHistoryDrawerOpen(false)}
-        onSelectHistoryItem={handleSelectHistoryItem}
-        selectedHistoryId={selectedHistoryId}
-      />
+      {/* The HistoryDrawer component has been completely removed from the render tree. */}
     </div>
   );
 }

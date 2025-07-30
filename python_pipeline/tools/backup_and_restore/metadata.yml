@@ -19,6 +19,7 @@ runnerComponent: "BackupAndRestoreRunner"
 # SECTION 2: CAPABILITIES
 # -------------------------------------------------------------------------------------------------
 capabilities:
+  historyTracking: true
   deviceTargeting: true
   deviceAuth: true
   enableReportSaving: false

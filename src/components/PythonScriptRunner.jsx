@@ -27,8 +27,6 @@
 
 // SECTION 1: IMPORTS
 // -------------------------------------------------------------------------------------------------
-// All unnecessary imports related to history have been removed.
-
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import PulseLoader from "react-spinners/PulseLoader";
 import toast from "react-hot-toast";
@@ -36,7 +34,7 @@ import toast from "react-hot-toast";
 // --- High-Level UI Components ---
 import RunnerNavBar from "./RunnerNavBar.jsx";
 import RunnerDashboard from "./RunnerDashboard.jsx";
-// ScriptOutputDisplay and HistoryDrawer are no longer needed by this component.
+import HistoryDrawer from "./HistoryDrawer.jsx"; // --- THIS IS THE FIX ---
 
 // --- Specialized "Feature Runner" Components ---
 import BackupAndRestoreRunner from './runners/BackupAndRestoreRunner.jsx';
@@ -48,8 +46,7 @@ import FileUploaderRunner from './runners/FileUploaderRunner.jsx';
 
 // --- Core Application Hooks ---
 import { useWebSocket } from "../hooks/useWebSocket.jsx";
-// `useHistoryUpdates` hook has been removed.
-
+import { useHistory } from "../hooks/useHistory.jsx";
 
 // SECTION 2: COMPONENT-LEVEL CONSTANTS
 // -------------------------------------------------------------------------------------------------
@@ -67,16 +64,16 @@ const RUNNER_MAP = {
 // -------------------------------------------------------------------------------------------------
 
 function PythonScriptRunner() {
-  // --- State Declarations (Minimal & Clean) ---
+  // --- State Declarations ---
   const [allScripts, setAllScripts] = useState([]);
   const [selectedScriptId, setSelectedScriptId] = useState("");
   const [scriptParameters, setScriptParameters] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  // All history-related state has been removed.
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
 
   // --- Hooks for Core Services ---
   const wsContext = useWebSocket({ autoConnect: true });
-  // The `useHistoryUpdates` hook call has been removed.
+  const { history, isLoading: isHistoryLoading } = useHistory(wsContext);
 
 
   // SECTION 4: DATA FETCHING & INITIALIZATION
@@ -130,17 +127,15 @@ function PythonScriptRunner() {
     }));
   }, [selectedScriptId]);
 
-  // All history-related event handlers have been removed.
-
 
   // SECTION 6: UI ROUTER LOGIC
   // -------------------------------------------------------------------------------------------------
-  // The router is now simplified, with no logic for displaying history.
 
   const renderToolUI = () => {
     // Priority 1: Show the dashboard if no script is selected.
     if (!selectedScript) {
-      return <RunnerDashboard />;
+      // Pass history to the dashboard so it can show recent activity
+      return <RunnerDashboard history={history} isLoading={isHistoryLoading} />;
     }
 
     // Priority 2: Use the metadata-driven routing system.
@@ -186,15 +181,20 @@ function PythonScriptRunner() {
         onScriptChange={handleScriptChange}
         onReset={() => handleScriptChange("")}
         isWsConnected={wsContext.isConnected}
-        // All history-related props have been removed to prevent child components from crashing.
-        onViewHistory={null}
-        historyItemCount={0}
+        onViewHistory={() => setIsHistoryDrawerOpen(true)}
+        historyItemCount={history.length}
         isActionInProgress={false}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderToolUI()}
       </main>
-      {/* The HistoryDrawer component has been completely removed from the render tree. */}
+
+      <HistoryDrawer
+        isOpen={isHistoryDrawerOpen}
+        onClose={() => setIsHistoryDrawerOpen(false)}
+        history={history}
+        isLoading={isHistoryLoading}
+      />
     </div>
   );
 }

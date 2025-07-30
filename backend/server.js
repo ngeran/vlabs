@@ -14,7 +14,8 @@ const { exec, spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const yaml = require("js-yaml");
-
+const historyService = require('./services/historyService');
+const historyRoutes = require('./routes/historyRoutes');
 const multer = require("multer");
 const { Writable } = require('stream');
 
@@ -89,6 +90,9 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 const clients = new Map();
 
+// --- INITIALIZE THE HISTORY SERVICE ---
+historyService.initialize(wss);
+
 wss.on("connection", (ws) => {
   const clientId = uuidv4();
   clients.set(clientId, ws);
@@ -157,22 +161,35 @@ const getTemplateContent = (file) => {
     return null;
   }
 };
+// ====================================================================================
+// LOAD THE SCRIPT METADATA FILE
+// ====================================================================================
 
+// --- (STEP 1) REPLACE THIS HELPER FUNCTION ---
+/**
+ * Loads and parses the individual metadata.yml file for a specific script definition.
+ * This is a critical function for accessing capabilities and display names.
+ * @param {object} scriptDefinition - The script definition object from the main scripts.yaml.
+ * @returns {object | null} The parsed metadata from the script's YAML file, or null if not found.
+ */
 const getScriptIndividualMetadata = (scriptDefinition) => {
-  // Retrieves metadata for a specific script from its metadata.yml.
+  // Validate that we have a valid definition to work with.
   if (!scriptDefinition || !scriptDefinition.path || !scriptDefinition.metadataFile) {
-    console.error("[BACKEND] Invalid script definition:", scriptDefinition);
+    console.error("[BACKEND] Invalid script definition provided to getScriptIndividualMetadata:", scriptDefinition);
     return null;
   }
   try {
+    // Construct the full, absolute path to the metadata file inside the container.
     const metadataPath = path.join(PYTHON_PIPELINE_MOUNT_PATH, scriptDefinition.path, scriptDefinition.metadataFile);
+
     if (!fs.existsSync(metadataPath)) {
       console.warn(`[BACKEND] Metadata file not found for script "${scriptDefinition.id}" at: ${metadataPath}`);
       return null;
     }
+    // Read the file's content and parse it from YAML into a JavaScript object.
     return yaml.load(fs.readFileSync(metadataPath, "utf8"));
   } catch (e) {
-    console.error(`[BACKEND] Error processing metadata for script "${scriptDefinition.id}": ${e.message}`);
+    console.error(`[BACKEND] CRITICAL: Error processing metadata for script "${scriptDefinition.id}": ${e.message}`);
     return null;
   }
 };
@@ -560,7 +577,10 @@ app.get("/api/backups/host/:hostname", (req, res) => {
   }
 });
 
-
+// =================================================================================================
+// HISTORY NEW ROUTE
+// =================================================================================================
+app.use('/api/history', historyRoutes);
 
 
 app.get("/api/health", (req, res) => {
@@ -854,12 +874,26 @@ app.post("/api/scripts/run-stream", (req, res) => {
   if (!clientWs || clientWs.readyState !== 1) {
     return res.status(404).json({ success: false, message: `WebSocket client not found.` });
   }
+
+  // Load the main scripts configuration file.
   const config = yaml.load(fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
-  const scriptDef = config.scripts.find((s) => s.id === scriptId);
-  if (!scriptDef) {
-    return res.status(404).json({ success: false, message: `Script definition not found.` });
+
+  // Find the base definition for our scriptId from the main scripts.yaml.
+  const baseScriptDef = config.scripts.find((s) => s.id === scriptId);
+  if (!baseScriptDef) {
+    // This is a critical failure, the script is unknown to the system.
+    return res.status(404).json({ success: false, message: `Script with ID '${scriptId}' not found in scripts.yaml.` });
   }
 
+  // Load the script's specific metadata.yml file using our helper.
+  const individualMetadata = getScriptIndividualMetadata(baseScriptDef);
+
+  // Merge the base definition (id, path) with its specific metadata (displayName, capabilities).
+  // The spread syntax `{...a, ...b}` ensures properties from `b` overwrite `a` if they conflict.
+  const scriptDef = { ...baseScriptDef, ...individualMetadata };
+  // `scriptDef` is now the complete, authoritative definition for this script run.
+  // The check for `scriptDef.capabilities.historyTracking` will now work correctly.
+  // --- END OF STEP 2 ---
   // -------------------------------------------------------------------------------
   // SECTION 3: Acknowledge Request (Unchanged)
   // -------------------------------------------------------------------------------
@@ -947,7 +981,6 @@ app.post("/api/scripts/run-stream", (req, res) => {
   child.on('close', (code) => {
     console.log(`[BACKEND][SPAWN] Script ${scriptId} (${runId}) finished with exit code: ${code}`);
 
-    // Attempt to parse the final line of stdout as the result object.
     const lastLine = fullStdout.trim().split('\n').pop();
     const finalResult = safeJsonParse(lastLine);
 
@@ -959,7 +992,6 @@ app.post("/api/scripts/run-stream", (req, res) => {
        console.error(`[BACKEND][SPAWN] Script failed and final output was not valid JSON. Error: ${fullStderr}`);
     }
 
-    // Always send the script_end message.
     if (clientWs.readyState === 1) {
       clientWs.send(JSON.stringify({
         type: "script_end",
@@ -968,8 +1000,28 @@ app.post("/api/scripts/run-stream", (req, res) => {
         exitCode: code,
       }));
     }
+
+    // --- (STEP 5) MODULAR HISTORY LOGGING ---
+    // Check the script's capabilities to decide whether to log this run.
+    if (scriptDef.capabilities?.historyTracking === true) {
+      const historyItem = {
+        runId,
+        scriptId: scriptDef.id,
+        displayName: scriptDef.displayName || scriptDef.id,
+        timestamp: new Date().toISOString(),
+        parameters,
+        isSuccess: code === 0,
+        summary: finalResult?.message || (code === 0 ? 'Completed successfully' : 'Failed with an error'),
+        output: fullStdout, // Stored for potential future drill-down views
+        error: fullStderr,
+      };
+      // Delegate history creation to the dedicated service.
+      historyService.addHistoryItem(historyItem);
+    }
+    // --- END OF STEP 5 ---
   });
 });
+
 // ===================================================================================
 // NEW UPLOAD ENDPOINT
 // ===================================================================================

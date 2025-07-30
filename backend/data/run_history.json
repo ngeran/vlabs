@@ -1,0 +1,38 @@
+[
+  {
+    "runId": "1753912444430-f427pakzq",
+    "scriptId": "backup_restore",
+    "displayName": "Backup & Restore",
+    "timestamp": "2025-07-30T21:54:19.228Z",
+    "parameters": {
+      "command": "backup",
+      "type": "override",
+      "confirmed_commit_timeout": 5,
+      "hostname": "172.27.200.200",
+      "username": "admin",
+      "password": "manolis1"
+    },
+    "isSuccess": true,
+    "summary": "Completed successfully",
+    "output": "{\n  \"success\": true,\n  \"message\": \"Backup finished. Succeeded: 1, Failed: 0.\",\n  \"details\": {\n    \"succeeded\": {\n      \"172.27.200.200\": {\n        \"host\": \"172.27.200.200\",\n        \"hostname\": \"MLRENGBSMSRX01\",\n        \"files\": {\n          \"xml\": \"/backups/MLRENGBSMSRX01/20250730_215416_MLRENGBSMSRX01_config.xml\",\n          \"set\": \"/backups/MLRENGBSMSRX01/20250730_215416_MLRENGBSMSRX01_config.set\",\n          \"json\": \"/backups/MLRENGBSMSRX01/20250730_215416_MLRENGBSMSRX01_config.json\",\n          \"text\": \"/backups/MLRENGBSMSRX01/20250730_215416_MLRENGBSMSRX01_config.conf\"\n        }\n      }\n    },\n    \"failed\": {}\n  }\n}\n",
+    "error": "JSON_PROGRESS: {\"level\": \"INFO\", \"event_type\": \"OPERATION_START\", \"message\": \"Starting backup for 1 device(s)\", \"data\": {\"total_steps\": 2}, \"timestamp\": \"2025-07-30T21:54:04.632731\"}\nJSON_PROGRESS: {\"level\": \"INFO\", \"event_type\": \"STEP_START\", \"message\": \"Connecting to 172.27.200.200...\", \"data\": {\"step\": 1}, \"timestamp\": \"2025-07-30T21:54:04.632796\"}\nJSON_PROGRESS: {\"level\": \"SUCCESS\", \"event_type\": \"STEP_COMPLETE\", \"message\": \"Successfully connected to MLRENGBSMSRX01\", \"data\": {\"step\": 1, \"status\": \"COMPLETED\"}, \"timestamp\": \"2025-07-30T21:54:16.663570\"}\nJSON_PROGRESS: {\"level\": \"INFO\", \"event_type\": \"STEP_START\", \"message\": \"Starting backup for MLRENGBSMSRX01...\", \"data\": {\"step\": 2}, \"timestamp\": \"2025-07-30T21:54:16.663601\"}\nJSON_PROGRESS: {\"level\": \"SUCCESS\", \"event_type\": \"STEP_COMPLETE\", \"message\": \"Backup for MLRENGBSMSRX01 successful\", \"data\": {\"step\": 2, \"status\": \"COMPLETED\"}, \"timestamp\": \"2025-07-30T21:54:18.907360\"}\nJSON_PROGRESS: {\"level\": \"SUCCESS\", \"event_type\": \"OPERATION_COMPLETE\", \"message\": \"All operations finished.\", \"data\": {\"status\": \"SUCCESS\"}, \"timestamp\": \"2025-07-30T21:54:19.168253\"}\n"
+  },
+  {
+    "runId": "1753912272020-0suuve63q",
+    "scriptId": "backup_restore",
+    "displayName": "Backup & Restore",
+    "timestamp": "2025-07-30T21:51:27.322Z",
+    "parameters": {
+      "command": "backup",
+      "type": "override",
+      "confirmed_commit_timeout": 5,
+      "hostname": "172.27.200.200",
+      "username": "admin",
+      "password": "manolis1"
+    },
+    "isSuccess": true,
+    "summary": "Completed successfully",
+    "output": "{\n  \"success\": true,\n  \"message\": \"Backup finished. Succeeded: 1, Failed: 0.\",\n  \"details\": {\n    \"succeeded\": {\n      \"172.27.200.200\": {\n        \"host\": \"172.27.200.200\",\n        \"hostname\": \"MLRENGBSMSRX01\",\n        \"files\": {\n          \"xml\": \"/backups/MLRENGBSMSRX01/20250730_215125_MLRENGBSMSRX01_config.xml\",\n          \"set\": \"/backups/MLRENGBSMSRX01/20250730_215125_MLRENGBSMSRX01_config.set\",\n          \"json\": \"/backups/MLRENGBSMSRX01/20250730_215125_MLRENGBSMSRX01_config.json\",\n          \"text\": \"/backups/MLRENGBSMSRX01/20250730_215125_MLRENGBSMSRX01_config.conf\"\n        }\n      }\n    },\n    \"failed\": {}\n  }\n}\n",
+    "error": "JSON_PROGRESS: {\"level\": \"INFO\", \"event_type\": \"OPERATION_START\", \"message\": \"Starting backup for 1 device(s)\", \"data\": {\"total_steps\": 2}, \"timestamp\": \"2025-07-30T21:51:12.214729\"}\nJSON_PROGRESS: {\"level\": \"INFO\", \"event_type\": \"STEP_START\", \"message\": \"Connecting to 172.27.200.200...\", \"data\": {\"step\": 1}, \"timestamp\": \"2025-07-30T21:51:12.214801\"}\nJSON_PROGRESS: {\"level\": \"SUCCESS\", \"event_type\": \"STEP_COMPLETE\", \"message\": \"Successfully connected to MLRENGBSMSRX01\", \"data\": {\"step\": 1, \"status\": \"COMPLETED\"}, \"timestamp\": \"2025-07-30T21:51:25.326850\"}\nJSON_PROGRESS: {\"level\": \"INFO\", \"event_type\": \"STEP_START\", \"message\": \"Starting backup for MLRENGBSMSRX01...\", \"data\": {\"step\": 2}, \"timestamp\": \"2025-07-30T21:51:25.326882\"}\nJSON_PROGRESS: {\"level\": \"SUCCESS\", \"event_type\": \"STEP_COMPLETE\", \"message\": \"Backup for MLRENGBSMSRX01 successful\", \"data\": {\"step\": 2, \"status\": \"COMPLETED\"}, \"timestamp\": \"2025-07-30T21:51:27.160019\"}\nJSON_PROGRESS: {\"level\": \"SUCCESS\", \"event_type\": \"OPERATION_COMPLETE\", \"message\": \"All operations finished.\", \"data\": {\"status\": \"SUCCESS\"}, \"timestamp\": \"2025-07-30T21:51:27.269775\"}\n"
+  }
+]

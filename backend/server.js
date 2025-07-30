@@ -20,8 +20,6 @@ const { Writable } = require('stream');
 
 const app = express();
 const port = 3001;
-const runHistory = [];
-const MAX_HISTORY_ITEMS = 50;
 
 const { executeWithRealTimeUpdates } = require('./utils/executeWithRealTimeUpdates');
 
@@ -426,11 +424,6 @@ app.get("/api/inventories/list", (req, res) => {
     console.error(`[BACKEND] Failed to list inventory files: ${error.message}`);
     res.status(500).json({ success: false, message: "Failed to list inventory files", error: error.message });
   }
-});
-
-app.get("/api/history/list", (req, res) => {
-  // Returns the history of script runs.
-  res.json({ success: true, history: runHistory });
 });
 
 app.get("/api/navigation/menu", (req, res) => {
@@ -910,7 +903,7 @@ app.post("/api/scripts/run-stream", (req, res) => {
     // --- THE FIX IS HERE ---
     // We check if the line from stdout is a structured progress log.
     if (line.trim().startsWith('JSON_PROGRESS:')) {
-      // Add the raw line to the full log for history/debugging.
+      // Add the raw line to the full log for debugging.
       if (level === 'INFO') fullStdout += line;
 
       console.log(`[SCRIPT][PROGRESS][${runId}] ${line.trim()}`);
@@ -975,13 +968,6 @@ app.post("/api/scripts/run-stream", (req, res) => {
         exitCode: code,
       }));
     }
-
-    // Add to run history (optional)
-    runHistory.unshift({
-      runId, timestamp: new Date().toISOString(), scriptId, parameters,
-      isSuccess: code === 0, output: fullStdout, error: fullStderr,
-    });
-    if (runHistory.length > MAX_HISTORY_ITEMS) runHistory.pop();
   });
 });
 // ===================================================================================

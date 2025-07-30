@@ -1,90 +1,122 @@
-// src/components/HistoryDrawer.jsx
-import React, { useEffect } from "react";
-import { X, History, Clock, ServerCrash, CheckCircle } from "lucide-react";
+// =================================================================================================
+// FILE:               /src/components/HistoryDrawer.jsx
+//
+// DESCRIPTION:
+//   A presentational component that renders a list of historical script runs in a slide-out
+//   panel. It receives its state (isOpen, history data) from a parent component and is
+//   responsible only for the UI representation.
+// =================================================================================================
 
-function HistoryDrawer({
-  history,
-  isLoading,
-  isOpen,
-  onClose,
-  onSelectHistoryItem,
-  selectedHistoryId,
-}) {
-  console.log("[DIAG][HistoryDrawer] Rendered with history count:", history.length);
+// SECTION 1: IMPORTS & SETUP
+// -------------------------------------------------------------------------------------------------
+import React from 'react';
+import { X, History, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import PulseLoader from 'react-spinners/PulseLoader';
 
-  // Effect to handle the Escape key to close the drawer
-  useEffect(() => {
-    const handleEsc = (event) => {
-      if (event.keyCode === 27) onClose();
-    };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [onClose]);
+// SECTION 2: SUB-COMPONENT - HistoryItem
+// -------------------------------------------------------------------------------------------------
+/**
+ * Renders a single, styled list item representing one historical run.
+ * @param {{item: object}} props - The history item object containing run details.
+ */
+function HistoryItem({ item }) {
+  return (
+    <li className="p-4 rounded-lg bg-slate-100 hover:bg-slate-200/70 transition-colors duration-200 ease-in-out">
+      <div className="flex items-start gap-4">
+        {/* Status Icon */}
+        <div className="flex-shrink-0 mt-1">
+          {item.isSuccess ? (
+            <CheckCircle className="w-6 h-6 text-green-600" aria-label="Success" />
+          ) : (
+            <XCircle className="w-6 h-6 text-red-600" aria-label="Failed" />
+          )}
+        </div>
+        {/* Run Details */}
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-slate-800">{item.displayName}</p>
+          <p className="text-sm text-slate-600 truncate" title={item.summary}>
+            {item.summary || 'No summary available.'}
+          </p>
+          <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+            <Clock size={12} />
+            {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+          </p>
+        </div>
+      </div>
+    </li>
+  );
+}
 
+
+// SECTION 3: MAIN DRAWER COMPONENT
+// -------------------------------------------------------------------------------------------------
+export default function HistoryDrawer({ isOpen, onClose, history, isLoading }) {
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay: Dims the background content when the drawer is open. Clicking it closes the drawer. */}
       <div
         className={`fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
+        aria-hidden="true"
       />
 
-      {/* Drawer Panel */}
+      {/*
+        Drawer Panel: The main container for the history content.
+
+        ANIMATION LOGIC FOR SLIDING FROM THE LEFT:
+        - `fixed top-0 left-0`:  Anchors the drawer to the top-left corner of the viewport.
+        - `transform`:            Tells the browser that this element's position will be animated.
+        - `transition-transform`: Applies a smooth transition effect to the `transform` property.
+        - `duration-300`:         Sets the animation duration to 300 milliseconds.
+        - `ease-in-out`:          Defines the timing function for a smooth acceleration and deceleration.
+        - `isOpen ? 'translate-x-0' : '-translate-x-full'`: This is the core logic.
+          - When `isOpen` is true, `translate-x-0` is applied, positioning the drawer on-screen.
+          - When `isOpen` is false, `-translate-x-full` is applied, moving the drawer 100% of its own width to the left, positioning it completely off-screen.
+          The transition between these two states creates the desired slide-in/slide-out effect.
+      */}
       <div
-        className={`fixed top-0 right-0 bottom-0 w-80 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
+        className={`fixed top-0 left-0 h-full w-full max-w-md bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="history-title"
       >
-        <div className="p-4 h-full flex flex-col">
-          <header className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
-            <h3 className="text-lg font-semibold text-slate-800 flex items-center">
-              <History size={18} className="mr-2 text-slate-500" />
-              Run History
-            </h3>
+        <div className="h-full flex flex-col">
+          {/* Drawer Header with Title and Close Button */}
+          <header className="flex items-center justify-between p-4 border-b border-slate-200 flex-shrink-0">
+            <h2 id="history-title" className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <History /> Run History
+            </h2>
             <button
               onClick={onClose}
-              className="p-1 rounded-full text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+              className="p-2 rounded-full hover:bg-slate-100 transition-colors"
+              aria-label="Close history panel"
             >
-              <X size={20} />
+              <X />
             </button>
           </header>
 
-          <div className="overflow-y-auto flex-1 pr-2">
+          {/* Drawer Body: Contains the scrollable list of history items. */}
+          <div className="flex-1 overflow-y-auto p-4">
             {isLoading ? (
-              <p>Loading...</p>
-            ) : history.length === 0 ? (
-              <p>No runs yet.</p>
-            ) : (
-              <ul className="space-y-1">
-                {history.map((run) => (
-                  <li key={run.runId}>
-                    <button
-                      onClick={() => {
-                        onSelectHistoryItem(run.runId);
-                        onClose();
-                      }}
-                      className={`w-full text-left p-2 rounded-md hover:bg-slate-100 transition-colors ${
-                        selectedHistoryId === run.runId ? "bg-blue-50" : ""
-                      }`}
-                    >
-                      <div className="flex items-center justify-between font-medium text-sm text-slate-800">
-                        <span className="truncate">{run.scriptId}</span>
-                        {run.isSuccess ? (
-                          <CheckCircle size={16} className="text-green-500" />
-                        ) : (
-                          <ServerCrash size={16} className="text-red-500" />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
-                        <Clock size={12} />
-                        <span>{new Date(run.timestamp).toLocaleTimeString()}</span>
-                      </div>
-                    </button>
-                  </li>
+              <div className="flex justify-center items-center h-full">
+                <PulseLoader color="#3b82f6" size={10} />
+              </div>
+            ) : history && history.length > 0 ? (
+              <ul className="space-y-3">
+                {history.map(item => (
+                  <HistoryItem key={item.runId} item={item} />
                 ))}
               </ul>
+            ) : (
+              <div className="text-center py-16 text-slate-500">
+                <p>No history records found.</p>
+                <p className="text-sm mt-1">Run a script with history tracking enabled to see data here.</p>
+              </div>
             )}
           </div>
         </div>
@@ -92,5 +124,3 @@ function HistoryDrawer({
     </>
   );
 }
-
-export default HistoryDrawer;

@@ -3,8 +3,9 @@
 //
 // DESCRIPTION:
 //   A custom React hook that manages all history-related state and interactions. It fetches
-//   the initial history log from the server and then listens for real-time updates via
-//   WebSockets, providing a live data source to UI components.
+//   the initial history log from the server and listens for real-time updates via WebSockets.
+//   Modified to debounce history updates to prevent rapid re-renders and log state changes to
+//   sessionStorage for debugging across page refreshes.
 // =================================================================================================
 
 // SECTION 1: IMPORTS & CONFIGURATION
@@ -21,8 +22,19 @@ export const useHistory = (wsContext) => {
   const { websocketService } = wsContext;
 
   // --- State Management ---
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState(() => {
+    // Initialize from sessionStorage to persist across refreshes
+    const savedHistory = sessionStorage.getItem('history');
+    return savedHistory ? JSON.parse(savedHistory) : [];
+  });
   const [isLoading, setIsLoading] = useState(true);
+
+  // Helper function to log debug messages to sessionStorage
+  const logToSessionStorage = (message, data) => {
+    const logs = JSON.parse(sessionStorage.getItem('historyDebugLogs') || '[]');
+    logs.push({ timestamp: new Date().toISOString(), message, data });
+    sessionStorage.setItem('historyDebugLogs', JSON.stringify(logs));
+  };
 
   /**
    * Fetches the entire history log from the backend API.
@@ -38,57 +50,64 @@ export const useHistory = (wsContext) => {
       const data = await response.json();
       if (data.success) {
         setHistory(data.history || []);
+        sessionStorage.setItem('history', JSON.stringify(data.history || []));
+        logToSessionStorage('Fetched history from API', { historyLength: data.history?.length });
       } else {
         throw new Error(data.message || 'Failed to parse history data.');
       }
     } catch (error) {
       toast.error(`Could not load history: ${error.message}`);
-      setHistory([]); // Clear history on error to prevent displaying stale data.
+      setHistory([]);
+      sessionStorage.setItem('history', JSON.stringify([]));
+      logToSessionStorage('Error fetching history', { error: error.message });
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   // --- Effect for Initial Data Load ---
-  // Runs once when the hook is first used to populate the initial history list.
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
 
   /**
-   * Handles incoming 'history_update' events from the WebSocket.
-   * This function is triggered by the broadcast from our historyService on the backend.
+   * Debounced handler for 'history_update' events to prevent rapid state updates.
+   * Updates history state and sessionStorage, logging for debugging.
    */
   const handleHistoryUpdate = useCallback((data) => {
     const newHistoryItem = data.payload;
     if (!newHistoryItem) return;
 
-    console.log('[useHistory] Received real-time history update:', newHistoryItem);
+    logToSessionStorage('Received real-time history update', { newHistoryItem });
 
-    // Use functional state update to prepend the new item to the list.
-    setHistory(prevHistory => [newHistoryItem, ...prevHistory]);
+    // Debounce state update to prevent rapid re-renders
+    const debounceTimeout = setTimeout(() => {
+      setHistory((prevHistory) => {
+        const newHistory = [newHistoryItem, ...prevHistory];
+        sessionStorage.setItem('history', JSON.stringify(newHistory));
+        logToSessionStorage('Updated history state', { historyLength: newHistory.length });
+        return newHistory;
+      });
 
-    // Provide a subtle notification to the user.
-    toast.success(`New run recorded: ${newHistoryItem.displayName || newHistoryItem.scriptId}`);
+      toast.success(`New run recorded: ${newHistoryItem.displayName || newHistoryItem.scriptId}`);
+    }, 500); // 500ms debounce delay
+
+    return () => clearTimeout(debounceTimeout); // Cleanup debounce timeout
   }, []);
 
   // --- Effect for WebSocket Subscription ---
-  // Sets up and tears down the listener for real-time updates.
   useEffect(() => {
-    // Do nothing if the WebSocket service isn't available yet.
     if (!websocketService) return;
 
-    // Subscribe to the event. The .on() method returns an unsubscribe function.
+    logToSessionStorage('Subscribing to history_update', {});
     const unsubscribe = websocketService.on('history_update', handleHistoryUpdate);
 
-    // The returned function is the "cleanup" function. React runs this when the
-    // component unmounts, preventing memory leaks.
     return () => {
       unsubscribe();
+      logToSessionStorage('Unsubscribed from history_update', {});
     };
   }, [websocketService, handleHistoryUpdate]);
 
   // --- Return Value ---
-  // Expose the state and the fetch function to the consuming component.
   return { history, isLoading, fetchHistory };
 };

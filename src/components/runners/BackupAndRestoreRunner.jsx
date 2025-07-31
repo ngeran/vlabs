@@ -37,10 +37,8 @@
 //
 // =========================================================================================
 
-
 // =========================================================================================
 // SECTION 1: IMPORTS & DEPENDENCIES
-// All necessary libraries, hooks, and child components are imported here.
 // =========================================================================================
 import React, { useMemo, useEffect } from 'react';
 import { PlayCircle, Layers } from 'lucide-react';
@@ -62,14 +60,19 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
 
   // =========================================================================================
   // SECTION 3: STATE & SCRIPT EXECUTION
-  // Manages the script's lifecycle via a custom hook and defines the execution trigger.
   // =========================================================================================
   const scriptRunner = useScriptRunnerStream(wsContext);
 
   /**
-   * Triggers the script run after cleaning parameters to prevent backend errors.
+   * Triggers the script run after PREVENTING the default form submission behavior.
+   * @param {React.MouseEvent} event - The click event from the button.
    */
-  const handleRun = async () => {
+  // ========== START OF FIX ==========
+  const handleRun = async (event) => {
+    // This line prevents the browser's default behavior of reloading the page.
+    if (event) event.preventDefault();
+  // ========== END OF FIX ==========
+
     scriptRunner.resetState();
     const runParameters = { ...parameters };
 
@@ -91,62 +94,56 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
 
   // =========================================================================================
   // SECTION 4: FORM VALIDATION & DEBUGGING
-  // Provides clear reasons for the run button's state, enhancing usability and debugging.
   // =========================================================================================
-
-  /**
-   * Checks the form for completeness and returns a human-readable reason if invalid.
-   * @returns {string} - An empty string if the form is valid, or a reason string if invalid.
-   */
   const getDisabledReason = () => {
     if (scriptRunner.isRunning) return 'A script is currently running.';
     if (!parameters.username || !parameters.password) return 'Username and password are required.';
-    if (!parameters.hostname && !parameters.inventory_file) return 'A target host or inventory file must be selected.';
-    if (parameters.command === 'restore' && !parameters.backup_file) return 'A backup file must be selected for the restore operation.';
+    if (parameters.command === 'backup' && !parameters.hostname && !parameters.inventory_file) {
+        return 'A target host or inventory file must be selected for the backup operation.';
+    }
+    if (parameters.command === 'restore') {
+        if (!parameters.restore_hostname) return 'A target device must be selected for the restore operation.';
+        if (!parameters.backup_file) return 'A backup file must be selected for the restore operation.';
+    }
     return ''; // Form is valid.
   };
 
   const disabledReason = getDisabledReason();
   const isButtonDisabled = disabledReason !== '';
 
-  /**
-   * DEVELOPER DEBUG HOOK: Logs the button's state to the console whenever it changes.
-   */
   useEffect(() => {
     console.log(
-      `[DEBUG] Button state changed. Is Disabled: ${isButtonDisabled}. Reason: '${disabledReason || 'Form is valid'}'`
+      `[DEBUG][BackupAndRestoreRunner] Button state changed. Is Disabled: ${isButtonDisabled}. Reason: '${disabledReason || 'Form is valid'}'`
     );
-    console.log('[DEBUG] Current Parameters:', parameters);
-  }, [isButtonDisabled, parameters]); // Reruns when button state or parameters change.
+  }, [isButtonDisabled, parameters]);
 
 
   // =========================================================================================
   // SECTION 5: REAL-TIME PROGRESS CALCULATION
-  // Processes raw WebSocket events into structured metrics suitable for the UI.
   // =========================================================================================
   const progressMetrics = useMemo(() => {
-    const events = scriptRunner.progressEvents.filter(e => e.event_type !== 'LOG_MESSAGE') || [];
-    if (events.length === 0) {
-      return { totalSteps: 0, completedSteps: 0, progressPercentage: 0, currentStep: 'Waiting to start...' };
+    const events = scriptRunner.progressEvents || [];
+    if (!scriptRunner.isRunning && events.length === 0) {
+        return { totalSteps: 0, completedSteps: 0, progressPercentage: 0, currentStep: 'Waiting to start...' };
     }
 
     const operationStartEvent = events.find(e => e.event_type === 'OPERATION_START');
-    const totalSteps = operationStartEvent?.data?.total_steps || (parameters.command === 'restore' ? 5 : 4);
+    const totalSteps = operationStartEvent?.data?.total_steps || 0;
     const completedSteps = events.filter(e => e.event_type === 'STEP_COMPLETE').length;
-    const progressPercentage = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+    const progressPercentage = totalSteps > 0 ? Math.min(100, Math.round((completedSteps / totalSteps) * 100)) : 0;
 
     let currentStep = [...events].reverse().find(e => e.event_type === 'STEP_START')?.message || 'Initializing...';
+
     if (scriptRunner.isComplete) {
-      currentStep = scriptRunner.error ? 'Operation failed. Please review the error details.' : 'Operation completed successfully.';
+      currentStep = scriptRunner.error ? 'Operation failed. Please review the error logs.' : 'Operation completed successfully.';
     }
 
     return { totalSteps, completedSteps, progressPercentage, currentStep };
-  }, [scriptRunner.progressEvents, scriptRunner.isComplete, scriptRunner.error, parameters.command]);
+  }, [scriptRunner.progressEvents, scriptRunner.isComplete, scriptRunner.error, scriptRunner.isRunning]);
 
 
   // =========================================================================================
   // SECTION 6: COMPONENT RENDERING & LAYOUT
-  // Defines the JSX structure, including the sidebar and main content panel.
   // =========================================================================================
   const realTimeProps = {
     isRunning: scriptRunner.isRunning,
@@ -161,7 +158,7 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
 
   return (
     <div className="flex flex-col md:flex-row gap-8">
-      {/* Sidebar: Displays script options, sticky for easy access. */}
+      {/* Sidebar */}
       <aside className="w-full md:w-72 lg:w-80 flex-shrink-0">
         <div className="sticky top-24 space-y-6 bg-white p-6 rounded-xl shadow-lg shadow-slate-200/50">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center border-b border-slate-200 pb-3">
@@ -171,7 +168,7 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
         </div>
       </aside>
 
-      {/* Main Content: Contains the primary form and interaction area. */}
+      {/* Main Content */}
       <main className="flex-1 space-y-8">
         <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg shadow-slate-200/50">
           <header className="border-b border-slate-200 pb-4 mb-6">
@@ -180,7 +177,6 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
           </header>
 
           <div className="space-y-6">
-            {/* Dynamically render the correct form based on the 'command' parameter. */}
             {parameters.command === 'restore' ? (
               <RestoreForm parameters={parameters} onParamChange={onParamChange} />
             ) : (
@@ -189,13 +185,16 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
           </div>
 
           <div className="mt-8 border-t pt-6">
+            {/* ========== START OF FIX ========== */}
             <button
               type="button"
-              onClick={handleRun}
+              // Pass the event object 'e' to the handler.
+              onClick={(e) => handleRun(e)}
               disabled={isButtonDisabled}
-              title={disabledReason} // UI Debugging: Shows a tooltip explaining why the button is disabled.
+              title={disabledReason}
               className="w-full flex items-center justify-center p-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
             >
+            {/* ========== END OF FIX ========== */}
               {scriptRunner.isRunning
                 ? <PulseLoader color="#fff" size={8} />
                 : <><PlayCircle size={20} className="mr-2" /> Run Script</>
@@ -204,7 +203,6 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange, wsContext }
           </div>
         </div>
 
-        {/* Conditionally render the real-time display, results, and debug panels. */}
         {(scriptRunner.isRunning || scriptRunner.isComplete) && (
           <RealTimeDisplay {...realTimeProps} />
         )}

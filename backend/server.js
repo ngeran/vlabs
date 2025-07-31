@@ -979,6 +979,7 @@ app.post("/api/scripts/run-stream", (req, res) => {
   // SECTION 7: Handle Script Completion
   // -------------------------------------------------------------------------------
   child.on('close', (code) => {
+     console.log(`[DEBUG][onClose] ----- Script Completion Handler Started (Exit Code: ${code}) -----`);
     console.log(`[BACKEND][SPAWN] Script ${scriptId} (${runId}) finished with exit code: ${code}`);
 
     const lastLine = fullStdout.trim().split('\n').pop();
@@ -1018,6 +1019,7 @@ app.post("/api/scripts/run-stream", (req, res) => {
       // Delegate history creation to the dedicated service.
       historyService.addHistoryItem(historyItem);
     }
+    console.log('[DEBUG][onClose] ----- Script Completion Handler Finished -----');
     // --- END OF STEP 5 ---
   });
 });

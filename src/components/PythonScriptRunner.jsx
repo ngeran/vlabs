@@ -75,7 +75,6 @@ function PythonScriptRunner() {
   const wsContext = useWebSocket({ autoConnect: true });
   const { history, isLoading: isHistoryLoading } = useHistory(wsContext);
 
-
   // SECTION 4: DATA FETCHING & INITIALIZATION
   // -------------------------------------------------------------------------------------------------
 
@@ -107,15 +106,22 @@ function PythonScriptRunner() {
   const selectedScript = useMemo(() => allScripts.find((s) => s.id === selectedScriptId), [allScripts, selectedScriptId]);
   const currentParameters = useMemo(() => scriptParameters[selectedScriptId] || {}, [selectedScriptId, scriptParameters]);
 
+  // --- (MODIFY THIS FUNCTION) ---
   const handleScriptChange = useCallback((id) => {
-    setSelectedScriptId(id);
-    const script = allScripts.find((s) => s.id === id);
-    if (script?.parameters) {
-      const defaults = {};
-      script.parameters.forEach((p) => {
-        if (p.default !== undefined) defaults[p.name] = p.default;
-      });
-      setScriptParameters((prev) => ({ ...prev, [id]: { ...defaults, ...(prev[id] || {}) } }));
+    // If an ID is provided, set it. If not (e.g., from a reset), set to empty string.
+    const newScriptId = id || "";
+    setSelectedScriptId(newScriptId);
+
+    // Only set default parameters if a new, valid script is being selected.
+    if (newScriptId) {
+        const script = allScripts.find((s) => s.id === newScriptId);
+        if (script?.parameters) {
+          const defaults = {};
+          script.parameters.forEach((p) => {
+            if (p.default !== undefined) defaults[p.name] = p.default;
+          });
+          setScriptParameters((prev) => ({ ...prev, [newScriptId]: { ...defaults, ...(prev[newScriptId] || {}) } }));
+        }
     }
   }, [allScripts]);
 
@@ -169,21 +175,23 @@ function PythonScriptRunner() {
   // SECTION 7: MAIN RENDER METHOD
   // -------------------------------------------------------------------------------------------------
 
-  if (isLoading) {
+   if (isLoading) {
     return <div className="flex justify-center items-center h-screen"><PulseLoader color="#3b82f6" /></div>;
   }
 
   return (
     <div className="bg-slate-50 min-h-screen">
+      {/* --- (MODIFY THE onReset PROP) --- */}
       <RunnerNavBar
         allScripts={allScripts}
         selectedScriptId={selectedScriptId}
         onScriptChange={handleScriptChange}
+        // Pass an empty string to the handler on reset.
         onReset={() => handleScriptChange("")}
         isWsConnected={wsContext.isConnected}
         onViewHistory={() => setIsHistoryDrawerOpen(true)}
         historyItemCount={history.length}
-        isActionInProgress={false}
+        isActionInProgress={false} // This can be wired up later
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderToolUI()}

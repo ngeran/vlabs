@@ -430,6 +430,7 @@ export const useWebSocket = (options = {}) => {
 
   const handleConnected = useCallback(() => {
     console.log("🟢 [HOOK] Service reported: Connected");
+
     setConnectionState({
       isConnected: true,
       connectionError: null,

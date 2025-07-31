@@ -229,15 +229,9 @@ export default function DeviceTargetSelector({
                 hasValidInventoryFile ? 'text-slate-400' : 'text-red-400'
               }`} />
             </div>
-            {errorInv && (
-              <p className="text-xs text-red-500 mt-1.5 ml-1 animate-in fade-in duration-200 flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                {errorInv}
-              </p>
-            )}
             {!hasValidInventoryFile && !errorInv && (
               <p className="text-xs text-red-500 mt-1.5 ml-1 animate-in fade-in duration-200">
-                Please select an inventory file
+                 Please select an inventory file
               </p>
             )}
           </div>

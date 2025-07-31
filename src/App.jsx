@@ -1,239 +1,116 @@
-// src/App.jsx
+// ====================================================================================
+//
+// COMPONENT:          App.jsx
+// FILE:               /src/App.jsx
+//
+// OVERVIEW:
+//   This is the root component of the application. Its primary responsibility is to
+//   set up the main page layout, routing, and manage truly global components like the
+//   Header, Footer, and the Lab Details modal. It has been intentionally refactored
+//   to be a "thin" component, delegating route-specific state and logic down to
+//   dedicated page components to prevent state pollution and unnecessary re-renders.
+//
+// KEY FEATURES:
+//   - High-Level Routing: Uses `react-router-dom` to direct users to the correct page.
+//   - Global Layout: Provides the consistent Header and Footer for the entire app.
+//   - Centralized Modal Control: Manages the state for the `LabModal`, ensuring it
+//     can be triggered from anywhere but is rendered at the top level.
+//   - State Isolation: Does NOT contain state related to specific pages like the
+//     labs dashboard or script runner, which is critical for performance and stability.
+//
+// DEPENDENCIES:
+//   - React Core: (useState) for managing modal state.
+//   - React Router: (BrowserRouter, Routes, Route) for navigation.
+//   - Page Components: `HomePage`, `LabsDashboardPage`, `PythonScriptRunner`.
+//   - UI Components: `Header`, `Footer`, `LabModal`, `Toaster`.
+//
+// ====================================================================================
 
-import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-
-import labsData from "./data/labsData";
-import categories from "./constants/categories";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import CategoryFilter from "./components/CategoryFilter";
-import StatsBar from "./components/StatsBar";
-import LabCard from "./components/LabCard";
-import LabModal from "./components/LabModal";
-import PythonScriptRunner from "./components/PythonScriptRunner";
-import HomePage from "./pages/HomePage"; // IMPORT THE NEW HOME PAGE COMPONENT
-import { Network } from "lucide-react";
+// SECTION 1: IMPORTS & CONFIGURATION
+// ------------------------------------------------------------------------------------
+import React, { useState } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
-// --- IMPORT THE LAB LAUNCHER UTILITIES ---
-import {
-  launchLab,
-  stopLab,
-  getLabStatus,
-  onLabStatusChange,
-  offLabStatusChange,
-} from "./utils/labLauncher";
+// --- High-Level UI Components ---
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import LabModal from "./components/LabModal";
 
+// --- Page-Level Components ---
+import HomePage from "./pages/HomePage";
+import LabsDashboardPage from "./pages/LabsDashboardPage"; // CORRECT: Import the dedicated page component
+import PythonScriptRunner from "./components/PythonScriptRunner";
+
+
+// SECTION 2: MAIN APPLICATION COMPONENT
+// ------------------------------------------------------------------------------------
 const App = () => {
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [filteredLabs, setFilteredLabs] = useState([]);
+  // --- State Management for Global Components ---
+  // Manages the state for the Lab Details modal. This is kept in App.jsx
+  // because the modal is rendered at the top level, outside the routed content.
   const [selectedLab, setSelectedLab] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [labStatuses, setLabStatuses] = useState({});
 
-  // Effect to filter labs and initialize/update lab statuses based on active category
-  useEffect(() => {
-    let allLabs = [];
-    if (activeCategory === "all") {
-      allLabs = Object.entries(labsData).flatMap(([category, labs]) =>
-        labs.map((lab) => ({ ...lab, category })),
-      );
-    } else {
-      const labs = labsData[activeCategory] || [];
-      allLabs = labs.map((lab) => ({ ...lab, category: activeCategory }));
-    }
-    setFilteredLabs(allLabs);
+  // --- Modal Event Handlers ---
 
-    // Initialize/refresh lab statuses based on newly filtered labs
-    const initialStatuses = {};
-    allLabs.forEach((lab) => {
-      const labIdentifier = `/labs/${lab.category}/${lab.slug}`;
-      initialStatuses[labIdentifier] = getLabStatus(labIdentifier) || {
-        status: "stopped",
-      };
-    });
-    setLabStatuses(initialStatuses);
-
-    // --- Set up global status listener for all labs ---
-    const handleGlobalStatusChange = (data) => {
-      console.log("[App] Global lab status change received:", data);
-      setLabStatuses((prevStatuses) => ({
-        ...prevStatuses,
-        [data.id]: data,
-      }));
-    };
-
-    onLabStatusChange(null, handleGlobalStatusChange);
-
-    return () => {
-      offLabStatusChange(null, handleGlobalStatusChange);
-    };
-  }, [activeCategory]);
-
-  // Function to handle opening the lab modal when "View Details" is clicked
+  /**
+   * Opens the Lab Details modal with the data of the specified lab.
+   * This function can be passed as a prop to child components.
+   * @param {object} lab - The lab object to display in the modal.
+   */
   const handleViewDetails = (lab) => {
-    console.log("[App] handleViewDetails called with lab:", lab);
     setSelectedLab(lab);
     setIsModalOpen(true);
   };
 
-  // --- Function to handle launching labs from LabCard (or anywhere else) ---
-  const handleStartLabFromCard = async (labToLaunch) => {
-    const labIdentifier = `/labs/${labToLaunch.category}/${labToLaunch.slug}`;
-    console.log(`[App] Attempting to launch lab from card: ${labIdentifier}`);
-
-    setLabStatuses((prevStatuses) => ({
-      ...prevStatuses,
-      [labIdentifier]: {
-        status: "launching",
-        message: "Preparing lab environment...",
-      },
-    }));
-
-    try {
-      const result = await launchLab(labIdentifier, {}, {});
-      if (!result.success) {
-        throw new Error(result.message || "Unknown launch error from backend.");
-      }
-    } catch (error) {
-      console.error("Error launching lab from card:", error);
-      setLabStatuses((prevStatuses) => ({
-        ...prevStatuses,
-        [labIdentifier]: {
-          status: "failed",
-          error: error.message,
-          message: "Lab launch failed",
-        },
-      }));
-    }
-  };
-
-  // --- Function to handle stopping labs from LabCard (or anywhere else) ---
-  const handleStopLabFromCard = async (labToStop) => {
-    const labIdentifier = `/labs/${labToStop.category}/${labToStop.slug}`;
-    console.log(`[App] Attempting to stop lab from card: ${labIdentifier}`);
-
-    setLabStatuses((prevStatuses) => ({
-      ...prevStatuses,
-      [labIdentifier]: {
-        status: "stopping",
-        message: "Stopping lab environment...",
-      },
-    }));
-
-    try {
-      await stopLab(labIdentifier);
-    } catch (error) {
-      console.error("Error stopping lab from card:", error);
-      setLabStatuses((prevStatuses) => ({
-        ...prevStatuses,
-        [labIdentifier]: {
-          status: "failed",
-          error: error.message,
-          message: "Lab stop failed",
-        },
-      }));
-    }
-  };
-
-  // Function to handle closing the lab modal
+  /**
+   * Closes the Lab Details modal and clears its state.
+   */
   const handleCloseModal = () => {
-    console.log("[App] handleCloseModal called.");
     setSelectedLab(null);
     setIsModalOpen(false);
   };
 
+
+  // SECTION 3: RENDER METHOD
+  // ------------------------------------------------------------------------------------
   return (
-    // Updated overall page background color
+    // Sets the base background color for the entire application.
     <div className="min-h-screen bg-[#E9E9E9]">
-      {/* 
-        This component listens for all toast() calls and renders the notifications.
-        It's best to place it in your top-level layout component.
+      {/*
+        The Toaster component listens for all toast() calls globally and renders
+        the notifications. It should be placed once in the top-level layout.
       */}
       <Toaster
         position="top-right"
         toastOptions={{
-          success: {
-            style: {
-              background: "#F0FDF4", // green-50
-              color: "#166534", // green-800
-            },
-          },
-          error: {
-            style: {
-              background: "#FEF2F2", // red-50
-              color: "#991B1B", // red-800
-            },
-          },
+          success: { style: { background: "#F0FDF4", color: "#166534" } },
+          error: { style: { background: "#FEF2F2", color: "#991B1B" } },
         }}
       />
       <Router>
-        <Header /> {/* Header component now includes SiteNavigation */}
-        {/* The previous simple navigation <nav> element has been removed from here.
-            SiteNavigation component (within Header) now handles all navigation. */}
+        <Header />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-140px)]">
           <Routes>
-            {/* NEW: Route for the Home Page */}
+            {/* Route 1: Home Page */}
             <Route path="/" element={<HomePage />} />
 
-            {/* Route for the Labs Dashboard - NOW AT /labs-dashboard */}
+            {/* Route 2: Labs Dashboard */}
+            {/* CORRECT: Renders the self-contained page component, passing only the props it needs. */}
             <Route
-              path="/labs-dashboard" // Path changed from "/" to "/labs-dashboard"
-              element={
-                <>
-                  <CategoryFilter
-                    categories={categories}
-                    activeCategory={activeCategory}
-                    onCategoryChange={setActiveCategory}
-                  />
-                  <StatsBar
-                    filteredLabs={filteredLabs}
-                    activeCategory={activeCategory}
-                    categories={categories}
-                  />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredLabs.map((lab, index) => {
-                      const labIdentifier = `/labs/${lab.category}/${lab.slug}`;
-                      const currentLabStatus = labStatuses[labIdentifier] || {
-                        status: "stopped",
-                      };
-
-                      return (
-                        <LabCard
-                          key={`${lab.category || "unknown"}-${lab.slug || lab.id}-${index}`}
-                          lab={lab}
-                          onViewDetails={handleViewDetails}
-                          onStartLab={handleStartLabFromCard}
-                          onStopLab={handleStopLabFromCard}
-                          currentStatus={currentLabStatus.status}
-                          isLaunching={currentLabStatus.status === "launching"}
-                        />
-                      );
-                    })}
-                  </div>
-                  {filteredLabs.length === 0 && (
-                    <div className="text-center py-12">
-                      <Network className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        No labs found
-                      </h3>
-                      <p className="text-gray-500">
-                        Try selecting a different category or check back later
-                        for new labs.
-                      </p>
-                    </div>
-                  )}
-                </>
-              }
+              path="/labs-dashboard"
+              element={<LabsDashboardPage onViewDetails={handleViewDetails} />}
             />
 
-            {/* Route for the Python Script Runner (path remains the same) */}
+            {/* Route 3: Python Script Runner */}
+            {/* CORRECT: This route is now fully isolated from lab status updates. */}
             <Route path="/python-runner" element={<PythonScriptRunner />} />
           </Routes>
         </main>
         <Footer />
-        {/* Lab Modal - Render only if open and a lab is selected */}
+
+        {/* The LabModal is rendered here, outside the Routes, so it can overlay any page. */}
         {isModalOpen && selectedLab && (
           <LabModal
             lab={selectedLab}
@@ -242,7 +119,7 @@ const App = () => {
           />
         )}
       </Router>
-    </div> // Closing div for min-h-screen container
+    </div>
   );
 };
 

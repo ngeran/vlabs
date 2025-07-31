@@ -420,7 +420,10 @@ export const useWebSocket = (options = {}) => {
     clientId: websocketService.clientId,
     connectionError: null,
   });
-
+  // ✨ KEY FIX: The `useRef` Initialization Guard
+  // This ref will persist across re-renders without causing them. We use it as a
+  // flag to ensure our setup logic runs only once.
+  const hasInitialized = useRef(false);
   // --------------------------------------------------------------------------------
   // Subsection 3.2: Event Handlers
   // --------------------------------------------------------------------------------

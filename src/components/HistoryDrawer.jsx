@@ -1,11 +1,3 @@
-// =================================================================================================
-// FILE:               /src/components/HistoryDrawer.jsx
-//
-// DESCRIPTION:
-//   A modern, redesigned presentational component that renders a list of historical script runs
-//   in a slide-out panel with contemporary styling, glassmorphism effects, and smooth animations.
-// =================================================================================================
-
 import React from 'react';
 import { X, History, CheckCircle, XCircle, Clock, Zap, AlertTriangle } from 'lucide-react';
 
@@ -42,37 +34,58 @@ const mockHistory = [
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
     isSuccess: true,
     duration: '8m 21s'
+  },
+  {
+    runId: '5',
+    displayName: 'Security Audit',
+    summary: 'Vulnerability scan completed, 3 minor issues identified and patched',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
+    isSuccess: true,
+    duration: '12m 18s'
   }
 ];
 
-// Utility function to format time ago
-function formatTimeAgo(timestamp) {
-  const now = new Date();
-  const diff = now - new Date(timestamp);
-  const minutes = Math.floor(diff / (1000 * 60));
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
+// Utility function to format time
+function formatTime(timestamp) {
+  return new Date(timestamp).toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
 }
 
-// SECTION 2: SUB-COMPONENT - HistoryItem (Compact Version)
-// -------------------------------------------------------------------------------------------------
-function HistoryItem({ item }) {
+function formatDate(timestamp) {
+  const date = new Date(timestamp);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) {
+    return 'Today';
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday';
+  } else {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    });
+  }
+}
+
+// Timeline Item Component
+function TimelineItem({ item, isLast }) {
   const statusConfig = {
     success: {
+      circleColor: 'bg-emerald-500 border-emerald-200',
+      cardBg: 'bg-gradient-to-br from-emerald-50/80 to-green-50/60',
       icon: CheckCircle,
-      bgColor: 'bg-emerald-50/80',
-      iconColor: 'text-emerald-600',
-      accentColor: 'bg-emerald-500'
+      iconColor: 'text-emerald-600'
     },
     error: {
+      circleColor: 'bg-red-500 border-red-200',
+      cardBg: 'bg-gradient-to-br from-red-50/80 to-pink-50/60',
       icon: XCircle,
-      bgColor: 'bg-red-50/80',
-      iconColor: 'text-red-600',
-      accentColor: 'bg-red-500'
+      iconColor: 'text-red-600'
     }
   };
 
@@ -80,78 +93,124 @@ function HistoryItem({ item }) {
   const StatusIcon = config.icon;
 
   return (
-    <div className={`group relative overflow-hidden rounded-xl border border-slate-200/60 ${config.bgColor} p-3 transition-all duration-300 hover:shadow-md cursor-pointer`}>
-      {/* Compact accent bar */}
-      <div className={`absolute left-0 top-0 h-full w-0.5 ${config.accentColor} transition-all duration-300 group-hover:w-1`} />
+    <div className="relative flex group">
+      {/* Timeline line */}
+      {!isLast && (
+        <div className="absolute left-4 top-8 w-0.5 h-full bg-gradient-to-b from-slate-300 to-slate-200 -z-10" />
+      )}
 
-      <div className="flex items-start gap-3">
-        {/* Inline status icon */}
-        <div className="flex-shrink-0 mt-0.5">
-          <StatusIcon className={`w-4 h-4 ${config.iconColor}`} />
+      {/* Timeline circle with time */}
+      <div className="flex flex-col items-center flex-shrink-0 mr-4">
+        <div className={`w-8 h-8 rounded-full border-4 border-white shadow-lg ${config.circleColor} flex items-center justify-center transition-all duration-300 group-hover:scale-110 z-10`}>
+          <div className="w-2 h-2 bg-white rounded-full" />
         </div>
+        <div className="mt-2 text-xs font-medium text-slate-500 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-full border border-slate-200/60">
+          {formatTime(item.timestamp)}
+        </div>
+      </div>
 
-        <div className="flex-1 min-w-0">
-          {/* Compact title and meta on same line for shorter items */}
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-medium text-slate-900 text-sm truncate pr-2">
+      {/* Content card */}
+      <div className={`flex-1 mb-6 rounded-2xl border border-white/60 ${config.cardBg} backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-all duration-300 group-hover:scale-[1.02] cursor-pointer`}>
+        {/* Header */}
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <StatusIcon className={`w-4 h-4 ${config.iconColor} flex-shrink-0`} />
+            <h3 className="font-semibold text-slate-900 text-sm leading-tight">
               {item.displayName}
             </h3>
-            <span className="text-xs text-slate-400 flex-shrink-0">
-              {formatTimeAgo(item.timestamp)}
-            </span>
           </div>
-
-          {/* Compact summary - single line with truncation */}
-          <p className="text-slate-600 text-xs mb-2 truncate" title={item.summary}>
-            {item.summary || 'No summary available.'}
-          </p>
-
-          {/* Compact duration info */}
           {item.duration && (
-            <div className="flex items-center gap-1 text-xs text-slate-500">
+            <div className="flex items-center gap-1 text-xs text-slate-500 bg-white/60 rounded-full px-2 py-1">
               <Zap className="w-3 h-3" />
               <span>{item.duration}</span>
             </div>
           )}
         </div>
+
+        {/* Summary */}
+        <p className="text-slate-600 text-xs leading-relaxed">
+          {item.summary || 'No summary available.'}
+        </p>
       </div>
     </div>
   );
 }
 
-// SECTION 3: COMPACT LOADING SPINNER
-// -------------------------------------------------------------------------------------------------
-function ModernLoader() {
+// Date Section Component
+function DateSection({ date, items }) {
   return (
-    <div className="flex flex-col items-center justify-center h-32 space-y-3">
-      <div className="w-8 h-8 border-2 border-slate-200 rounded-full animate-spin border-t-violet-500"></div>
-      <p className="text-slate-500 text-xs">Loading...</p>
+    <div className="mb-8">
+      {/* Date header */}
+      <div className="flex items-center gap-3 mb-4 px-1">
+        <div className="h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent flex-1" />
+        <div className="bg-gradient-to-r from-violet-600 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-sm">
+          {date}
+        </div>
+        <div className="h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent flex-1" />
+      </div>
+
+      {/* Timeline items */}
+      <div>
+        {items.map((item, index) => (
+          <TimelineItem
+            key={item.runId}
+            item={item}
+            isLast={index === items.length - 1}
+          />
+        ))}
+      </div>
     </div>
   );
 }
 
-// SECTION 4: MAIN DRAWER COMPONENT
-// -------------------------------------------------------------------------------------------------
+// Loading component
+function ModernLoader() {
+  return (
+    <div className="flex flex-col items-center justify-center h-40 space-y-4">
+      <div className="relative">
+        <div className="w-10 h-10 border-3 border-slate-200 rounded-full animate-spin border-t-violet-500"></div>
+        <div className="w-6 h-6 border-2 border-slate-100 rounded-full animate-spin border-t-purple-400 absolute top-2 left-2" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
+      </div>
+      <p className="text-slate-500 text-sm font-medium">Loading timeline...</p>
+    </div>
+  );
+}
+
+// Main Drawer Component
 export default function HistoryDrawer({
-  isOpen = true, // Default to true for demo
+  isOpen = true,
   onClose = () => {},
-  history = mockHistory, // Use mock data for demo
+  history = mockHistory,
   isLoading = false
 }) {
+  // Group history by date
+  const groupedHistory = React.useMemo(() => {
+    if (!history || history.length === 0) return {};
+
+    return history.reduce((groups, item) => {
+      const date = formatDate(item.timestamp);
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(item);
+      return groups;
+    }, {});
+  }, [history]);
+
   return (
     <>
-      {/* Enhanced backdrop with blur effect */}
+      {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-all duration-500 ${
+        className={`fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-all duration-500 ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Compact drawer */}
+      {/* Drawer */}
       <div
-        className={`fixed top-0 left-0 h-full w-full max-w-sm bg-white/95 backdrop-blur-xl shadow-2xl z-50 transform transition-all duration-500 ease-out ${
+        className={`fixed top-0 left-0 h-full w-full max-w-md bg-white/95 backdrop-blur-xl shadow-2xl z-50 transform transition-all duration-500 ease-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } border-r border-white/20`}
         role="dialog"
@@ -159,60 +218,56 @@ export default function HistoryDrawer({
         aria-labelledby="history-title"
       >
         <div className="h-full flex flex-col">
-          {/* Compact header */}
-          <header className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-200/60 p-4 flex-shrink-0">
+          {/* Header */}
+          <header className="bg-gradient-to-r from-white/90 to-slate-50/90 backdrop-blur-sm border-b border-slate-200/60 p-6 flex-shrink-0">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white">
-                  <History className="w-4 h-4" />
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg">
+                  <History className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 id="history-title" className="text-lg font-bold text-slate-900">
-                    History
+                  <h2 id="history-title" className="text-xl font-bold text-slate-900">
+                    Execution Timeline
                   </h2>
-                  <p className="text-xs text-slate-500">
-                    {history?.length || 0} runs
+                  <p className="text-sm text-slate-500">
+                    {history?.length || 0} runs tracked
                   </p>
                 </div>
               </div>
 
               <button
                 onClick={onClose}
-                className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-xl hover:bg-slate-100/80 transition-colors backdrop-blur-sm"
                 aria-label="Close"
               >
-                <X className="w-4 h-4 text-slate-600" />
+                <X className="w-5 h-5 text-slate-600" />
               </button>
             </div>
           </header>
 
-          {/* Compact scrollable content */}
+          {/* Content */}
           <div className="flex-1 overflow-y-auto">
-            <div className="p-3">
+            <div className="p-6">
               {isLoading ? (
                 <ModernLoader />
-              ) : history && history.length > 0 ? (
-                <div className="space-y-2">
-                  {history.map((item, index) => (
-                    <div
-                      key={item.runId}
-                      style={{
-                        animationDelay: `${index * 50}ms`
-                      }}
-                      className="animate-in slide-in-from-left-2 fade-in duration-300"
-                    >
-                      <HistoryItem item={item} />
-                    </div>
+              ) : Object.keys(groupedHistory).length > 0 ? (
+                <div>
+                  {Object.entries(groupedHistory).map(([date, items]) => (
+                    <DateSection
+                      key={date}
+                      date={date}
+                      items={items}
+                    />
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
-                    <AlertTriangle className="w-6 h-6 text-slate-400" />
+                <div className="text-center py-16">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                    <Clock className="w-8 h-8 text-slate-400" />
                   </div>
-                  <h3 className="text-sm font-medium text-slate-700 mb-1">No History</h3>
-                  <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                    Run scripts to see execution history here.
+                  <h3 className="text-lg font-semibold text-slate-700 mb-2">No Timeline Yet</h3>
+                  <p className="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">
+                    Execute your first script to start building your timeline history.
                   </p>
                 </div>
               )}

@@ -33,6 +33,7 @@ class WebSocketService {
     // --- Connection State ---
     this.ws = null; // Holds the WebSocket object instance.
     this.isConnected = false; // Tracks if the connection is currently open.
+    this.isTryingToConnect = false;
     this.connectionPromise = null; // Prevents multiple connection attempts while one is in progress.
 
     // --- Client & Session State ---
@@ -134,6 +135,14 @@ class WebSocketService {
    */
   scheduleReconnect() {
     this.reconnectAttempts++;
+
+    if (this.reconnectAttempts > this.maxReconnectAttempts) {
+      console.error("[WebSocket] Max reconnect attempts reached. Giving up.");
+      // ✨ KEY FIX: Only emit 'disconnected' after giving up completely.
+      this.emit("disconnected", { permanent: true });
+      this.isTryingToConnect = false;
+      return;
+    }
     // Calculate delay: it doubles with each attempt, up to a max limit.
     const delay = Math.min(
       this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
@@ -142,14 +151,13 @@ class WebSocketService {
 
     console.log(`[WebSocket] Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms...`);
 
-    setTimeout(() => {
-      if (!this.isConnected) {
-        console.log(`[WebSocket] Attempting reconnection #${this.reconnectAttempts}...`);
-        this.connect(); // Attempt to connect again.
+     setTimeout(() => {
+      // Re-check flags before attempting to connect
+      if (!this.isConnected && this.isTryingToConnect) {
+        this.connect();
       }
     }, delay);
   }
-
   // ================================================================================
   //  SECTION 3: EVENT HANDLERS (Private)
   //  These methods are called internally by the WebSocket object.
@@ -206,29 +214,24 @@ class WebSocketService {
   /**
    * Called when the WebSocket connection is closed, either intentionally or due to an error.
    */
-  handleClose(event) {
-    console.log(`[WebSocket] Connection closed. Code: ${event.code}, Reason: "${event.reason}"`);
+  handleClose() {
+    console.log("[WebSocket] Connection closed.");
     this.isConnected = false;
-    this.connectionPromise = null;
-    this.clientIdPromise = null;
     this.stopHeartbeat();
+    this.clientId = null;
 
-    this.emit("disconnected", { code: event.code, reason: event.reason, wasClean: event.wasClean });
-
-    // If the close was not clean (e.g., server crash, network loss), attempt to reconnect.
-    if (!event.wasClean && this.reconnectAttempts < this.maxReconnectAttempts) {
+    // ✨ KEY FIX: Instead of emitting 'disconnected' immediately,
+    // we start the reconnection process if needed.
+    if (this.reconnectAttempts <= this.maxReconnectAttempts) {
+      this.isTryingToConnect = true;
       this.scheduleReconnect();
     }
   }
 
-  /**
-   * Called when a WebSocket error occurs.
-   */
   handleError(error) {
     console.error("[WebSocket] An error occurred:", error);
-    this.emit("error", { error: error.message || "A WebSocket error occurred." });
+    // Errors often lead to a close event, which will handle reconnection.
   }
-
   // ================================================================================
   //  SECTION 4: HEARTBEAT (KEEP-ALIVE)
   //  Manages the ping/pong mechanism to prevent idle connection timeouts.

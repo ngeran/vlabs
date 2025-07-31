@@ -1,29 +1,30 @@
 // =================================================================================================
 //
-// COMPONENT:          PythonScriptRunner.jsx (Clean Baseline Version)
+// COMPONENT:          PythonScriptRunner.jsx
 // FILE:               src/components/PythonScriptRunner.jsx
 //
 // OVERVIEW:
-//   This is a clean, stable, foundational version of the script runner's main component. Its sole
-//   purpose is to act as a UI router, displaying the correct interface for the user's selected
-//   script. It has been intentionally stripped of all history-related functionality to provide a
-//   stable baseline for development.
+//   This component acts as the main UI router for the script execution engine. It fetches
+//   the list of available scripts and renders the appropriate specialized runner UI
+//   based on the user's selection. It is designed to be self-contained, managing its
+//   own WebSocket and history contexts.
 //
 // KEY FEATURES:
-//   - Pure UI Router: Its primary responsibility is to decide which runner component to render.
-//   - Stateful Runner Delegation: This component does NOT manage the state of an active script
-//     run. It delegates that responsibility entirely to the individual, self-contained runner
-//     components, which is a proven, stable architectural pattern.
-//   - Metadata-Driven: Uses a `RUNNER_MAP` to dynamically render specialized UIs based on a
-//     `runnerComponent` key in a script's metadata file.
+//   - Resilient State: Persists the `selectedScriptId` to `sessionStorage` to
+//     withstand page reloads or component remounts, ensuring a stable user experience.
+//   - UI Router: Dynamically renders the correct runner component (`GenericScriptRunner`,
+//     `BackupAndRestoreRunner`, etc.) based on script metadata.
+//   - Context Provider: Initializes and provides the WebSocket (`wsContext`) and history
+//     (`useHistory`) contexts to all child runner components.
+//   - Centralized Navigation: Renders the `RunnerNavBar` for script selection and the
+//     `HistoryDrawer` for viewing past runs.
 //
 // DEPENDENCIES:
-//   - React Core Hooks: (useState, useEffect, useMemo, useCallback) for state and lifecycle.
-//   - Custom Hooks: `useWebSocket` for providing the global connection context to child runners.
-//   - UI Components: All runner components, `RunnerNavBar`, and `RunnerDashboard`.
+//   - React Core Hooks: (useState, useEffect, useMemo, useCallback).
+//   - Custom Hooks: `useWebSocket` for real-time communication, `useHistory` for run logs.
+//   - UI Components: All specialized runners, `RunnerNavBar`, `RunnerDashboard`, `HistoryDrawer`.
 //
 // =================================================================================================
-
 
 // SECTION 1: IMPORTS
 // -------------------------------------------------------------------------------------------------
@@ -34,7 +35,7 @@ import toast from "react-hot-toast";
 // --- High-Level UI Components ---
 import RunnerNavBar from "./RunnerNavBar.jsx";
 import RunnerDashboard from "./RunnerDashboard.jsx";
-import HistoryDrawer from "./HistoryDrawer.jsx"; // --- THIS IS THE FIX ---
+import HistoryDrawer from "./HistoryDrawer.jsx";
 
 // --- Specialized "Feature Runner" Components ---
 import BackupAndRestoreRunner from './runners/BackupAndRestoreRunner.jsx';
@@ -48,11 +49,10 @@ import FileUploaderRunner from './runners/FileUploaderRunner.jsx';
 import { useWebSocket } from "../hooks/useWebSocket.jsx";
 import { useHistory } from "../hooks/useHistory.jsx";
 
+
 // SECTION 2: COMPONENT-LEVEL CONSTANTS
 // -------------------------------------------------------------------------------------------------
-
 const API_BASE_URL = "http://localhost:3001";
-
 const RUNNER_MAP = {
   BackupAndRestoreRunner,
   CodeUpgradeRunner,
@@ -62,22 +62,41 @@ const RUNNER_MAP = {
 
 // SECTION 3: MAIN COMPONENT DEFINITION & STATE MANAGEMENT
 // -------------------------------------------------------------------------------------------------
-
 function PythonScriptRunner() {
   // --- State Declarations ---
   const [allScripts, setAllScripts] = useState([]);
-  const [selectedScriptId, setSelectedScriptId] = useState("");
   const [scriptParameters, setScriptParameters] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+
+  // ========== START OF FIX ==========
+  // Initialize state from sessionStorage. This makes the component resilient
+  // to reloads or remounts by remembering the last selected script.
+  const [selectedScriptId, setSelectedScriptId] = useState(() => {
+    return sessionStorage.getItem('selectedScriptId') || "";
+  });
+  // ========== END OF FIX ==========
 
   // --- Hooks for Core Services ---
   const wsContext = useWebSocket({ autoConnect: true });
   const { history, isLoading: isHistoryLoading } = useHistory(wsContext);
 
-  // SECTION 4: DATA FETCHING & INITIALIZATION
-  // -------------------------------------------------------------------------------------------------
 
+  // SECTION 4: LIFECYCLE & DATA FETCHING
+  // -------------------------------------------------------------------------------------------------
+  /**
+   * Effect to persist the selected script ID to sessionStorage whenever it changes.
+   * This ensures the view state survives across sessions and reloads.
+   */
+  // ========== START OF FIX ==========
+  useEffect(() => {
+    sessionStorage.setItem('selectedScriptId', selectedScriptId);
+  }, [selectedScriptId]);
+  // ========== END OF FIX ==========
+
+  /**
+   * Effect to fetch the list of available scripts from the backend on initial mount.
+   */
   useEffect(() => {
     const fetchScripts = async () => {
       setIsLoading(true);
@@ -97,31 +116,26 @@ function PythonScriptRunner() {
       }
     };
     fetchScripts();
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once.
 
 
   // SECTION 5: MEMOIZED DERIVED STATE & EVENT HANDLERS
   // -------------------------------------------------------------------------------------------------
-
   const selectedScript = useMemo(() => allScripts.find((s) => s.id === selectedScriptId), [allScripts, selectedScriptId]);
   const currentParameters = useMemo(() => scriptParameters[selectedScriptId] || {}, [selectedScriptId, scriptParameters]);
 
-  // --- (MODIFY THIS FUNCTION) ---
   const handleScriptChange = useCallback((id) => {
-    // If an ID is provided, set it. If not (e.g., from a reset), set to empty string.
     const newScriptId = id || "";
     setSelectedScriptId(newScriptId);
-
-    // Only set default parameters if a new, valid script is being selected.
     if (newScriptId) {
-        const script = allScripts.find((s) => s.id === newScriptId);
-        if (script?.parameters) {
-          const defaults = {};
-          script.parameters.forEach((p) => {
-            if (p.default !== undefined) defaults[p.name] = p.default;
-          });
-          setScriptParameters((prev) => ({ ...prev, [newScriptId]: { ...defaults, ...(prev[newScriptId] || {}) } }));
-        }
+      const script = allScripts.find((s) => s.id === newScriptId);
+      if (script?.parameters) {
+        const defaults = {};
+        script.parameters.forEach((p) => {
+          if (p.default !== undefined) defaults[p.name] = p.default;
+        });
+        setScriptParameters((prev) => ({ ...prev, [newScriptId]: { ...defaults, ...(prev[newScriptId] || {}) } }));
+      }
     }
   }, [allScripts]);
 
@@ -134,67 +148,67 @@ function PythonScriptRunner() {
   }, [selectedScriptId]);
 
 
-  // SECTION 6: UI ROUTER LOGIC
-  // -------------------------------------------------------------------------------------------------
-
-  const renderToolUI = () => {
-    // Priority 1: Show the dashboard if no script is selected.
+  // SECTION 6: UI ROUTER LOGIC (MEMOIZED)
+  // -----------------------------------------------------------------------------------------------
+  const toolUI = useMemo(() => {
     if (!selectedScript) {
-      // Pass history to the dashboard so it can show recent activity
+      // If no script is selected, show the main dashboard.
       return <RunnerDashboard history={history} isLoading={isHistoryLoading} />;
     }
 
-    // Priority 2: Use the metadata-driven routing system.
     const RunnerComponent = RUNNER_MAP[selectedScript.runnerComponent];
     if (RunnerComponent) {
-      return <RunnerComponent
-        script={selectedScript}
-        parameters={currentParameters}
-        onParamChange={handleParamChange}
-        wsContext={wsContext}
-      />;
+      return (
+        <RunnerComponent
+          script={selectedScript}
+          parameters={currentParameters}
+          onParamChange={handleParamChange}
+          wsContext={wsContext}
+        />
+      );
     }
-
-    // Priority 3: Fall back to the legacy switch statement.
+    // Fallback for other runners...
     switch (selectedScript.id) {
       case 'jsnapy_runner':
         return <JsnapyRunner wsContext={wsContext} script={selectedScript} />;
       case 'template_workflow':
         return <TemplateWorkflow wsContext={wsContext} />;
       default:
-        return <GenericScriptRunner
-          script={selectedScript}
-          parameters={currentParameters}
-          onParamChange={handleParamChange}
-          wsContext={wsContext}
-        />;
+        return (
+          <GenericScriptRunner
+            script={selectedScript}
+            parameters={currentParameters}
+            onParamChange={handleParamChange}
+            wsContext={wsContext}
+          />
+        );
     }
-  };
+    // IMPORTANT: `history` and `isHistoryLoading` are correctly excluded from the
+    // dependency array. This prevents this memo from re-running (and thus
+    // remounting the runner component) when a history update arrives.
+  }, [selectedScript, currentParameters, handleParamChange, wsContext]);
 
 
   // SECTION 7: MAIN RENDER METHOD
   // -------------------------------------------------------------------------------------------------
-
-   if (isLoading) {
+  if (isLoading) {
     return <div className="flex justify-center items-center h-screen"><PulseLoader color="#3b82f6" /></div>;
   }
 
   return (
     <div className="bg-slate-50 min-h-screen">
-      {/* --- (MODIFY THE onReset PROP) --- */}
       <RunnerNavBar
         allScripts={allScripts}
         selectedScriptId={selectedScriptId}
         onScriptChange={handleScriptChange}
-        // Pass an empty string to the handler on reset.
         onReset={() => handleScriptChange("")}
         isWsConnected={wsContext.isConnected}
         onViewHistory={() => setIsHistoryDrawerOpen(true)}
         historyItemCount={history.length}
-        isActionInProgress={false} // This can be wired up later
+        isActionInProgress={false}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {renderToolUI()}
+         {toolUI}
       </main>
 
       <HistoryDrawer

@@ -14,8 +14,6 @@ const { exec, spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const yaml = require("js-yaml");
-const historyService = require('./services/historyService');
-const historyRoutes = require('./routes/historyRoutes');
 const multer = require("multer");
 const { Writable } = require('stream');
 
@@ -90,8 +88,6 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 const clients = new Map();
 
-// --- INITIALIZE THE HISTORY SERVICE ---
-historyService.initialize(wss);
 
 wss.on("connection", (ws) => {
   const clientId = uuidv4();
@@ -578,10 +574,8 @@ app.get("/api/backups/host/:hostname", (req, res) => {
 });
 
 // =================================================================================================
-// HISTORY NEW ROUTE
+// NEW ROUTE
 // =================================================================================================
-app.use('/api/history', historyRoutes);
-
 
 app.get("/api/health", (req, res) => {
   // Health check endpoint for server status.
@@ -1002,23 +996,6 @@ app.post("/api/scripts/run-stream", (req, res) => {
       }));
     }
 
-    // --- (STEP 5) MODULAR HISTORY LOGGING ---
-    // Check the script's capabilities to decide whether to log this run.
-    if (scriptDef.capabilities?.historyTracking === true) {
-      const historyItem = {
-        runId,
-        scriptId: scriptDef.id,
-        displayName: scriptDef.displayName || scriptDef.id,
-        timestamp: new Date().toISOString(),
-        parameters,
-        isSuccess: code === 0,
-        summary: finalResult?.message || (code === 0 ? 'Completed successfully' : 'Failed with an error'),
-        output: fullStdout, // Stored for potential future drill-down views
-        error: fullStderr,
-      };
-      // Delegate history creation to the dedicated service.
-      historyService.addHistoryItem(historyItem);
-    }
     console.log('[DEBUG][onClose] ----- Script Completion Handler Finished -----');
     // --- END OF STEP 5 ---
   });

@@ -1,11 +1,36 @@
-// src/components/RunnerNavBar.jsx
+// ====================================================================================
+// FILE:               /src/components/RunnerNavBar.jsx
+//
+// DESCRIPTION:
+//   A sticky top navigation bar for the Script Runner page. It provides dropdown menus
+//   for script selection, a live connection status indicator, and a reset button.
+//   All history-related UI has been removed for simplification.
+//
+// KEY FEATURES:
+//   - Dynamic Dropdown Menus: Automatically groups scripts into categories for
+//     organized selection.
+//   - Connection Status: Visually indicates whether the WebSocket connection to the
+//     backend is live or offline.
+//   - Clean Interface: The History button and item count have been removed to
+//     align with the simplified, stable version of the application.
+//
+// DEPENDENCIES:
+//   - React Core: (useState, useEffect, useRef, useMemo).
+//   - UI Libraries: `lucide-react` for icons.
+//   - Child Components: `ScriptRunnerIcon`.
+//
+// ====================================================================================
+
+// SECTION 1: IMPORTS & CONFIGURATION
+// -------------------------------------------------------------------------------------------------
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { ChevronDown, History, Wifi, WifiOff, RotateCcw } from "lucide-react";
+// REMOVED: History icon from lucide-react
+import { ChevronDown, Wifi, WifiOff, RotateCcw } from "lucide-react";
 import ScriptRunnerIcon from "./icons/ScriptRunnerIcon.jsx";
 
-// ====================================================================================
-// SECTION 1: REUSABLE DROPDOWN MENU COMPONENT (This helper component is perfect as-is)
-// ====================================================================================
+// SECTION 2: REUSABLE DROPDOWN MENU COMPONENT
+// -------------------------------------------------------------------------------------------------
+// This helper component is unchanged.
 function DropdownMenu({ label, scripts, onSelectScript }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
@@ -63,35 +88,28 @@ function DropdownMenu({ label, scripts, onSelectScript }) {
   );
 }
 
-// ====================================================================================
-// SECTION 2: THE MAIN NAVBAR COMPONENT (With Corrected Logic)
-// ====================================================================================
+// SECTION 3: THE MAIN NAVBAR COMPONENT
+// -------------------------------------------------------------------------------------------------
 function RunnerNavBar({
   allScripts,
   selectedScriptId,
   onScriptChange,
   isActionInProgress,
   onReset,
-  onViewHistory,
-  historyItemCount,
   isWsConnected,
+  // REMOVED: onViewHistory, historyItemCount
 }) {
   const showResetButton = selectedScriptId && !isActionInProgress;
 
-  // ✨ --- CORRECTED: Prepare data for the specific menu structure you requested --- ✨
+  // This logic for creating dropdowns is unchanged.
   const menuData = useMemo(() => {
-    // Group 1: Device Management (contains scripts with 'Device Management' category)
     const managementScripts = allScripts.filter(
       (s) => s.category === "Device Management",
     );
-
-    // Group 2: Network Automation (contains scripts from two categories)
     const automationScripts = allScripts.filter(
       (s) =>
         s.category === "Validation & Testing" || s.category === "Configuration",
     );
-
-    // Return an array of objects to define the dropdowns and their order.
     return [
       { label: "Device Management", scripts: managementScripts },
       { label: "Network Automation", scripts: automationScripts },
@@ -125,9 +143,9 @@ function RunnerNavBar({
             </div>
           </div>
 
-          {/* --- Right Side: Controls with the correct layout --- */}
+          {/* Right Side: Controls */}
           <div className="flex items-center gap-1 bg-slate-200/70 rounded-md p-1.5 shadow-sm">
-            {/* Step 1: Map over menuData to create the DROPDOWN menus */}
+            {/* Map over menuData to create the dropdowns */}
             {menuData.map(({ label, scripts }) => (
               <DropdownMenu
                 key={label}
@@ -137,32 +155,23 @@ function RunnerNavBar({
               />
             ))}
 
-            {/* Step 2: Add the separator */}
-            <div className="w-px h-5 bg-slate-300 mx-1"></div>
+            {/* REMOVED: Separator and History button */}
 
-            {/* Step 3: Add the STATIC "History" button */}
-            <button
-              onClick={onViewHistory}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-full hover:bg-white/60 font-mono text-xs uppercase font-bold text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              <History size={14} />
-              <span>History</span>
-              {historyItemCount > 0 && (
-                <span className="bg-blue-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full ml-1">
-                  {historyItemCount}
-                </span>
-              )}
-            </button>
-
-            {/* Step 4: Add the optional "Reset" button */}
+            {/* Optional "Reset" button */}
             {showResetButton && (
-              <button
-                onClick={onReset}
-                className="p-2 rounded-full hover:bg-white/60 text-slate-600 hover:text-blue-600 transition-colors"
-                title="Start Over / Reset"
-              >
-                <RotateCcw size={16} />
-              </button>
+              <>
+                {/* Add a separator only if there are dropdowns */}
+                {menuData.some(m => m.scripts.length > 0) && (
+                  <div className="w-px h-5 bg-slate-300 mx-1"></div>
+                )}
+                <button
+                  onClick={onReset}
+                  className="p-2 rounded-full hover:bg-white/60 text-slate-600 hover:text-blue-600 transition-colors"
+                  title="Start Over / Reset"
+                >
+                  <RotateCcw size={16} />
+                </button>
+              </>
             )}
           </div>
         </div>

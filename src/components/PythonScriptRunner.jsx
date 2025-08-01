@@ -6,23 +6,20 @@
 // OVERVIEW:
 //   This component acts as the main UI router for the script execution engine. It fetches
 //   the list of available scripts and renders the appropriate specialized runner UI
-//   based on the user's selection. It is designed to be self-contained, managing its
-//   own WebSocket and history contexts.
+//   based on the user's selection. All history-related functionality has been removed
+//   to create a simplified and stable user experience.
 //
 // KEY FEATURES:
 //   - Resilient State: Persists the `selectedScriptId` to `sessionStorage` to
-//     withstand page reloads or component remounts, ensuring a stable user experience.
-//   - UI Router: Dynamically renders the correct runner component (`GenericScriptRunner`,
-//     `BackupAndRestoreRunner`, etc.) based on script metadata.
-//   - Context Provider: Initializes and provides the WebSocket (`wsContext`) and history
-//     (`useHistory`) contexts to all child runner components.
-//   - Centralized Navigation: Renders the `RunnerNavBar` for script selection and the
-//     `HistoryDrawer` for viewing past runs.
+//     withstand page reloads or component remounts.
+//   - UI Router: Dynamically renders the correct runner component based on script metadata.
+//   - Simplified State: No longer manages or passes down history state, which was
+//     the source of a critical race condition.
 //
 // DEPENDENCIES:
 //   - React Core Hooks: (useState, useEffect, useMemo, useCallback).
-//   - Custom Hooks: `useWebSocket` for real-time communication, `useHistory` for run logs.
-//   - UI Components: All specialized runners, `RunnerNavBar`, `RunnerDashboard`, `HistoryDrawer`.
+//   - Custom Hooks: `useWebSocket`.
+//   - UI Components: All specialized runners, `RunnerNavBar`, `RunnerDashboard`.
 //
 // =================================================================================================
 
@@ -35,7 +32,7 @@ import toast from "react-hot-toast";
 // --- High-Level UI Components ---
 import RunnerNavBar from "./RunnerNavBar.jsx";
 import RunnerDashboard from "./RunnerDashboard.jsx";
-import HistoryDrawer from "./HistoryDrawer.jsx";
+// REMOVED: import HistoryDrawer from "./HistoryDrawer.jsx";
 
 // --- Specialized "Feature Runner" Components ---
 import BackupAndRestoreRunner from './runners/BackupAndRestoreRunner.jsx';
@@ -47,7 +44,7 @@ import FileUploaderRunner from './runners/FileUploaderRunner.jsx';
 
 // --- Core Application Hooks ---
 import { useWebSocket } from "../hooks/useWebSocket.jsx";
-import { useHistory } from "../hooks/useHistory.jsx";
+// REMOVED: import { useHistory } from "../hooks/useHistory.jsx";
 
 
 // SECTION 2: COMPONENT-LEVEL CONSTANTS
@@ -67,36 +64,23 @@ function PythonScriptRunner() {
   const [allScripts, setAllScripts] = useState([]);
   const [scriptParameters, setScriptParameters] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+  // REMOVED: const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
 
-  // ========== START OF FIX ==========
-  // Initialize state from sessionStorage. This makes the component resilient
-  // to reloads or remounts by remembering the last selected script.
   const [selectedScriptId, setSelectedScriptId] = useState(() => {
     return sessionStorage.getItem('selectedScriptId') || "";
   });
-  // ========== END OF FIX ==========
 
   // --- Hooks for Core Services ---
   const wsContext = useWebSocket({ autoConnect: true });
-  const { history, isLoading: isHistoryLoading } = useHistory(wsContext);
+  // REMOVED: const { history, isLoading: isHistoryLoading } = useHistory(wsContext);
 
 
   // SECTION 4: LIFECYCLE & DATA FETCHING
   // -------------------------------------------------------------------------------------------------
-  /**
-   * Effect to persist the selected script ID to sessionStorage whenever it changes.
-   * This ensures the view state survives across sessions and reloads.
-   */
-  // ========== START OF FIX ==========
   useEffect(() => {
     sessionStorage.setItem('selectedScriptId', selectedScriptId);
   }, [selectedScriptId]);
-  // ========== END OF FIX ==========
 
-  /**
-   * Effect to fetch the list of available scripts from the backend on initial mount.
-   */
   useEffect(() => {
     const fetchScripts = async () => {
       setIsLoading(true);
@@ -116,7 +100,7 @@ function PythonScriptRunner() {
       }
     };
     fetchScripts();
-  }, []); // Empty dependency array ensures this runs only once.
+  }, []);
 
 
   // SECTION 5: MEMOIZED DERIVED STATE & EVENT HANDLERS
@@ -152,8 +136,8 @@ function PythonScriptRunner() {
   // -----------------------------------------------------------------------------------------------
   const toolUI = useMemo(() => {
     if (!selectedScript) {
-      // If no script is selected, show the main dashboard.
-      return <RunnerDashboard history={history} isLoading={isHistoryLoading} />;
+      // The dashboard no longer needs history props.
+      return <RunnerDashboard />;
     }
 
     const RunnerComponent = RUNNER_MAP[selectedScript.runnerComponent];
@@ -183,9 +167,6 @@ function PythonScriptRunner() {
           />
         );
     }
-    // IMPORTANT: `history` and `isHistoryLoading` are correctly excluded from the
-    // dependency array. This prevents this memo from re-running (and thus
-    // remounting the runner component) when a history update arrives.
   }, [selectedScript, currentParameters, handleParamChange, wsContext]);
 
 
@@ -203,20 +184,16 @@ function PythonScriptRunner() {
         onScriptChange={handleScriptChange}
         onReset={() => handleScriptChange("")}
         isWsConnected={wsContext.isConnected}
-        onViewHistory={() => setIsHistoryDrawerOpen(true)}
-        historyItemCount={history.length}
         isActionInProgress={false}
+        // REMOVED: History-related props
+        // onViewHistory={() => setIsHistoryDrawerOpen(true)}
+        // historyItemCount={history.length}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
          {toolUI}
       </main>
 
-      <HistoryDrawer
-        isOpen={isHistoryDrawerOpen}
-        onClose={() => setIsHistoryDrawerOpen(false)}
-        history={history}
-        isLoading={isHistoryLoading}
-      />
+      {/* REMOVED: HistoryDrawer component */}
     </div>
   );
 }

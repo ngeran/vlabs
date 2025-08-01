@@ -1,72 +1,57 @@
-// =================================================================================================
-//
-// COMPONENT: ScriptOptionsRenderer.jsx
-//
-// ROLE: A conditional renderer or "router" for the script runner's sidebar content.
-//
-// DESCRIPTION: This component is responsible for rendering the correct set of options in the
-//              sidebar based on the selected script's metadata (`capabilities`). It functions
-//              as a metadata-driven router that preserves a specific order of operations to
-//              ensure backward compatibility while allowing for new, custom UI modules.
-//
-//              The logic is checked in the following order:
-//              1. `dynamicDiscovery`: For compliance scripts with a test selector.
-//              2. `sidebarComponent`: For complex scripts that require a fully custom UI module.
-//              3. Default Fallback: Renders standard form fields for all other scripts.
-//
-// =================================================================================================
-
-
-// =================================================================================================
-// SECTION 1: IMPORTS
-// =================================================================================================
+/**
+ * React component for rendering script-specific custom sidebar options.
+ * Delegates to BaselineScriptOptions for standard inputs or custom components for specialized scripts.
+ */
 
 import React from "react";
-
-// --- Child Components & Hooks ---
-// These are the different UI "modules" that this component can choose to render.
 import { useTestDiscovery } from "../hooks/useTestDiscovery";
 import TestSelector from "./TestSelector";
-import BaselineScriptOptions from "./BaselineScriptOptions"; // Renders default form fields.
-import MultiLevelSelect from "./MultiLevelSelect"; // The custom UI for code upgrades.
+import BaselineScriptOptions from "./BaselineScriptOptions";
 
-
-// =================================================================================================
-// SECTION 2: HELPER COMPONENT (for Dynamic Test Discovery)
-// =================================================================================================
-// This helper is kept within the same file as it's only used by ScriptOptionsRenderer.
+// -----------------------------------
+// Discoverable Test Options Component
+// -----------------------------------
 
 /**
- * A specialized UI for scripts that can dynamically discover tests (e.g., compliance checks).
- * @param {object} props - Component props.
- * @param {object} props.script - The script metadata.
- * @param {object} props.parameters - The current script parameters.
- * @param {function} props.onParamChange - Callback to update parameters in the parent component.
+ * Component for rendering test selection UI for scripts with dynamic test discovery.
+ * @param {Object} props - Component props.
+ * @param {Object} props.script - Script metadata.
+ * @param {Object} props.parameters - Current script parameters.
+ * @param {Function} props.onParamChange - Callback to update parameters.
  */
 function DiscoverableTestOptions({ script, parameters, onParamChange }) {
-  // This hook encapsulates the API call to discover tests for the given script.
   const { categorizedTests, loading, error } = useTestDiscovery(script.id, parameters.environment);
 
+  /**
+   * Toggle a test's selection state.
+   * @param {string} testId - ID of the test to toggle.
+   */
   const handleTestToggle = (testId) => {
     const currentTests = parameters.tests || [];
     const newSelection = currentTests.includes(testId)
       ? currentTests.filter((id) => id !== testId)
-            : [...currentTests, testId];
+      : [...currentTests, testId];
     onParamChange("tests", newSelection);
   };
 
+  /**
+   * Select all available tests.
+   */
   const handleSelectAll = () => {
     const allTestNames = Object.values(categorizedTests).flat().map((t) => t.id);
     onParamChange("tests", allTestNames);
   };
 
+  /**
+   * Clear all selected tests.
+   */
   const handleClearAll = () => {
     onParamChange("tests", []);
   };
 
+  // Render loading, error, or test selection UI
   if (loading) return <p className="text-xs text-slate-500 italic">Discovering tests...</p>;
   if (error) return <p className="text-xs font-semibold text-red-600">Error: {error}</p>;
-
   return (
     <>
       <TestSelector
@@ -86,63 +71,42 @@ function DiscoverableTestOptions({ script, parameters, onParamChange }) {
   );
 }
 
-
-// =================================================================================================
-// SECTION 3: MAIN RENDERER COMPONENT & ROUTING LOGIC
-// =================================================================================================
+// -----------------------------------
+// Main Script Options Renderer
+// -----------------------------------
 
 /**
- * Renders the appropriate sidebar content by inspecting the script's capabilities in a specific order.
- * @param {object} props - The component props.
- * @param {object} props.script - The metadata object for the currently selected script.
- * @param {object} props.parameters - The current parameters object from the parent.
- * @param {function} props.onParamChange - The callback function to update the parent's state.
+ * Main component for rendering script-specific sidebar options.
+ * Uses BaselineScriptOptions for standard inputs or custom components for specialized scripts.
+ * @param {Object} props - Component props.
+ * @param {Object} props.script - Script metadata.
+ * @param {Object} props.parameters - Current script parameters.
+ * @param {Function} props.onParamChange - Callback to update parameters.
  */
 function ScriptOptionsRenderer({ script, parameters, onParamChange }) {
-  // Render nothing if no script is selected yet.
   if (!script) return null;
 
-  // --- LOGIC BRANCH 1: HANDLE DYNAMIC TEST DISCOVERY (HIGHEST PRIORITY) ---
-  // This check is performed first to maintain the original working logic. Scripts that
-  // discover tests have a very specific UI that overrides all other options.
+  // Handle scripts with dynamic test discovery
   if (script.capabilities?.dynamicDiscovery) {
     return (
       <DiscoverableTestOptions script={script} parameters={parameters} onParamChange={onParamChange} />
     );
   }
 
-  // --- LOGIC BRANCH 2: HANDLE FULLY CUSTOM SIDEBAR COMPONENTS ---
-  // This is the new, enhanced logic. It replaces the placeholder from the original file.
-  // It only runs if the script does NOT have `dynamicDiscovery`.
+  // Handle custom sidebar components (extendable for future custom UIs)
   if (script.capabilities?.sidebarComponent) {
-    switch (script.capabilities.sidebarComponent) {
-      // If metadata specifies `sidebarComponent: 'MultiLevelImageSelector'`...
-      case 'MultiLevelSelect':
-        // ...then render the MultiLevelSelect component.
-        return <MultiLevelSelect parameters={parameters} onParamChange={onParamChange} />;
-
-      // ✨ FUTURE EXTENSION POINT ✨
-      // To add another custom component, add a new `case` here.
-      // case 'AnotherCustomComponent':
-      //   return <AnotherCustomComponent parameters={parameters} onParamChange={onParamChange} />;
-
-      default:
-        // Render an error if the identifier in the metadata is unknown.
-        return <p className="text-xs font-semibold text-red-600">Error: Unknown sidebar component specified.</p>;
-    }
+    // Example: Add custom component mappings here as needed
+    // if (script.capabilities.sidebarComponent === 'CustomComponent') return <CustomComponent ... />;
+    // For now, assume custom components like BackupRestoreOptions use BaselineScriptOptions
+    return (
+      <BaselineScriptOptions script={script} parameters={parameters} onParamChange={onParamChange} />
+    );
   }
 
-  // --- LOGIC BRANCH 3: DEFAULT FALLBACK (BASELINE OPTIONS) ---
-  // If a script has neither `dynamicDiscovery` nor a recognized `sidebarComponent`,
-  // this is the final fallback. It renders standard form fields based on the script's
-  // `parameters` array where `layout: "sidebar"`. This is the most common case.
+  // Default to baseline options for all other scripts
   return (
     <BaselineScriptOptions script={script} parameters={parameters} onParamChange={onParamChange} />
   );
 }
 
-// =================================================================================================
-// SECTION 4: COMPONENT EXPORT
-// =================================================================================================
-
-export default ScriptOptionsRenderer
+export default ScriptOptionsRenderer;

@@ -1,52 +1,53 @@
 # =================================================================================================
 #
-# FILE: render_template.py
+# FILE: render_template.py (Upgraded Version)
 #
-# ROLE: A command-line utility for rendering Jinja2 templates.
+# ROLE: A command-line utility for rendering Jinja2 templates from a file or string.
 #
-# DESCRIPTION: This script serves as a core component of the Python backend. It is designed
-#              to be called from another process (like a Node.js server) and receives two
-#              main inputs via command-line arguments: the raw text of a Jinja2 template and
-#              a JSON string of parameters. It renders the template and prints a structured
-#              JSON object to standard output, indicating either success (with the rendered
-#              content) or failure (with a descriptive error message).
+# DESCRIPTION: This script is designed to be called from another process. It now accepts
+#              either a file path (`--template_path`) or raw string content (`--template-content`).
+#              It renders the template with the given JSON parameters and prints a structured
+#              JSON object to standard output indicating success or failure.
 #
 # =================================================================================================
 
 # =================================================================================================
 # SECTION 1: IMPORTS AND DEPENDENCIES
 # =================================================================================================
-
 import argparse
 import json
-# `jinja2` is the powerful templating engine used to generate the configuration.
+import sys
 from jinja2 import Environment, exceptions
 
 # =================================================================================================
 # SECTION 2: MAIN EXECUTION FUNCTION
 # =================================================================================================
-
 def main():
     """
     Main function that orchestrates the entire rendering process.
-    It parses arguments, renders the template, and handles all potential errors.
+    It parses arguments, loads the template from either a path or string,
+    renders it, and handles all potential errors.
     """
-
     # ---------------------------------------------------------------------------------------------
     # Subsection 2.1: Command-Line Argument Parsing
     # ---------------------------------------------------------------------------------------------
-    # `argparse` is used to define and parse the arguments that this script expects when it is
-    # called. This makes the script a reusable and well-defined command-line tool.
-    parser = argparse.ArgumentParser(description="Render a Jinja2 template.")
+    parser = argparse.ArgumentParser(description="Render a Jinja2 template from a path or content string.")
 
-    # Argument for the raw template content. It's required for the script to do anything.
+    # --- FIX: ADD a new argument for the template file path ---
+    # This aligns with the new refactored Node.js code.
+    parser.add_argument(
+        "--template_path",
+        help="The full path to the Jinja2 template file to render."
+    )
+
+    # --- FIX: MAKE the old argument optional ---
+    # The script can now accept one OR the other.
     parser.add_argument(
         "--template-content",
-        required=True,
         help="The raw Jinja2 template content as a string."
     )
 
-    # Argument for the variables to be used in the template, passed as a JSON string.
+    # The parameters argument remains required.
     parser.add_argument(
         "--parameters",
         required=True,
@@ -54,80 +55,55 @@ def main():
     )
     args = parser.parse_args()
 
+    # --- FIX: VALIDATE that a template source was provided ---
+    if not args.template_path and not args.template_content:
+        print(json.dumps({"success": False, "error": "A template source is required. Use either --template_path or --template-content."}), file=sys.stderr)
+        sys.exit(1)
+
     # ---------------------------------------------------------------------------------------------
-    # Subsection 2.2: Template Rendering and Error Handling
+    # Subsection 2.2: Template Loading, Rendering, and Error Handling
     # ---------------------------------------------------------------------------------------------
-    # A `try...except` block is used to gracefully handle potential failures during the process,
-    # such as invalid JSON, errors in the template syntax, or other unexpected issues.
     try:
-        # Attempt to parse the JSON string provided in the --parameters argument.
-        # This converts the string into a Python dictionary.
         parameters = json.loads(args.parameters)
+        template_string = ""
 
-        # --- ✨✨✨ THE FIX: CONFIGURE THE JINJA2 ENVIRONMENT ✨✨✨ ---
-        # The key change is REMOVING `undefined=StrictUndefined`.
-        # By not specifying an `undefined` handler, Jinja2 reverts to its default,
-        # lenient behavior. This means that if a template variable is used but
-        # not provided in the `parameters` dictionary (e.g., for an optional
-        # feature), it will be rendered as an empty string instead of causing
-        # the script to crash. This is crucial for supporting templates with
-        # optional parameters.
-        env = Environment(
-            trim_blocks=True,      # Removes the first newline after a block tag.
-            lstrip_blocks=True     # Strips leading whitespace from a block.
-        )
-        # Load the template directly from the string provided in the command-line arguments.
-        template = env.from_string(args.template_content)
+        # --- FIX: LOGIC to load the template from the correct source ---
+        if args.template_path:
+            # If a path is provided, read the template file from the disk.
+            try:
+                with open(args.template_path, 'r') as f:
+                    template_string = f.read()
+            except FileNotFoundError:
+                # Handle the case where the file path is invalid.
+                print(json.dumps({"success": False, "error": f"Template file not found at path: {args.template_path}"}), file=sys.stderr)
+                sys.exit(1)
+        else:
+            # Otherwise, use the raw content string.
+            template_string = args.template_content
 
-        # Render the configuration by passing the parameters dictionary to the template.
-        # This step will now succeed even if some optional variables are missing.
+        # The Jinja2 environment configuration remains the same.
+        env = Environment(trim_blocks=True, lstrip_blocks=True)
+        template = env.from_string(template_string)
+
         rendered_config = template.render(parameters)
 
-        # If rendering is successful, create a success result object.
-        result = {
-            "success": True,
-            "rendered_config": rendered_config
-        }
-        # Print the success object as a JSON string to standard output.
-        # This is how the script communicates the result back to the calling process.
+        result = {"success": True, "rendered_config": rendered_config}
         print(json.dumps(result))
 
-    # ---------------------------------------------------------------------------------------------
-    # Subsection 2.3: Specific Exception Handling
-    # ---------------------------------------------------------------------------------------------
-    # Catch errors that occur if the --parameters argument contains malformed JSON.
     except json.JSONDecodeError:
-        error_result = {
-            "success": False,
-            "error": "Invalid JSON format for --parameters argument."
-        }
-        print(json.dumps(error_result))
-
-    # Catch errors related to the Jinja2 template itself, such as syntax errors
-    # (e.g., an unclosed `{% if %}` tag). This will no longer catch undefined
-    # variable errors due to the fix above.
+        error_result = {"success": False, "error": "Invalid JSON format for --parameters argument."}
+        print(json.dumps(error_result), file=sys.stderr)
     except exceptions.TemplateError as e:
-        error_result = {
-            "success": False,
-            "error": f"Template syntax error: {str(e)}"
-        }
-        print(json.dumps(error_result))
-
-    # A general catch-all for any other unexpected errors during execution.
+        error_result = {"success": False, "error": f"Template syntax error: {str(e)}"}
+        print(json.dumps(error_result), file=sys.stderr)
     except Exception as e:
         error_message = f"An unexpected error occurred: {type(e).__name__} - {str(e)}"
-        error_result = {
-            "success": False,
-            "error": error_message
-        }
-        print(json.dumps(error_result))
+        error_result = {"success": False, "error": error_message}
+        print(json.dumps(error_result), file=sys.stderr)
+        sys.exit(1)
 
 # =================================================================================================
 # SECTION 3: SCRIPT ENTRY POINT
 # =================================================================================================
-
-# This is a standard Python construct. The code inside this `if` block will only run
-# when the script is executed directly from the command line (e.g., `python render_template.py ...`).
-# It will not run if this script is imported as a module into another Python file.
 if __name__ == "__main__":
     main()

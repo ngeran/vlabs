@@ -81,7 +81,7 @@ const SelectImageRelease = ({ parameters = {}, onParamChange }) => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('http://localhost:3001/api/software-versions');
+        const response = await fetch('http://localhost:3001/api/inventories/software-versions');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         setInventory(data);

@@ -62,7 +62,7 @@ def send_progress(event_type, data, message=""):
     # The 'JSON_PROGRESS:' prefix is the magic string our backend looks for.
     # 'flush=True' is critical to ensure the message is sent immediately and not
     # buffered, which is essential for real-time updates.
-    print(f"JSON_PROGRESS: {json.dumps(progress_update)}", file=sys.stderr, flush=True)
+    print(f"{json.dumps(progress_update)}", file=sys.stdout, flush=True)
 
 
 # ====================================================================================
@@ -371,22 +371,17 @@ def main():
         final_output = asyncio.run(main_async(args))
 
         # Print final JSON result to stdout for the backend to capture.
-        print(json.dumps(final_output, indent=2))
+        print(json.dumps(final_output))
 
     except Exception as e:
-        # --- Critical Error Handling ---
-        # If anything goes wrong, send a final 'OPERATION_COMPLETE' with a FAILED status.
+        # ... (error handling can also be updated to print compact JSON) ...
         send_progress("OPERATION_COMPLETE", {"status": "FAILED"}, f"A critical script error occurred: {e}")
-
-        # Construct and print a final JSON error message to stdout.
         error_output = {"success": False, "message": f"A critical script error occurred: {str(e)}"}
-        print(json.dumps(error_output, indent=2))
 
-        # Also print the full traceback to stderr for easier debugging in the backend logs.
+        # --- FIX FOR ERROR CASE ---
+        print(json.dumps(error_output))
+
         print(f"CRITICAL ERROR: {traceback.format_exc()}", file=sys.stderr, flush=True)
-
-        # Exit gracefully. The backend will interpret the non-zero exit code if needed,
-        # but the JSON output is the primary communication channel.
         sys.exit(0)
 
 if __name__ == "__main__":

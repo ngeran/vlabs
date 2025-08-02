@@ -1,74 +1,112 @@
 // =========================================================================================
 //
-// COMPONENT:          BackupAndRestoreRunner.jsx
+// COMPONENT:          BackupAndRestoreRunner.jsx (DEFINITIVELY FIXED)
 // FILE:               /src/components/runners/BackupAndRestoreRunner.jsx
 //
 // OVERVIEW:
-//   This component is the specialized UI for the Backup and Restore script. It has been
-//   refactored to use the new, centralized Button component and to correctly consume
-//   the WebSocket context for script execution.
+//   This component provides the specialized UI for the Backup and Restore script. It has
+//   been fully refactored and corrected to integrate with the new, centralized WebSocket
+//   architecture, ensuring stable and predictable script execution.
 //
-// KEY FEATURES:
-//   - Modern UI: Utilizes the Shadcn-based Button component for a clean,
-//     modern user interface with a built-in loading state.
-//   - Correct Context Consumption: Properly retrieves the WebSocket context and passes
-//     it to the `useScriptRunnerStream` hook, enabling script execution.
-//   - Self-Contained Logic: Manages its own `useScriptRunnerStream` hook, keeping
-//     all execution state localized.
-//   - Memoized for Performance: Wrapped in `React.memo` to prevent unnecessary
-//     re-renders, which is critical for application stability.
+// KEY FIXES IMPLEMENTED:
+//   - Correct API Invocation: The `handleRun` function now correctly calls the `runScript`
+//     method on the `websocketService` instance (provided by the `wsContext`) instead of
+//     the state hook (`scriptRunner`), resolving the `TypeError: scriptRunner.runScript is
+//     not a function` crash.
+//   - Robust Error Handling: Added a try/catch block around the API call in `handleRun` to
+//     gracefully handle network errors or backend rejections when initiating a script run.
+//   - Clear Separation of Concerns: The component now perfectly demonstrates the intended
+//     pattern: the `websocketService` is used for ACTIONS (starting a script), and the
+//     `useScriptRunnerStream` hook is used for STATE (reacting to the results of that action).
 //
 // DEPENDENCIES:
-//   - Custom Hooks: `useScriptRunnerStream`.
+//   - Custom Hooks: `useWebSocket`, `useScriptRunnerStream`.
 //   - UI Components: `BackupForm`, `RestoreForm`, and the shared `Button`.
 //
 // =========================================================================================
 
+// ====================================================================================
 // SECTION 1: IMPORTS & CONFIGURATION
-// ------------------------------------------------------------------------------------
-import React, { useMemo, useEffect, memo } from 'react';
+// ====================================================================================
+import React, { useMemo, memo } from 'react';
 import { PlayCircle, Layers } from 'lucide-react';
 
 // --- UI Component Imports ---
 import BackupForm from '../forms/BackupForm.jsx';
-// ========== START OF FIX ==========
-// Corrected the typo in the import path for RestoreForm.
 import RestoreForm from '../forms/RestoreForm.jsx';
-// ========== END OF FIX ==========
 import ScriptOptionsRenderer from '../ScriptOptionsRenderer.jsx';
 import RealTimeDisplay from '../RealTimeProgress/RealTimeDisplay.jsx';
 import DisplayResults from '../shared/DisplayResults.jsx';
 import DebugDisplay from '../shared/DebugDisplay';
 import { Button } from '../shared/Button.jsx';
 
-// --- Custom Hook & Context Imports ---
-// This assumes your original, reverted hook is in this location.
-// If you implemented the context solution, this would be from '../contexts/WebSocketContext'
-import { useWebSocket } from '../../hooks/useWebSocket.jsx';
-import { useScriptRunnerStream } from '../../hooks/useWebSocket.jsx';
+// --- Custom Hook Imports ---
+import { useWebSocket, useScriptRunnerStream } from '../../hooks/useWebSocket.jsx';
 
+// ====================================================================================
 // SECTION 2: MAIN COMPONENT DEFINITION
-// ------------------------------------------------------------------------------------
+// ====================================================================================
 function BackupAndRestoreRunner({ script, parameters, onParamChange }) {
-  // --- State Management & Context Consumption ---
-  // 1. Get the WebSocket context directly inside the component.
+  // ------------------------------------------------------------------------------------
+  // Subsection 2.1: State Management & Context Consumption
+  // ------------------------------------------------------------------------------------
+  // Establishes the connection to the WebSocket and gets the context.
   const wsContext = useWebSocket();
-
-  // 2. Pass the retrieved context to the script runner hook.
+  // Subscribes to script-related WebSocket events and manages the UI state.
   const scriptRunner = useScriptRunnerStream(wsContext);
 
+  // ------------------------------------------------------------------------------------
+  // Subsection 2.2: Event Handlers & Business Logic
+  // ------------------------------------------------------------------------------------
 
-  // --- Event Handlers & Logic ---
+  /**
+   * Initiates the script run. This is the primary action handler for the component.
+   */
   const handleRun = async (event) => {
     if (event) event.preventDefault();
+
+    // 1. Reset the state of the UI from any previous run.
     scriptRunner.resetState();
+
+    // 2. Prepare the parameters for the backend, ensuring only one targeting
+    //    method (hostname or inventory) is sent.
     const runParameters = { ...parameters };
-    if (runParameters.inventory_file) delete runParameters.hostname;
-    else delete runParameters.inventory_file;
-    if (!runParameters.command) runParameters.command = 'backup';
-    await scriptRunner.runScript({ scriptId: script.id, parameters: runParameters });
+    if (runParameters.inventory_file) {
+      delete runParameters.hostname;
+    } else {
+      delete runParameters.inventory_file;
+    }
+    // Default to 'backup' if no command is specified.
+    if (!runParameters.command) {
+      runParameters.command = 'backup';
+    }
+
+    // --- ### THE FIX IS HERE ### ---
+    // 3. Call `runScript` on the SERVICE instance, which is responsible for making the API call.
+    try {
+      if (wsContext && wsContext.websocketService) {
+        // The `websocketService` contains the methods that actually communicate with the backend.
+        await wsContext.websocketService.runScript({
+          scriptId: script.id,
+          parameters: runParameters
+        });
+      } else {
+        // This is a defensive check in case the WebSocket context is not yet available.
+        throw new Error("WebSocket service is not ready.");
+      }
+    } catch (error) {
+      // Gracefully handle failures in the initial API call (e.g., network error, server down).
+      console.error("Failed to initiate the backup/restore script:", error);
+      // It's good practice to show this error to the user.
+      alert(`Error starting script: ${error.message}`);
+      // Optionally, you could set the scriptRunner's error state here as well.
+    }
   };
 
+  /**
+   * A helper function to determine if the main action button should be disabled,
+   * and provides a user-friendly tooltip message explaining why.
+   */
   const getDisabledReason = () => {
     if (scriptRunner.isRunning) return 'A script is currently running.';
     if (!parameters.username || !parameters.password) return 'Username and password are required.';
@@ -76,16 +114,20 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange }) {
       return 'A target host or inventory file must be selected for the backup operation.';
     }
     if (parameters.command === 'restore') {
-      if (!parameters.restore_hostname) return 'A target device must be selected for the restore operation.';
+      if (!parameters.hostname) return 'A target device must be selected for the restore operation.';
       if (!parameters.backup_file) return 'A backup file must be selected for the restore operation.';
     }
-    return '';
+    return ''; // Return an empty string if the button should be enabled.
   };
 
   const disabledReason = getDisabledReason();
   const isButtonDisabled = disabledReason !== '';
 
-  // --- Memoized Derived State ---
+  // ------------------------------------------------------------------------------------
+  // Subsection 2.3: Memoized Derived State for UI
+  // ------------------------------------------------------------------------------------
+  // This calculation is wrapped in `useMemo` to prevent re-running it on every single
+  // component render, optimizing performance.
   const progressMetrics = useMemo(() => {
     const events = scriptRunner.progressEvents || [];
     if (!scriptRunner.isRunning && events.length === 0) {
@@ -95,6 +137,7 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange }) {
     const totalSteps = operationStartEvent?.data?.total_steps || 0;
     const completedSteps = events.filter(e => e.event_type === 'STEP_COMPLETE').length;
     const progressPercentage = totalSteps > 0 ? Math.min(100, Math.round((completedSteps / totalSteps) * 100)) : 0;
+
     let currentStep = [...events].reverse().find(e => e.event_type === 'STEP_START')?.message || 'Initializing...';
     if (scriptRunner.isComplete) {
       currentStep = scriptRunner.error ? 'Operation failed. Please review logs.' : 'Operation completed successfully.';
@@ -102,7 +145,7 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange }) {
     return { totalSteps, completedSteps, progressPercentage, currentStep };
   }, [scriptRunner.progressEvents, scriptRunner.isComplete, scriptRunner.error, scriptRunner.isRunning]);
 
-  // --- Render Props ---
+  // Props object to pass down to the real-time display component.
   const realTimeProps = {
     isRunning: scriptRunner.isRunning,
     isComplete: scriptRunner.isComplete,
@@ -114,8 +157,9 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange }) {
     ...progressMetrics,
   };
 
-  // SECTION 3: RENDER METHOD
-  // ------------------------------------------------------------------------------------
+  // ====================================================================================
+  // SECTION 3: JSX RENDER METHOD
+  // ====================================================================================
   return (
     <div className="flex flex-col md:flex-row gap-8">
       {/* Sidebar for script-level options */}
@@ -136,6 +180,7 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange }) {
             <p className="mt-1 text-slate-600">{script.description}</p>
           </header>
           <div className="space-y-6">
+            {/* Conditionally render the correct form based on the selected command */}
             {parameters.command === 'restore'
               ? <RestoreForm parameters={parameters} onParamChange={onParamChange} />
               : <BackupForm parameters={parameters} onParamChange={onParamChange} />
@@ -156,6 +201,7 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange }) {
           </div>
         </div>
 
+        {/* Conditionally render the results display */}
         {(scriptRunner.isRunning || scriptRunner.isComplete) && <RealTimeDisplay {...realTimeProps} />}
         {scriptRunner.isComplete && !scriptRunner.error && script.capabilities?.resultsDisplay && (
           <DisplayResults result={scriptRunner.finalResult} {...script.resultsDisplay} />
@@ -166,5 +212,5 @@ function BackupAndRestoreRunner({ script, parameters, onParamChange }) {
   );
 }
 
-// Export the memoized version of the component for performance.
+// Export the memoized version of the component for performance optimization.
 export default memo(BackupAndRestoreRunner);

@@ -212,7 +212,7 @@ const SidebarMultiLevelSelect = ({ parameters = {}, onParamChange }) => {
       setError(null);
 
       try {
-        const response = await fetch('http://localhost:3001/api/inventory-tree');
+        const response = await fetch('http://localhost:3001/api/inventories/inventory-tree');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

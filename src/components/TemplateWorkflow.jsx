@@ -136,13 +136,19 @@ function TemplateWorkflow({ wsContext }) {
       return;
     }
 
-    const result = await generateConfig(selectedTemplateId, dynamicParameters);
+    const response = await generateConfig(selectedTemplateId, dynamicParameters);
 
-    if (result && result.success) {
-      setGeneratedConfig(result.rendered_config);
+    // --- THIS IS THE FIX ---
+
+    // The 'response' from the hook is the full object from the backend.
+    // We need to check the inner 'result' object.
+    if (response && response.success && response.result.success) {
+      // Access the config via `response.result.rendered_config`
+      setGeneratedConfig(response.result.rendered_config);
       toast.success("Configuration preview generated successfully!");
     } else {
-      const errorMessage = result?.error || "An unknown error occurred during generation.";
+      // The error message might also be nested.
+      const errorMessage = response?.result?.error || response?.error || "An unknown error occurred during generation.";
       setGenerationError(errorMessage);
       toast.error(errorMessage);
     }

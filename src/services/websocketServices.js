@@ -181,36 +181,41 @@ class WebSocketService {
    * Called when a message is received from the server. It parses the message
    * and emits a specific event based on the message `type`.
    */
-  handleMessage(event) {
+handleMessage(event) {
     try {
-      const message = JSON.parse(event.data);
-      console.log("[WebSocket] Received message:", message);
+      // --- FIX #1: Parse the data string ONCE and store the resulting object ---
+      const parsedData = JSON.parse(event.data);
+      console.log("[WebSocket] Received message:", parsedData);
 
-      // Handle server-assigned client ID.
-      if (message.type === "welcome" || message.type === "client_id") {
-        console.log(`[WebSocket] Client ID assigned: ${message.clientId}`);
-        this.clientId = message.clientId;
-        this.clientIdPromise = null; // Clear the promise now that we have an ID.
-        this.emit("client_id", { clientId: message.clientId });
-      }
-      // Handle heartbeat pong response.
-      else if (message.type === "pong") {
-        this.handlePong();
-      }
-      // For all other types, emit the event by its type name.
-      else if (this.listeners.has(message.type)) {
-        this.emit(message.type, message);
-      }
-      // Fallback for any other message type.
-      else {
-        this.emit("message", message);
+      // --- FIX #2: Emit the PARSED OBJECT, not the raw event ---
+      // This is the generic event for our script runner hook.
+      this.emit("message", parsedData);
+
+      // This is for other, more specific listeners.
+      // We check for the type on the parsed object.
+      const eventType = parsedData.type;
+
+      if (eventType) {
+        // Special handling for client ID assignment
+        if (eventType === "welcome" || eventType === "client_id") {
+          console.log(`[WebSocket] Client ID assigned: ${parsedData.clientId}`);
+          this.clientId = parsedData.clientId;
+          this.emit("client_id", { clientId: parsedData.clientId });
+        }
+        // Handle heartbeat
+        else if (eventType === "pong") {
+          this.handlePong();
+        }
+        // For all other types, emit the event by its type name with the parsed data.
+        else {
+          this.emit(eventType, parsedData);
+        }
       }
     } catch (error) {
       console.error("[WebSocket] Failed to parse incoming message:", error);
       this.emit("parse_error", { error: error.message, raw: event.data });
     }
   }
-
   /**
    * Called when the WebSocket connection is closed, either intentionally or due to an error.
    */

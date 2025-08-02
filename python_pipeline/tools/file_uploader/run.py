@@ -247,7 +247,7 @@ class JuniperDeviceManager:
                         "PROGRESS_UPDATE",
                         f"Uploading {filename.decode('utf-8') if isinstance(filename, bytes) else filename}: {percent:.1f}%",
                         {"progress": percent, "sent": sent, "total": size},
-                        stream=sys.stderr, # Send to stderr to not interfere with SCP
+                        stream=sys.stdout, # Send to stderr to not interfere with SCP
                         run_id=self.run_id
                     )
                     self._last_reported_progress = current_percent_int

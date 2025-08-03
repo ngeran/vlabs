@@ -16,6 +16,7 @@ description: "Executes JSNAPy snapshot tests against devices to validate operati
 # =============================================================================
 # Assigns the script to the "Network Automation" dropdown menu in the navigation bar.
 category: "Validation & Testing"
+runnerComponent: "JsnapyRunner"
 
 # =============================================================================
 # SECTION 2: CAPABILITIES CONFIGURATION
@@ -30,8 +31,6 @@ capabilities:
   dynamicDiscovery: true
   # Enables the "Save Report" button in the UI for saving test results.
   enableReportSaving: true
-  # Specifies the custom sidebar component for test selection.
-  sidebarComponent: "JsnapyOptions"
   # Configures the save button for test results.
   saveButton:
     enabled: true

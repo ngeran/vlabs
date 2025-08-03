@@ -1,132 +1,198 @@
-// =============================================================================
-// FILE: DeviceAuthFields.jsx
-// DESCRIPTION: Reusable component for rendering authentication input fields
-//              (username and password) with validation and a password toggle.
-// DEPENDENCIES:
-//   - react: For building the UI and managing state (useState).
-//   - lucide-react: For icons (User, Lock, Shield, Eye, EyeOff).
-// =============================================================================
+/**
+ * =============================================================================
+ * DEVICE AUTHENTICATION FIELDS COMPONENT
+ * =============================================================================
+ *
+ * DESCRIPTION:
+ * A modern, accessible authentication component featuring username and password
+ * fields with real-time validation, password visibility toggle, and elegant
+ * shadcn/ui-inspired styling with subtle animations and micro-interactions.
+ *
+ * KEY FEATURES:
+ * • Real-time field validation with visual feedback
+ * • Password visibility toggle with smooth transitions
+ * • Responsive grid layout (stacked on mobile, side-by-side on desktop)
+ * • Accessibility-first design with proper ARIA labels
+ * • Modern glassmorphism design with gradient backgrounds
+ * • Animated validation messages and icons
+ * • Customizable theming and styling options
+ *
+ * DEPENDENCIES:
+ * • react: ^18.0.0 (useState hook for state management)
+ * • lucide-react: ^0.263.1 (User, Lock, Shield, Eye, EyeOff icons)
+ * • tailwindcss: ^3.0.0 (utility-first CSS framework)
+ *
+ * HOW TO USE:
+ * ```jsx
+ * import DeviceAuthFields from './DeviceAuthFields';
+ *
+ * function MyApp() {
+ *   const [authParams, setAuthParams] = useState({});
+ *
+ *   const handleParamChange = (name, value) => {
+ *     setAuthParams(prev => ({ ...prev, [name]: value }));
+ *   };
+ *
+ *   return (
+ *     <DeviceAuthFields
+ *       parameters={authParams}
+ *       onParamChange={handleParamChange}
+ *       title="Device Login"
+ *       description="Enter your credentials"
+ *     />
+ *   );
+ * }
+ * ```
+ */
 
 import React, { useState } from "react";
 import { User, Lock, Shield, Eye, EyeOff } from "lucide-react";
 
 // =============================================================================
-// SECTION 1: COMPONENT DEFINITION
+// MAIN COMPONENT EXPORT
 // =============================================================================
-// Renders input fields for device authentication credentials.
+// Primary authentication fields component with validation and modern UI
 export default function DeviceAuthFields({
-  parameters = {}, // Input parameters (username, password)
-  onParamChange = () => {}, // Callback to update parameters
-  title = "Device Authentication", // Title from metadata.yml
-  description = "Secure credentials for device access", // Description from metadata.yml
-  className = "" // Additional CSS classes
+  parameters = {},
+  onParamChange = () => {},
+  title = "Device Authentication",
+  description = "Secure credentials for device access",
+  className = ""
 }) {
   // =============================================================================
-  // SECTION 2: STATE MANAGEMENT
+  // STATE MANAGEMENT SECTION
   // =============================================================================
-  // State to toggle password visibility.
+  // Manages password visibility toggle state
   const [showPassword, setShowPassword] = useState(false);
 
   // =============================================================================
-  // SECTION 3: EVENT HANDLERS
+  // VALIDATION LOGIC SECTION
   // =============================================================================
-  // Handle input changes for username and password.
-  const handleChange = (e) => {
+  // Computes field validation states for real-time feedback
+  const isUsernameValid = parameters.username?.trim().length > 0;
+  const isPasswordValid = parameters.password?.trim().length > 0;
+
+  // =============================================================================
+  // EVENT HANDLERS SECTION
+  // =============================================================================
+  // Handles input field changes and propagates to parent component
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
     onParamChange(name, value);
   };
 
-  // =============================================================================
-  // SECTION 4: VALIDATION HELPERS
-  // =============================================================================
-  const hasValidUsername = parameters.username && parameters.username.trim() !== "";
-  const hasValidPassword = parameters.password && parameters.password.trim() !== "";
+  // Toggles password visibility with state update
+  const togglePasswordVisibility = () => setShowPassword(prev => !prev);
 
   // =============================================================================
-  // SECTION 5: RENDER LOGIC
+  // STYLING HELPERS SECTION
+  // =============================================================================
+  // Dynamic CSS classes based on validation state
+  const getInputClasses = (isValid) => `
+    w-full pl-10 pr-4 py-3 text-sm
+    border rounded-lg transition-all duration-200
+    placeholder:text-muted-foreground
+    focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
+    hover:border-muted-foreground/50
+    ${isValid
+      ? 'border-border bg-background'
+      : 'border-destructive/50 bg-destructive/5 focus:ring-destructive/20'
+    }
+  `.trim();
+
+  const getIconClasses = (isValid) => `
+    absolute left-3 top-3 h-4 w-4 transition-colors duration-200
+    ${isValid ? 'text-muted-foreground' : 'text-destructive'}
+  `.trim();
+
+  // =============================================================================
+  // COMPONENT RENDER SECTION
   // =============================================================================
   return (
-    <div className={`bg-gradient-to-br from-slate-50 to-white border border-slate-200/60 rounded-2xl shadow-sm backdrop-blur-sm ${className}`}>
-      {/* SECTION 5.1: HEADER */}
-      <div className="px-5 py-4 border-b border-slate-100/80">
-        <div className="flex items-center justify-between gap-3">
+    <div className={`
+      bg-card border rounded-xl shadow-sm backdrop-blur-sm
+      ${className}
+    `.trim()}>
+
+      {/* HEADER SECTION - Title, description, and security indicator */}
+      <div className="px-6 py-4 border-b">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl shadow-sm">
-              <Shield className="h-4 w-4 text-emerald-600" />
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Shield className="h-4 w-4 text-primary" />
             </div>
-            <div className="min-w-0">
-              <h3 className="text-base font-semibold text-slate-900 truncate">{title}</h3>
-              <p className="text-xs text-slate-500 truncate">{description}</p>
+            <div>
+              <h3 className="font-semibold text-foreground">{title}</h3>
+              <p className="text-sm text-muted-foreground">{description}</p>
             </div>
           </div>
-          {/* Security Badge */}
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-slate-100/80 to-slate-50 rounded-full border border-slate-200/60">
-            <div className="h-2 w-2 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full animate-pulse"></div>
-            <span className="text-xs font-medium text-slate-600">Secure Connection</span>
+
+          {/* Security Status Badge */}
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-full border">
+            <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+            <span className="text-xs font-medium text-muted-foreground">Secure</span>
           </div>
         </div>
       </div>
 
-      {/* SECTION 5.2: FORM FIELDS */}
-      <div className="p-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Username Field */}
-          <div className="group">
+      {/* FORM FIELDS SECTION - Username and password inputs with validation */}
+      <div className="p-6">
+        <div className="grid gap-4 md:grid-cols-2">
+
+          {/* Username Input Field */}
+          <div className="space-y-2">
             <div className="relative">
               <input
                 type="text"
-                id="username"
                 name="username"
                 value={parameters.username || ""}
-                onChange={handleChange}
+                onChange={handleInputChange}
                 placeholder="Username"
-                className={`w-full pl-9 pr-4 py-2.5 text-sm border rounded-xl transition-all duration-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 ${
-                  hasValidUsername
-                    ? "border-slate-200 bg-white shadow-sm"
-                    : "border-red-200 bg-red-50/50 focus:ring-red-500/20 focus:border-red-400"
-                }`}
+                className={getInputClasses(isUsernameValid)}
+                aria-describedby={!isUsernameValid ? "username-error" : undefined}
               />
-              <User className={`absolute left-2.5 top-2.5 h-4 w-4 transition-colors ${
-                hasValidUsername ? 'text-slate-400 group-hover:text-slate-500' : 'text-red-400'
-              }`} />
+              <User className={getIconClasses(isUsernameValid)} />
             </div>
-            {!hasValidUsername && (
-              <p className="text-xs text-red-500 mt-1.5 ml-1 animate-in fade-in duration-200">
-                Username required
+            {!isUsernameValid && (
+              <p
+                id="username-error"
+                className="text-xs text-destructive animate-in fade-in duration-200"
+              >
+                Username is required
               </p>
             )}
           </div>
 
-          {/* Password Field */}
-          <div className="group">
+          {/* Password Input Field with Visibility Toggle */}
+          <div className="space-y-2">
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                id="password"
                 name="password"
                 value={parameters.password || ""}
-                onChange={handleChange}
+                onChange={handleInputChange}
                 placeholder="Password"
-                className={`w-full pl-9 pr-10 py-2.5 text-sm border rounded-xl transition-all duration-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 hover:border-slate-300 ${
-                  hasValidPassword
-                    ? "border-slate-200 bg-white shadow-sm"
-                    : "border-red-200 bg-red-50/50 focus:ring-red-500/20 focus:border-red-400"
-                }`}
+                className={`${getInputClasses(isPasswordValid)} pr-10`}
+                aria-describedby={!isPasswordValid ? "password-error" : undefined}
               />
-              <Lock className={`absolute left-2.5 top-2.5 h-4 w-4 transition-colors ${
-                hasValidPassword ? 'text-slate-400 group-hover:text-slate-500' : 'text-red-400'
-              }`} />
+              <Lock className={getIconClasses(isPasswordValid)} />
+
+              {/* Password Visibility Toggle Button */}
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2.5 top-2.5 h-4 w-4 text-slate-400 hover:text-slate-600 transition-colors"
+                onClick={togglePasswordVisibility}
+                className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            {!hasValidPassword && (
-              <p className="text-xs text-red-500 mt-1.5 ml-1 animate-in fade-in duration-200">
-                Password required
+            {!isPasswordValid && (
+              <p
+                id="password-error"
+                className="text-xs text-destructive animate-in fade-in duration-200"
+              >
+                Password is required
               </p>
             )}
           </div>

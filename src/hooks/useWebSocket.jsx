@@ -144,6 +144,7 @@ export const useScriptRunnerStream = (wsContext) => {
             setProgressEvents(prev => [...prev, data]);
             break;
           case 'result':
+            console.log("[DEBUG] Final Result View received:", data.data);
             setFinalResult(data.data);
             break;
           case 'script_end':

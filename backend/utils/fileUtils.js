@@ -2,13 +2,15 @@
 // FILE: utils/fileUtils.js
 // ==============================================================================
 // Overview:
-// This module provides utility functions for file operations related to templates
-// and inventories in the Vlabs backend. It handles reading and parsing template
-// configurations and retrieving template content for rendering or discovery.
+// This module provides utility functions for file operations related to templates,
+// inventories, and directory management in the Vlabs backend. It handles reading
+// and parsing template configurations, retrieving template content, and ensuring
+// directories exist for file operations.
 //
 // Key Features:
 // - Discovers templates from a configuration file or directory, optionally filtered by category.
 // - Retrieves content and metadata for a specific template, including parameters.
+// - Ensures directories exist for file operations (e.g., saving reports).
 //
 // Dependencies:
 // - fs: Node.js module for file system operations.
@@ -18,11 +20,12 @@
 //
 // How to Use:
 // 1. Place this file in /vlabs/backend/utils/.
-// 2. Import in route files: `const { getTemplatesConfig, getTemplateContent } = require('../utils/fileUtils');`.
+// 2. Import in route files: `const { getTemplatesConfig, getTemplateContent, ensureDirectoryExists } = require('../utils/fileUtils');`.
 // 3. Call `getTemplatesConfig(category)` to discover templates, optionally filtered.
 // 4. Call `getTemplateContent(templateId)` to retrieve a specific template's details.
-// 5. Ensure template files and configuration (e.g., templates.yml) are in the correct paths.
-// 6. Verify Docker volume mounts provide access to template directories.
+// 5. Call `ensureDirectoryExists(dirPath)` to create a directory if it doesn't exist.
+// 6. Ensure template files, configuration (e.g., templates.yml), and output directories are in the correct paths.
+// 7. Verify Docker volume mounts provide access to template and output directories.
 
 // ==============================================================================
 // SECTION 1: IMPORTS
@@ -102,7 +105,9 @@ async function getTemplateContent(templateId) {
       : config.templates[templateId];
 
     if (!templateDef) {
-      console.error(`[FILEUTILS] Template not found: ${templateId}`);
+      console.error(`
+
+[FILEUTILS] Template not found: ${templateId}`);
       return null;
     }
 
@@ -130,9 +135,26 @@ async function getTemplateContent(templateId) {
 }
 
 // ==============================================================================
-// SECTION 4: EXPORTS
+// SECTION 4: DIRECTORY MANAGEMENT
+// ==============================================================================
+// Ensure a directory exists, creating it if necessary
+function ensureDirectoryExists(dirPath) {
+  try {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+      console.log(`[FILEUTILS] Created directory: ${dirPath}`);
+    }
+  } catch (error) {
+    console.error(`[FILEUTILS] Error creating directory ${dirPath}: ${error.message}`);
+    throw error;
+  }
+}
+
+// ==============================================================================
+// SECTION 5: EXPORTS
 // ==============================================================================
 module.exports = {
   getTemplatesConfig,
   getTemplateContent,
+  ensureDirectoryExists,
 };

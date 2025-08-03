@@ -312,11 +312,11 @@ function DeviceConfigurationRunner({ script, parameters, onParamChange, wsContex
   // SECTION 6.2: Main Component UI
   return (
     <div className="space-y-6">
-      {/* Component Header */}
-      <header className="border rounded-lg bg-card p-6">
+      {/* Combined Header & Template Selection Card */}
+      <section className="border rounded-lg bg-card p-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted flex-shrink-0">
               <BookOpen className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
@@ -335,37 +335,27 @@ function DeviceConfigurationRunner({ script, parameters, onParamChange, wsContex
             </div>
           )}
         </div>
-      </header>
+        {/* Template Selection Dropdown */}
+        {hasTemplateSelection && (
+          <div className="mt-6">
+            <ModernDropdown
+              id="template-selector"
+              options={templateOptions}
+              value={selectedTemplateId}
+              onChange={handleTemplateChange}
+              placeholder="Choose a template..."
+              disabled={isBusy}
+              required
+              searchable
+            />
+          </div>
+        )}
+      </section>
 
       {/* Main Content Grid */}
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Template Selection & Parameters */}
+        {/* Left Column: Parameters */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Template Selection Card */}
-          {hasTemplateSelection && (
-            <section className="border rounded-lg bg-card p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Settings className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-base font-medium">Template Selection</h3>
-              </div>
-              <ModernDropdown
-                id="template-selector"
-                options={templateOptions}
-                value={selectedTemplateId}
-                onChange={handleTemplateChange}
-                placeholder="Choose a template..."
-                disabled={isBusy}
-                required
-                searchable
-              />
-              {selectedTemplate && (
-                <div className="rounded-md bg-muted p-3 mt-4">
-                  <p className="text-sm text-muted-foreground leading-relaxed">{selectedTemplate.description}</p>
-                </div>
-              )}
-            </section>
-          )}
-
           {/* Parameters Section (visible when a template is selected or no selection is needed) */}
           {(!hasTemplateSelection || selectedTemplateId) && (
             <div className="space-y-6">

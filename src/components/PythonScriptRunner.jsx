@@ -1,25 +1,40 @@
 // =================================================================================================
 //
-// COMPONENT:          PythonScriptRunner.jsx
 // FILE:               src/components/PythonScriptRunner.jsx
 //
-// OVERVIEW:
-//   This component acts as the main UI router for the script execution engine. It fetches
+// DESCRIPTION:
+//   This component serves as the main UI router for the script execution engine. It fetches
 //   the list of available scripts and renders the appropriate specialized runner UI
 //   based on the user's selection. All history-related functionality has been removed
 //   to create a simplified and stable user experience.
 //
+// OVERVIEW:
+//   The component fetches available scripts from the backend, persists the selected script
+//   ID in sessionStorage, and dynamically renders the corresponding runner component
+//   based on script metadata. It integrates with WebSocket for real-time updates and
+//   manages script parameters through a centralized state.
+//
 // KEY FEATURES:
-//   - Resilient State: Persists the `selectedScriptId` to `sessionStorage` to
-//     withstand page reloads or component remounts.
-//   - UI Router: Dynamically renders the correct runner component based on script metadata.
-//   - Simplified State: No longer manages or passes down history state, which was
-//     the source of a critical race condition.
+//   - Resilient State: Persists `selectedScriptId` to `sessionStorage` to withstand page reloads.
+//   - UI Router: Maps script IDs to specialized runner components via RUNNER_MAP or switch statement.
+//   - Parameter Management: Handles script parameters with defaults and updates via callbacks.
+//   - Simplified State: Removes history-related state to avoid race conditions.
+//   - WebSocket Integration: Uses useWebSocket for real-time operation feedback.
+//   - Error Handling: Displays fetch errors via react-hot-toast.
+//
+// HOW-TO GUIDE (INTEGRATION):
+//   - Ensure the backend API is running at `http://localhost:3001`.
+//   - Place this component at the root of the app or within a main layout.
+//   - Add new runner components to `RUNNER_MAP` for scripts with `runnerComponent` in metadata.yml.
+//   - Update the switch statement in `toolUI` for scripts without a `runnerComponent` (e.g., jsnapy_runner).
+//   - Verify navigation items (e.g., in RunnerNavBar) include all script IDs, including `template_workflow`.
+//   - Test with a navigation item for `template_workflow` to render DeviceConfigurationRunner.
 //
 // DEPENDENCIES:
-//   - React Core Hooks: (useState, useEffect, useMemo, useCallback).
-//   - Custom Hooks: `useWebSocket`.
-//   - UI Components: All specialized runners, `RunnerNavBar`, `RunnerDashboard`.
+//   - React Core Hooks: useState, useEffect, useMemo, useCallback.
+//   - Custom Hooks: useWebSocket.
+//   - UI Components: RunnerNavBar, RunnerDashboard, specialized runners (BackupAndRestoreRunner, etc.).
+//   - External Libraries: react-hot-toast, react-spinners.
 //
 // =================================================================================================
 
@@ -32,20 +47,17 @@ import toast from "react-hot-toast";
 // --- High-Level UI Components ---
 import RunnerNavBar from "./RunnerNavBar.jsx";
 import RunnerDashboard from "./RunnerDashboard.jsx";
-// REMOVED: import HistoryDrawer from "./HistoryDrawer.jsx";
 
 // --- Specialized "Feature Runner" Components ---
 import BackupAndRestoreRunner from './runners/BackupAndRestoreRunner.jsx';
 import CodeUpgradeRunner from './runners/CodeUpgradeRunner.jsx';
-import GenericScriptRunner from "./GenericScriptRunner.jsx";
-import JsnapyRunner from "./JsnapyRunner.jsx";
-import TemplateWorkflow from "./TemplateWorkflow.jsx";
 import FileUploaderRunner from './runners/FileUploaderRunner.jsx';
+import DeviceConfigurationRunner from './runners/DeviceConfigurationRunner.jsx';
+import JsnapyRunner from "./JsnapyRunner.jsx";
+import GenericScriptRunner from "./GenericScriptRunner.jsx";
 
 // --- Core Application Hooks ---
 import { useWebSocket } from "../hooks/useWebSocket.jsx";
-// REMOVED: import { useHistory } from "../hooks/useHistory.jsx";
-
 
 // SECTION 2: COMPONENT-LEVEL CONSTANTS
 // -------------------------------------------------------------------------------------------------
@@ -54,17 +66,19 @@ const RUNNER_MAP = {
   BackupAndRestoreRunner,
   CodeUpgradeRunner,
   FileUploaderRunner,
+  DeviceConfigurationRunner,
 };
-
 
 // SECTION 3: MAIN COMPONENT DEFINITION & STATE MANAGEMENT
 // -------------------------------------------------------------------------------------------------
+/**
+ * Main UI router for script execution, rendering specialized runner components based on script selection.
+ */
 function PythonScriptRunner() {
   // --- State Declarations ---
   const [allScripts, setAllScripts] = useState([]);
   const [scriptParameters, setScriptParameters] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  // REMOVED: const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
 
   const [selectedScriptId, setSelectedScriptId] = useState(() => {
     return sessionStorage.getItem('selectedScriptId') || "";
@@ -72,15 +86,15 @@ function PythonScriptRunner() {
 
   // --- Hooks for Core Services ---
   const wsContext = useWebSocket({ autoConnect: true });
-  // REMOVED: const { history, isLoading: isHistoryLoading } = useHistory(wsContext);
-
 
   // SECTION 4: LIFECYCLE & DATA FETCHING
   // -------------------------------------------------------------------------------------------------
+  // Persist selectedScriptId to sessionStorage
   useEffect(() => {
     sessionStorage.setItem('selectedScriptId', selectedScriptId);
   }, [selectedScriptId]);
 
+  // Fetch available scripts from backend
   useEffect(() => {
     const fetchScripts = async () => {
       setIsLoading(true);
@@ -102,12 +116,12 @@ function PythonScriptRunner() {
     fetchScripts();
   }, []);
 
-
   // SECTION 5: MEMOIZED DERIVED STATE & EVENT HANDLERS
   // -------------------------------------------------------------------------------------------------
   const selectedScript = useMemo(() => allScripts.find((s) => s.id === selectedScriptId), [allScripts, selectedScriptId]);
   const currentParameters = useMemo(() => scriptParameters[selectedScriptId] || {}, [selectedScriptId, scriptParameters]);
 
+  // Handle script selection and initialize parameters
   const handleScriptChange = useCallback((id) => {
     const newScriptId = id || "";
     setSelectedScriptId(newScriptId);
@@ -123,6 +137,7 @@ function PythonScriptRunner() {
     }
   }, [allScripts]);
 
+  // Handle parameter updates
   const handleParamChange = useCallback((name, value) => {
     if (!selectedScriptId) return;
     setScriptParameters((prev) => ({
@@ -131,12 +146,10 @@ function PythonScriptRunner() {
     }));
   }, [selectedScriptId]);
 
-
   // SECTION 6: UI ROUTER LOGIC (MEMOIZED)
   // -----------------------------------------------------------------------------------------------
   const toolUI = useMemo(() => {
     if (!selectedScript) {
-      // The dashboard no longer needs history props.
       return <RunnerDashboard />;
     }
 
@@ -151,12 +164,11 @@ function PythonScriptRunner() {
         />
       );
     }
-    // Fallback for other runners...
+
+    // Fallback for scripts without a runnerComponent
     switch (selectedScript.id) {
       case 'jsnapy_runner':
         return <JsnapyRunner wsContext={wsContext} script={selectedScript} />;
-      case 'template_workflow':
-        return <TemplateWorkflow wsContext={wsContext} />;
       default:
         return (
           <GenericScriptRunner
@@ -168,7 +180,6 @@ function PythonScriptRunner() {
         );
     }
   }, [selectedScript, currentParameters, handleParamChange, wsContext]);
-
 
   // SECTION 7: MAIN RENDER METHOD
   // -------------------------------------------------------------------------------------------------
@@ -185,15 +196,10 @@ function PythonScriptRunner() {
         onReset={() => handleScriptChange("")}
         isWsConnected={wsContext.isConnected}
         isActionInProgress={false}
-        // REMOVED: History-related props
-        // onViewHistory={() => setIsHistoryDrawerOpen(true)}
-        // historyItemCount={history.length}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-         {toolUI}
+        {toolUI}
       </main>
-
-      {/* REMOVED: HistoryDrawer component */}
     </div>
   );
 }

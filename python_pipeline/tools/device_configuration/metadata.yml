@@ -1,0 +1,26 @@
+# python_pipeline/tools/configuration/metadata.yml
+id: "template_workflow"
+displayName: "Apply Templates"
+description: "Generate a device configuration from a Jinja2 template and apply it to a target device."
+# --- THIS IS THE CRITICAL LINE ---
+category: "Configuration"
+
+
+# This capability flag tells the UI to render the special two-step workflow for this script.
+capabilities:
+  templateGeneration: false
+# This flag tells PythonScriptRunner to render the specialized DeviceAuthFields component.
+  deviceAuth: false
+# Custom UI
+  customUI: "templateWorkflow"
+
+
+
+# The parameters for this workflow are often handled by the specialized UI,
+# but you could define common ones here if needed.
+#parameters:
+#  - name: "hostname"
+#    label: "Target Hostname"
+#    type: "text"
+#    required: true
+#   placeholder: "e.g., vmx-1"

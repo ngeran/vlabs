@@ -19,9 +19,9 @@ const labsData = {
       description: "Multi Area OSPF configuration",
     },
     {
-      id: "bgp-ospf",
-      slug: "bgp-ospf",
-      title: "BGP Multi-AS",
+      id: "ospf-lab",
+      slug: "ospf-lab",
+      title: "BGP Multi-AS Nikos",
       difficulty: "Intermediate",
       duration: "240 min",
       thumbnail: "/api/placeholder/400/200",

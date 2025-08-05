@@ -1,42 +1,61 @@
 // =================================================================================================
-// FILE:               EnhancedProgressBar.jsx
-// COMPONENT:          Enhanced Progress Bar Component
-// VERSION:            2.0.0
-// LAST UPDATED:       2025-08-03
+// FILE:               ProgressBar.jsx
+// COMPONENT:          Modern Progress Bar Component
+// VERSION:            3.1.0
+// LAST UPDATED:       2025-08-05
 //
 // DESCRIPTION:
-//   A highly optimized, space-efficient progress bar component designed for real-time operations.
-//   Features modern shadcn/ui styling with intelligent state management, smooth animations, and
-//   comprehensive status indicators. Provides visual feedback for ongoing processes with
-//   color-coded states and detailed progress metrics.
+//   A highly optimized, visually modern progress bar component designed for real-time applications.
+//   Features a thicker bar for better visibility, sleek shadcn/ui-inspired styling, smooth gradient
+//   animations, and enhanced accessibility. Provides clear visual feedback with dynamic color-coded
+//   states (black gradient for running, green for success, red for error), detailed progress metrics,
+//   and responsive design for mobile and desktop.
+//
+// OVERVIEW:
+//   This component is built for performance and aesthetics, offering a polished user experience
+//   with minimal computational overhead. It supports both standard and compact layouts, making
+//   it versatile for various UI contexts. The progress bar includes a thicker design, gradient-based
+//   fills (using a black-based gradient for the running state), modern typography, and dynamic icons
+//   that adapt to the operation's state. It is optimized for WebSocket-driven applications and
+//   integrates seamlessly with real-time data.
 //
 // KEY FEATURES:
-//   ✅ Space-efficient compact design
-//   ✅ Real-time progress visualization with smooth animations
-//   ✅ Color-coded states (running/blue, success/green, error/red)
-//   ✅ Dual display modes: standard and compact layouts
-//   ✅ Step counter and percentage indicators
-//   ✅ Dynamic icon switching based on operation state
-//   ✅ shadcn/ui compatible styling with dark mode support
-//   ✅ Responsive design for mobile and desktop
-//   ✅ Accessibility-compliant with proper ARIA attributes
+//   ✅ Thicker progress bar for improved visibility
+//   ✅ Sleek, modern design with black gradient for running state
+//   ✅ Smooth animations with cubic-bezier timing
+//   ✅ Color-coded states: running (black gradient), success (green gradient), error (red gradient)
+//   ✅ Dynamic icons with animated transitions
+//   ✅ Compact and standard layout modes
+//   ✅ Step counter and percentage display with enhanced typography
+//   ✅ Fully responsive and accessible (ARIA-compliant)
+//   ✅ Dark mode support with shadcn/ui compatibility
+//   ✅ Memoized for optimal performance
 //
 // DEPENDENCIES:
-//   - React 16.8+ (hooks support required)
-//   - lucide-react (for icons: Loader, CheckCircle, AlertCircle, Clock)
-//   - Tailwind CSS 3.0+ (for styling utilities)
-//   - Optional: shadcn/ui theme configuration
+//   - React 18.0+ (hooks and memoization support required)
+//   - lucide-react (^0.263.0) for icons (Loader2, CheckCircle2, AlertCircle, Clock)
+//   - Tailwind CSS 3.4+ for utility-first styling
+//   - Optional: shadcn/ui theme configuration for consistent design
 //
-// HOW TO USE:
-//   1. Import: import EnhancedProgressBar from './EnhancedProgressBar';
-//   2. Basic usage:
-//      <EnhancedProgressBar
+// DETAILED HOW-TO GUIDE:
+//   1. Installation:
+//      - Ensure dependencies are installed: `npm install react lucide-react tailwindcss`
+//      - Configure Tailwind CSS in your project (see tailwindcss.com/docs/installation)
+//      - Optional: Set up shadcn/ui for theme consistency
+//
+//   2. Basic Usage:
+//      ```jsx
+//      import ProgressBar from './ProgressBar';
+//      <ProgressBar
 //        percentage={75}
 //        currentStep="Processing data..."
 //        isRunning={true}
 //      />
-//   3. Advanced usage with full control:
-//      <EnhancedProgressBar
+//      ```
+//
+//   3. Advanced Usage:
+//      ```jsx
+//      <ProgressBar
 //        percentage={progressPercentage}
 //        currentStep={latestMessage}
 //        totalSteps={totalSteps}
@@ -46,20 +65,30 @@
 //        hasError={hasError}
 //        compact={true}
 //        animated={true}
+//        showStepCounter={true}
+//        showPercentage={true}
 //      />
+//      ```
 //
-// INTEGRATION NOTES:
-//   - Designed to work seamlessly with WebSocket streams
-//   - Compatible with existing progress tracking hooks
-//   - Can be used standalone or within EnhancedRealTimeDisplay
-//   - Supports both controlled and uncontrolled usage patterns
+//   4. Integration Notes:
+//      - Ideal for WebSocket streams or async operation tracking
+//      - Works with custom hooks for progress tracking
+//      - Supports controlled and uncontrolled modes
+//      - Ensure Tailwind CSS is configured for dark mode if needed
+//      - Use `React.memo` for performance in high-frequency updates
+//
 // =================================================================================================
 
-import React from 'react';
-import { Loader, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import React, { memo } from 'react';
+import { Loader2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+
+// =================================================================================================
+// SECTION 1: Component Definition and Props
+// Defines the component and its props with type annotations for clarity
+// =================================================================================================
 
 /**
- * Enhanced Progress Bar Component
+ * Modern Progress Bar Component
  *
  * @param {Object} props - Component props
  * @param {number} props.percentage - Progress percentage (0-100)
@@ -74,7 +103,7 @@ import { Loader, CheckCircle, AlertCircle, Clock } from 'lucide-react';
  * @param {boolean} props.animated - Enable animations
  * @param {boolean} props.compact - Use compact layout
  */
-const EnhancedProgressBar = ({
+const ProgressBar = ({
   percentage = 0,
   currentStep,
   totalSteps = 0,
@@ -85,143 +114,149 @@ const EnhancedProgressBar = ({
   showStepCounter = true,
   showPercentage = true,
   animated = true,
-  compact = false
+  compact = false,
 }) => {
   // =================================================================================================
-  // SECTION 1: PROGRESS STATE CONFIGURATION
-  // Determines visual styling and behavior based on current operation state
+  // SECTION 2: Progress State Configuration
+  // Configures visual styling and behavior based on operation state
   // =================================================================================================
 
   /**
-   * Get progress configuration based on current state
-   * Determines colors, icons, and animation behavior for different states
-   *
-   * @returns {Object} Configuration object with styling and behavior settings
+   * Determines styling and behavior based on operation state
+   * @returns {Object} Configuration with colors, gradients, icons, and animations
    */
   const getProgressConfig = () => {
-    // Error state: Red theme with alert styling
-    if (hasError) return {
-      bg: 'bg-destructive/20',                    // Light red background
-      fill: 'bg-destructive',                     // Solid red fill
-      text: 'text-destructive',                   // Red text color
-      icon: AlertCircle,                          // Alert circle icon
-      pulse: false                                // No pulsing animation for errors
-    };
+    if (hasError) {
+      return {
+        bg: 'bg-red-100 dark:bg-red-900/20', // Light red background for errors
+        fill: 'bg-gradient-to-r from-red-500 to-red-600', // Red gradient fill
+        text: 'text-red-700 dark:text-red-400', // Red text with dark mode
+        icon: AlertCircle, // Error icon
+        pulse: false, // No pulse for errors
+      };
+    }
 
-    // Success state: Green theme with checkmark
-    if (isComplete) return {
-      bg: 'bg-green-100 dark:bg-green-900/20',    // Light green background
-      fill: 'bg-green-500',                       // Solid green fill
-      text: 'text-green-700 dark:text-green-400', // Green text with dark mode support
-      icon: CheckCircle,                          // Check circle icon
-      pulse: false                                // No pulsing for completed state
-    };
+    if (isComplete) {
+      return {
+        bg: 'bg-green-100 dark:bg-green-900/20', // Light green background
+        fill: 'bg-gradient-to-r from-green-500 to-green-600', // Green gradient fill
+        text: 'text-green-700 dark:text-green-400', // Green text with dark mode
+        icon: CheckCircle2, // Success icon
+        pulse: false, // No pulse for completed
+      };
+    }
 
-    // Running/default state: Blue theme with dynamic behavior
     return {
-      bg: 'bg-primary/10',                        // Light blue background
-      fill: 'bg-primary',                         // Primary color fill
-      text: 'text-primary',                       // Primary color text
-      icon: isRunning ? Loader : Clock,           // Loader when running, clock when idle
-      pulse: isRunning && animated               // Pulse animation only when running
+      bg: 'bg-gray-100 dark:bg-gray-900/20', // Light gray background for running state
+      fill: 'bg-gradient-to-r from-gray-800 to-gray-900', // Black-based gradient fill
+      text: 'text-gray-800 dark:text-gray-300', // Black/gray text with dark mode
+      icon: isRunning ? Loader2 : Clock, // Dynamic icon based on state
+      pulse: isRunning && animated, // Pulse only when running and animated
     };
   };
 
   // =================================================================================================
-  // SECTION 2: DATA PROCESSING & VALIDATION
-  // Processes and validates input data to ensure safe rendering
+  // SECTION 3: Data Processing and Validation
+  // Ensures safe and consistent data for rendering
   // =================================================================================================
 
   const config = getProgressConfig();
   const IconComponent = config.icon;
-
-  // Clamp percentage to valid range (0-100) to prevent visual issues
-  const safePercentage = Math.min(Math.max(percentage, 0), 100);
+  const safePercentage = Math.min(Math.max(percentage, 0), 100); // Clamp percentage to 0-100
 
   // =================================================================================================
-  // SECTION 3: RENDER STRUCTURE
+  // SECTION 4: Render Structure
   // Main component rendering with organized layout sections
   // =================================================================================================
 
   return (
-    <div className={`space-y-${compact ? '2' : '3'}`}>
-      {/* =================================================================================================
-          SUBSECTION 3A: PROGRESS BAR VISUALIZATION
-          The main progress bar with animated fill and optional percentage overlay
-          ================================================================================================= */}
+    <div
+      className={`space-y-${compact ? '2' : '4'} transition-all duration-300 ${
+        compact ? 'max-w-md' : 'max-w-lg'
+      }`}
+      role="progressbar"
+      aria-valuenow={safePercentage}
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-label={currentStep || 'Progress bar'}
+    >
+      {/* SUBSECTION 4A: Progress Bar Visualization
+         Renders the main progress bar with gradient fill and percentage overlay */}
       <div className="relative">
-        {/* Background track with theme-appropriate styling */}
-        <div className={`w-full ${config.bg} rounded-full h-3 overflow-hidden border border-border/50`}>
-          {/* Animated progress fill with smooth transitions */}
+        <div
+          className={`w-full ${config.bg} rounded-full h-6 overflow-hidden border border-border/30 shadow-sm`}
+        >
           <div
-            className={`h-full ${config.fill} transition-all duration-700 ease-out rounded-full ${
+            className={`h-full ${config.fill} transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] rounded-full ${
               config.pulse ? 'animate-pulse' : ''
             }`}
             style={{
               width: `${safePercentage}%`,
-              // Add subtle glow effect when progress is active
-              boxShadow: safePercentage > 0 ? '0 0 8px rgba(59, 130, 246, 0.3)' : 'none'
+              boxShadow:
+                safePercentage > 0
+                  ? '0 0 12px rgba(31, 41, 55, 0.4), inset 0 0 4px rgba(255, 255, 255, 0.2)'
+                  : 'none',
             }}
           />
         </div>
 
-        {/* Percentage overlay displayed on the progress bar when there's sufficient space */}
-        {showPercentage && safePercentage > 12 && (
+        {showPercentage && safePercentage > 10 && (
           <div
-            className="absolute top-0 h-3 flex items-center justify-end"
+            className="absolute top-0 h-6 flex items-center justify-end"
             style={{ width: `${safePercentage}%` }}
           >
-            <span className={`font-medium ${config.text} tabular-nums min-w-[3ch] mr-1`}>
+            <span
+              className={`font-semibold ${config.text} tabular-nums text-base min-w-[4ch] mr-2 bg-white/80 dark:bg-gray-800/80 rounded px-1.5 py-0.5 shadow-sm`}
+            >
               {Math.round(safePercentage)}%
             </span>
           </div>
         )}
       </div>
 
-      {/* =================================================================================================
-          SUBSECTION 3B: STATUS INFORMATION DISPLAY
-          Shows current status, step information, and progress metrics
-          ================================================================================================= */}
-      <div className="flex items-center justify-between">
-        {/* Left side: Status icon and current step description */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          {/* Dynamic status icon with conditional animation */}
+      {/* SUBSECTION 4B: Status Information Display
+         Shows status icon, step description, and progress metrics */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <IconComponent
-            className={`w-4 h-4 ${config.text} flex-shrink-0 ${
-              isRunning && config.icon === Loader ? 'animate-spin' : ''
+            className={`w-5 h-5 ${config.text} flex-shrink-0 ${
+              isRunning && config.icon === Loader2 ? 'animate-spin' : ''
             }`}
           />
-
-          {/* Current step or default status message */}
           <div className="min-w-0 flex-1">
             {currentStep ? (
-              // Display custom step message with truncation for long text
-              <p className={`text-sm font-medium ${config.text} truncate`} title={currentStep}>
+              <p
+                className={`text-base font-medium ${config.text} truncate`}
+                title={currentStep}
+              >
                 {currentStep}
               </p>
             ) : (
-              // Display default status message based on current state
-              <p className={`text-sm ${config.text}`}>
-                {isRunning ? 'Processing...' :
-                 isComplete ? 'Complete' :
-                 hasError ? 'Error' : 'Ready'}
+              <p className={`text-base ${config.text}`}>
+                {isRunning
+                  ? 'Processing...'
+                  : isComplete
+                  ? 'Complete'
+                  : hasError
+                  ? 'Error'
+                  : 'Ready'}
               </p>
             )}
           </div>
         </div>
 
-        {/* Right side: Progress metrics and counters */}
-        <div className="flex items-center gap-3 text-xs flex-shrink-0">
-          {/* Step counter: shows completed/total steps */}
+        <div className="flex items-center gap-4 text-sm flex-shrink-0">
           {showStepCounter && totalSteps > 0 && (
-            <span className={`${config.text} tabular-nums`}>
+            <span
+              className={`${config.text} tabular-nums font-medium bg-white/80 dark:bg-gray-800/80 rounded px-1.5 py-0.5 shadow-sm`}
+            >
               {completedSteps}/{totalSteps}
             </span>
           )}
-
-          {/* Percentage display: shown when not overlaid on progress bar or in non-compact mode */}
-          {showPercentage && (safePercentage <= 12 || !compact) && (
-            <span className={`font-medium ${config.text} tabular-nums min-w-[3ch]`}>
+          {showPercentage && (safePercentage <= 10 || !compact) && (
+            <span
+              className={`font-semibold ${config.text} tabular-nums min-w-[4ch] bg-white/80 dark:bg-gray-800/80 rounded px-1.5 py-0.5 shadow-sm`}
+            >
               {Math.round(safePercentage)}%
             </span>
           )}
@@ -231,4 +266,9 @@ const EnhancedProgressBar = ({
   );
 };
 
-export default EnhancedProgressBar;
+// =================================================================================================
+// SECTION 5: Component Export
+// Exports the memoized component to prevent unnecessary re-renders
+// =================================================================================================
+
+export default memo(ProgressBar);

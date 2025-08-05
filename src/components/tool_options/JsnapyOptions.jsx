@@ -2,23 +2,26 @@
 // FILE:               src/components/tool_options/JsnapyOptions.jsx
 //
 // DESCRIPTION:
-//   Component for rendering JSNAPy-specific sidebar options, including test selection.
+//   Component for rendering JSNAPy-specific sidebar options, including test
+//   selection, with an enhanced UI using .
 //
 // OVERVIEW:
 //   This component handles the UI for selecting JSNAPy tests using dynamic test
-//   discovery. It integrates with the useTestDiscovery hook and delegates to
-//   TestSelector for rendering the test selection UI.
+//   discovery. It integrates with the useTestDiscovery hook, delegates to
+//   TestSelector for rendering the test selection UI, and uses shadcn/ui for
+//   a sleek and modern user interface.
 //
 // KEY FEATURES:
 //   - Fetches and displays categorized tests using useTestDiscovery.
 //   - Allows selecting/deselecting individual tests.
-//   - Provides "Select All" and "Clear All" functionality.
-//   - Displays loading and error states.
+//   - Provides "Select All" and "Clear All" functionality with shadcn/ui buttons.
+//   - Displays loading and error states with improved styling.
 //
 // DEPENDENCIES:
 //   - react: For component rendering and hooks.
 //   - useTestDiscovery: For fetching discoverable tests.
 //   - TestSelector: For rendering the test selection UI.
+//   - shadcn/ui: For modern and accessible UI components.
 //
 // HOW TO USE:
 //   Use this component within a parent component that manages script parameters:
@@ -39,12 +42,13 @@
 import React from "react";
 import { useTestDiscovery } from "../../hooks/useTestDiscovery";
 import TestSelector from "../TestSelector";
+import { Button } from "@/components/ui/button"; // Assuming shadcn/ui components are aliased to @/components
 
 // =============================================================================
 // SECTION 2: COMPONENT DEFINITION
 // =============================================================================
 /**
- * Component for rendering JSNAPy test selection options.
+ * Component for rendering JSNAPy test selection options with shadcn/ui styling.
  * @param {Object} props - Component props.
  * @param {Object} props.script - Script metadata.
  * @param {Object} props.parameters - Current script parameters.
@@ -103,20 +107,12 @@ function JsnapyOptions({ script, parameters, onParamChange }) {
         onTestToggle={handleTestToggle}
       />
       <div className="flex gap-4 border-t border-slate-200 pt-3">
-        <button
-          type="button"
-          onClick={handleSelectAll}
-          className="text-blue-600 hover:underline text-sm font-medium"
-        >
+        <Button variant="outline" size="sm" onClick={handleSelectAll}>
           Select All
-        </button>
-        <button
-          type="button"
-          onClick={handleClearAll}
-          className="text-blue-600 hover:underline text-sm font-medium"
-        >
+        </Button>
+        <Button variant="ghost" size="sm" onClick={handleClearAll}>
           Clear All
-        </button>
+        </Button>
       </div>
     </div>
   );

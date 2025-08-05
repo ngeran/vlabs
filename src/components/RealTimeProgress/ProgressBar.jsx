@@ -166,8 +166,12 @@ const EnhancedProgressBar = ({
         </div>
 
         {/* Percentage overlay displayed on the progress bar when there's sufficient space */}
-        {showPercentage && (safePercentage <= 12 || !compact) && (
-            <span className={`font-medium ${config.text} tabular-nums min-w-[3ch]`}>
+        {showPercentage && safePercentage > 12 && (
+          <div
+            className="absolute top-0 h-3 flex items-center justify-end"
+            style={{ width: `${safePercentage}%` }}
+          >
+            <span className={`font-medium ${config.text} tabular-nums min-w-[3ch] mr-1`}>
               {Math.round(safePercentage)}%
             </span>
           </div>
@@ -216,7 +220,7 @@ const EnhancedProgressBar = ({
           )}
 
           {/* Percentage display: shown when not overlaid on progress bar or in non-compact mode */}
-          {showPercentage && (safePercentage <= 15 || !compact) && (
+          {showPercentage && (safePercentage <= 12 || !compact) && (
             <span className={`font-medium ${config.text} tabular-nums min-w-[3ch]`}>
               {Math.round(safePercentage)}%
             </span>

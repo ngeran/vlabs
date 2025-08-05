@@ -22,6 +22,7 @@
 //   ✅ shadcn/ui compatible styling with dark mode
 //   ✅ Accessibility features with proper ARIA labels
 //   ✅ Performance optimized with memoization
+//   ✅ Table rendering for structured result data using UniversalTableViewer
 //
 // DEPENDENCIES:
 //   - React 16.8+ (hooks: useState, useMemo, useRef, useEffect)
@@ -29,6 +30,7 @@
 //   - Tailwind CSS 3.0+ (full utility classes and custom scrollbar support)
 //   - EnhancedProgressBar component (./EnhancedProgressBar)
 //   - EnhancedProgressStep component (./EnhancedProgressStep)
+//   - UniversalTableViewer component (../shared/UniversalTableViewer)
 //   - Optional: shadcn/ui theme configuration
 //
 // HOW TO USE:
@@ -69,6 +71,7 @@
 
 import React, { useMemo, useRef, useEffect } from 'react';
 import { AlertTriangle, CheckCircle, RefreshCw, ChevronDown, ChevronUp, Terminal } from 'lucide-react';
+import UniversalTableViewer from '../shared/UniversalTableViewer';
 
 // =================================================================================================
 // SECTION 1: EMBEDDED COMPONENT DEFINITIONS
@@ -316,6 +319,7 @@ const EnhancedProgressStep = ({
  * - Two-line log format as requested
  * - Auto-scrolling and performance optimization
  * - Comprehensive status indicators
+ * - Table rendering for structured results
  *
  * @param {Object} props - Component props
  * @param {boolean} props.isRunning - Whether operation is currently running
@@ -473,7 +477,7 @@ const EnhancedRealTimeDisplay = ({
       </div>
 
       {/* =================================================================================================
-          SUBSECTION 8B: LIVE LOG SECTION WITH TWO-LINE FORMAT (AS REQUESTED)
+          SUBSECTION 8B: LIVE LOG SECTION WITH TWO-LINE FORMAT
           Collapsible log section implementing the requested two-line display format
           ================================================================================================= */}
       {progress.length > 0 && (
@@ -548,7 +552,8 @@ const EnhancedRealTimeDisplay = ({
               </div>
             </div>
           ) : (
-            /* Success status banner with completion message */            <div className="p-4 bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 rounded-lg">
+            /* Success status banner with completion message */
+            <div className="p-4 bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 rounded-lg">
               <div className="flex items-start gap-3">
                 <CheckCircle className="text-green-500 flex-shrink-0 w-5 h-5 mt-0.5" />
                 <div className="flex-1 min-w-0">
@@ -562,7 +567,26 @@ const EnhancedRealTimeDisplay = ({
           )}
 
           {/* =================================================================================================
-              SUBSECTION 8D: COLLAPSIBLE RESULT/ERROR DETAILS
+              SUBSECTION 8D: TABLE RESULTS DISPLAY
+              Renders structured result data as tables using UniversalTableViewer
+              ================================================================================================= */}
+          {isComplete && result?.results_by_host && Array.isArray(result.results_by_host) && (
+            <div className="space-y-4">
+              {result.results_by_host.map((hostResult, hostIndex) => (
+                <div key={`host-${hostIndex}`} className="space-y-2">
+                  {hostResult.test_results && Array.isArray(hostResult.test_results) && hostResult.test_results.map((testResult, testIndex) => (
+                    <UniversalTableViewer
+                      key={`test-result-${hostIndex}-${testIndex}`}
+                      tableData={testResult}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* =================================================================================================
+              SUBSECTION 8E: COLLAPSIBLE RESULT/ERROR DETAILS
               Expandable section for detailed result or error information with copy functionality
               ================================================================================================= */}
           {((result && typeof result === 'object' && Object.keys(result).length > 0) ||
@@ -615,7 +639,7 @@ const EnhancedRealTimeDisplay = ({
       )}
 
       {/* =================================================================================================
-          SUBSECTION 8E: QUICK STATISTICS FOOTER
+          SUBSECTION 8F: QUICK STATISTICS FOOTER
           Summary statistics and timing information for completed operations
           ================================================================================================= */}
       {progress.length > 0 && (

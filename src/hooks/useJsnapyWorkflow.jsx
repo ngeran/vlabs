@@ -1,30 +1,52 @@
 // =============================================================================
-// FILE: useJsnapyWorkflow.jsx
-// DESCRIPTION: Custom React hook for managing state and logic of the JSNAPy Runner.
-//              Handles parameter state, test discovery, WebSocket communication,
-//              and script execution via API calls.
+// FILE:               src/hooks/useJsnapyWorkflow.jsx
+//
+// DESCRIPTION:
+//   Custom React hook for managing the JSNAPy Runner workflow, including parameter
+//   state, test discovery, and script execution.
+//
+// OVERVIEW:
+//   This hook encapsulates the state and logic for the JSNAPy Runner, including
+//   WebSocket communication, test discovery, and script execution. It uses
+//   JsnapyApiService for API calls and provides a clean interface for components.
+//
+// KEY FEATURES:
+//   - Manages execution state with a reducer that handles progress, results, and errors.
+//   - Correctly handles the entire WebSocket event stream. The 'result' message is
+//     treated as a completion event to ensure state is updated atomically.
+//   - Fetches discoverable tests using JsnapyApiService.
+//   - Provides parameter management and script execution logic.
+//   - Maps progress events to a format expected by the RealTimeDisplay component.
+//
 // DEPENDENCIES:
 //   - react: For hooks (useReducer, useCallback, useEffect, useState).
-//   - WebSocket: Provided via wsContext for real-time updates.
-//   - fetch: For making API calls to the backend.
+//   - JsnapyApiService: For API calls.
 // =============================================================================
 
-import { useReducer, useCallback, useEffect, useState } from 'react';
 
 // =============================================================================
-// SECTION 1: CONSTANTS
+// SECTION 1: IMPORTS
 // =============================================================================
-const API_BASE_URL = "http://localhost:3001"; // Base URL for backend API
-const JSNAPY_SCRIPT_ID = "jsnapy_runner"; // Unique identifier for the JSNAPy script
+import { useReducer, useCallback, useEffect, useState } from "react";
+import JsnapyApiService from "../services/JsnapyApiService.js";
 
 // =============================================================================
-// SECTION 2: STATE MANAGEMENT WITH REDUCER
+// SECTION 2: CONSTANTS
 // =============================================================================
-// Reducer to manage execution state (progress, results, errors).
+const JSNAPY_SCRIPT_ID = "jsnapy_runner";
+
+// =============================================================================
+// SECTION 3: REDUCER (FINAL CORRECTED VERSION)
+// =============================================================================
+/**
+ * Reducer for managing execution state.
+ * @param {Object} state - Current state.
+ * @param {Object} action - Action to process.
+ * @returns {Object} New state.
+ */
 const progressReducer = (state, action) => {
   switch (action.type) {
-    // Start a new script execution, resetting state.
-    case 'START_EXECUTION':
+    case "START_EXECUTION":
       return {
         ...state,
         isRunning: true,
@@ -37,28 +59,26 @@ const progressReducer = (state, action) => {
         progressPercentage: 0,
         latestMessage: null,
       };
-
-    // Process progress updates from WebSocket.
-    case 'PROCESS_PROGRESS': {
+    case "PROCESS_PROGRESS": {
       const newPayload = {
-        ...action.payload,
-        id: Date.now() + Math.random(), // Unique ID for progress event
+        message: action.payload.message,
+        level: action.payload.event_type === "STEP_COMPLETE" ? "success" :
+               action.payload.event_type === "ERROR" ? "error" : "info",
         timestamp: new Date().toISOString(),
+        step: action.payload.data?.step,
+        id: Date.now() + Math.random(),
       };
       const newProgress = [...state.progress, newPayload];
       let { totalSteps } = state;
 
-      // Update total steps when operation starts.
-      if (action.payload.event_type === 'OPERATION_START') {
+      if (action.payload.event_type === "OPERATION_START") {
         totalSteps = action.payload.data?.total_steps || 0;
       }
 
-      // Calculate completed steps.
       const completedSteps = newProgress.reduce((max, p) => {
-        return (p.event_type === 'STEP_COMPLETE' && p.data?.step > max) ? p.data.step : max;
+        return p.level === "success" && p.step > max ? p.step : max;
       }, 0);
 
-      // Calculate progress percentage.
       const progressPercentage = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : state.progressPercentage;
 
       return {
@@ -70,20 +90,22 @@ const progressReducer = (state, action) => {
         progressPercentage,
       };
     }
-
-    // Process final script result.
-    case 'PROCESS_RESULT':
+    // =========================================================================
+    // THE CRITICAL FIX IS HERE
+    // The 'result' message now marks the execution as complete AND sets the result
+    // data in a single, atomic update. This ensures the UI has all the information
+    // it needs to render the final state correctly in one render cycle.
+    // =========================================================================
+    case "PROCESS_RESULT":
       return {
         ...state,
         isRunning: false,
         isComplete: true,
         hasError: false,
-        result: action.payload.data,
-        progressPercentage: 100,
+        result: action.payload.data?.data || action.payload.data || action.payload,
+        progressPercentage: 100,      // Mark progress as 100%
       };
-
-    // Process execution errors.
-    case 'PROCESS_ERROR':
+    case "PROCESS_ERROR":
       return {
         ...state,
         isRunning: false,
@@ -91,9 +113,17 @@ const progressReducer = (state, action) => {
         hasError: true,
         error: { message: action.payload.message, details: action.payload.error },
       };
-
-    // Reset execution state.
-    case 'RESET_STATE':
+    // This case now acts as a fallback for scripts that might end without sending
+    // a result message. It finalizes the state without overwriting any result
+    // data that might have already been received.
+    case "FINALIZE_EXECUTION":
+      return {
+        ...state,
+        isRunning: false,
+        isComplete: true,
+        progressPercentage: 100,
+      };
+    case "RESET_STATE":
       return {
         ...state,
         isRunning: false,
@@ -107,17 +137,21 @@ const progressReducer = (state, action) => {
         progressPercentage: 0,
         latestMessage: null,
       };
-
     default:
       return state;
   }
 };
 
 // =============================================================================
-// SECTION 3: MAIN HOOK DEFINITION
+// SECTION 4: HOOK DEFINITION
 // =============================================================================
+/**
+ * Manages the JSNAPy Runner workflow.
+ * @param {Object} wsContext - WebSocket context.
+ * @returns {Object} Hook values and functions.
+ */
 export function useJsnapyWorkflow(wsContext) {
-  // Execution state for tracking script progress and results.
+  // Execution state
   const [executionState, dispatch] = useReducer(progressReducer, {
     isRunning: false,
     isComplete: false,
@@ -131,39 +165,31 @@ export function useJsnapyWorkflow(wsContext) {
     latestMessage: null,
   });
 
-  // State for test discovery and parameters.
-  const [categorizedTests, setCategorizedTests] = useState({}); // Available tests
-  const [isDiscovering, setIsDiscovering] = useState(false); // Test discovery loading state
-  const [discoveryError, setDiscoveryError] = useState(null); // Test discovery error
+  // Test discovery and parameter state
+  const [categorizedTests, setCategorizedTests] = useState({});
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState(null);
   const [parameters, setParameters] = useState({
-    hostname: '',
-    inventory_file: '', // Supports deviceTargeting capability
-    username: 'root',
-    password: '',
-    environment: 'development',
+    hostname: "",
+    inventory_file: "",
+    username: "root",
+    password: "",
+    environment: "development",
     tests: [],
   });
-  const [wsConnectionStatus, setWsConnectionStatus] = useState('unknown'); // WebSocket status
+  const [wsConnectionStatus, setWsConnectionStatus] = useState("unknown");
 
   // =============================================================================
-  // SECTION 4: TEST DISCOVERY EFFECT
+  // SECTION 5: TEST DISCOVERY
   // =============================================================================
-  // Fetch available tests based on the selected environment.
   useEffect(() => {
     const discoverTests = async () => {
       setIsDiscovering(true);
       setDiscoveryError(null);
       setCategorizedTests({});
       try {
-        const response = await fetch(`${API_BASE_URL}/api/scripts/discover-tests`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scriptId: JSNAPY_SCRIPT_ID, environment: parameters.environment }),
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-        const data = await response.json();
-        if (!data.success) throw new Error(`API Error: ${data.message}`);
-        setCategorizedTests(data.discovered_tests || {});
+        const tests = await JsnapyApiService.discoverTests(JSNAPY_SCRIPT_ID, parameters.environment);
+        setCategorizedTests(tests);
       } catch (err) {
         setDiscoveryError(err.message);
       } finally {
@@ -174,149 +200,98 @@ export function useJsnapyWorkflow(wsContext) {
   }, [parameters.environment]);
 
   // =============================================================================
-  // SECTION 5: WEBSOCKET LISTENER EFFECT
+  // SECTION 6: WEBSOCKET LISTENER (CORRECTED)
   // =============================================================================
-  // Set up WebSocket listeners for real-time updates.
   useEffect(() => {
-    const effectId = Date.now();
-    console.log(`%c[DEBUG ${effectId}] 🔔 Setting up WebSocket listener effect...`, 'color: blue; font-weight: bold;');
-
     if (!wsContext || !wsContext.websocketService) {
-      console.error(`[DEBUG ${effectId}] ❌ ERROR: wsContext or websocketService is invalid.`, { wsContext });
-      setWsConnectionStatus('no-context');
+      setWsConnectionStatus("no-context");
       return;
     }
 
     const service = wsContext.websocketService;
-    console.log(`[DEBUG ${effectId}] ✅ Service object is available. IsConnected: ${service.isConnected}`);
-    setWsConnectionStatus(service.isConnected ? 'connected' : 'disconnected');
+    setWsConnectionStatus(service.isConnected ? "connected" : "disconnected");
 
-    // Handle incoming WebSocket messages.
     const handleMessage = (message) => {
-      console.log(`%c[DEBUG ${effectId}] 🎯 MESSAGE RECEIVED IN HOOK:`, 'color: lime; font-weight: bold; background: black; padding: 2px;', message);
+      if (!message || !message.type) return;
 
-      if (!message || !message.type) {
-        console.warn(`[DEBUG ${effectId}] ❓ Ignoring malformed message.`);
-        return;
-      }
-
-      switch (message.type?.toLowerCase()) {
-        case 'progress':
-          console.log(`%c[DEBUG ${effectId}] ⚡ Dispatching PROCESS_PROGRESS`, 'color: yellow;');
-          dispatch({ type: 'PROCESS_PROGRESS', payload: message });
+      switch (message.type.toLowerCase()) {
+        case "progress":
+          dispatch({ type: "PROCESS_PROGRESS", payload: message });
           break;
-        case 'result':
-          console.log(`%c[DEBUG ${effectId}] ✅ Dispatching PROCESS_RESULT`, 'color: green;');
-          dispatch({ type: 'PROCESS_RESULT', payload: message });
+        // The 'result' message dispatches the action that now marks the run as complete.
+        case "result":
+          dispatch({ type: "PROCESS_RESULT", payload: message });
           break;
-        case 'error':
-          console.log(`%c[DEBUG ${effectId}] ❌ Dispatching PROCESS_ERROR`, 'color: red;');
-          dispatch({ type: 'PROCESS_ERROR', payload: message });
+        case "error":
+          dispatch({ type: "PROCESS_ERROR", payload: message });
+          break;
+        // The 'script_end' message provides a fallback to finalize the state.
+        case "script_end":
+          dispatch({ type: "FINALIZE_EXECUTION" });
           break;
         default:
-          console.log(`[DEBUG ${effectId}] ❓ Ignoring unknown message type: ${message.type}`);
+          console.log(`[useJsnapyWorkflow] Unknown message type: ${message.type}`);
       }
     };
 
     const handleOpen = () => {
-      console.log(`[DEBUG ${effectId}] 🔌 WebSocket connection opened.`);
-      setWsConnectionStatus('connected');
+      setWsConnectionStatus("connected");
     };
     const handleClose = () => {
-      console.log(`[DEBUG ${effectId}] 🔌 WebSocket connection closed.`);
-      setWsConnectionStatus('closed');
+      setWsConnectionStatus("closed");
     };
 
-    // Attach event listeners.
-    console.log(`[DEBUG ${effectId}] 🎧 Attaching event listeners for: 'progress', 'result', 'error', 'open', 'close'`);
-    service.on('progress', handleMessage);
-    service.on('result', handleMessage);
-    service.on('error', handleMessage);
-    service.on('open', handleOpen);
-    service.on('close', handleClose);
+    service.on("progress", handleMessage);
+    service.on("result", handleMessage);
+    service.on("error", handleMessage);
+    service.on("script_end", handleMessage);
+    service.on("open", handleOpen);
+    service.on("close", handleClose);
 
-    // Clean up listeners on unmount.
     return () => {
-      console.log(`%c[DEBUG ${effectId}] 🧹 Cleaning up event listeners...`, 'color: orange; font-weight: bold;');
-      service.off('progress', handleMessage);
-      service.off('result', handleMessage);
-      service.off('error', handleMessage);
-      service.off('open', handleOpen);
-      service.off('close', handleClose);
+      service.off("progress", handleMessage);
+      service.off("result", handleMessage);
+      service.off("error", handleMessage);
+      service.off("script_end", handleMessage);
+      service.off("open", handleOpen);
+      service.off("close", handleClose);
     };
   }, [wsContext]);
 
   // =============================================================================
-  // SECTION 6: EXECUTION STATE DEBUGGING
+  // SECTION 7: EXECUTION LOGIC
   // =============================================================================
-  // Log execution state changes for debugging.
-  useEffect(() => {
-    console.log('[useJsnapyWorkflow] Execution state changed:', {
-      isRunning: executionState.isRunning,
-      isComplete: executionState.isComplete,
-      hasError: executionState.hasError,
-      progressCount: executionState.progress.length,
-      progressPercentage: executionState.progressPercentage,
-      latestMessage: executionState.latestMessage?.event_type,
-    });
-  }, [executionState]);
-
-  // =============================================================================
-  // SECTION 7: SCRIPT EXECUTION LOGIC
-  // =============================================================================
-  // Execute the JSNAPy script via API call.
-  const runJsnapyScript = useCallback(async (allParams) => {
-    if (!wsContext || !wsContext.clientId) {
-      const errorMsg = "WebSocket is not connected or clientId is missing";
-      dispatch({ type: 'PROCESS_ERROR', payload: { message: errorMsg } });
-      return;
-    }
-
-    dispatch({ type: 'START_EXECUTION' });
-
-    // Prepare parameters, excluding undefined values.
-    const paramsToSend = {
-      ...allParams,
-      tests: Array.isArray(allParams.tests) ? allParams.tests.join(',') : allParams.tests,
-      hostname: allParams.hostname || undefined,
-      inventory_file: allParams.inventory_file || undefined,
-    };
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/scripts/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scriptId: JSNAPY_SCRIPT_ID,
-          parameters: paramsToSend,
-          wsClientId: wsContext.clientId,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({
-          message: `HTTP ${response.status}: ${response.statusText}`,
-        }));
-        throw new Error(errorData.message);
+  /**
+   * Executes the JSNAPy script.
+   * @param {Object} allParams - Script parameters.
+   */
+  const runJsnapyScript = useCallback(
+    async (allParams) => {
+      if (!wsContext || !wsContext.clientId) {
+        dispatch({ type: "PROCESS_ERROR", payload: { message: "WebSocket is not connected or clientId is missing" } });
+        return;
       }
-      const responseData = await response.json();
-      if (!responseData.success) throw new Error(responseData.message || 'Script execution failed to start.');
-      console.log('[useJsnapyWorkflow] Script execution started successfully, waiting for WebSocket updates...');
-    } catch (err) {
-      dispatch({ type: 'PROCESS_ERROR', payload: { message: err.message } });
-    }
-  }, [wsContext]);
 
-  // =============================================================================
-  // SECTION 8: RESET EXECUTION FUNCTION
-  // =============================================================================
-  // Reset execution state to initial values.
+      dispatch({ type: "START_EXECUTION" });
+
+      try {
+        await JsnapyApiService.runScript(JSNAPY_SCRIPT_ID, allParams, wsContext.clientId);
+      } catch (err) {
+        dispatch({ type: "PROCESS_ERROR", payload: { message: err.message } });
+      }
+    },
+    [wsContext]
+  );
+
+  /**
+   * Resets execution state.
+   */
   const resetExecution = useCallback(() => {
-    dispatch({ type: 'RESET_STATE' });
+    dispatch({ type: "RESET_STATE" });
   }, []);
 
   // =============================================================================
-  // SECTION 9: RETURN HOOK VALUES
+  // SECTION 8: RETURN VALUES
   // =============================================================================
   return {
     executionState,
@@ -328,6 +303,6 @@ export function useJsnapyWorkflow(wsContext) {
     parameters,
     setParameters,
     wsConnectionStatus,
-    isWsConnected: wsConnectionStatus === 'connected',
+    isWsConnected: wsConnectionStatus === "connected",
   };
 }

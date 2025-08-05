@@ -1,0 +1,30 @@
+{
+  "results_by_host": [
+    {
+      "hostname": "172.27.200.200",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "BGP Neighbor Summary for 172.27.200.200",
+          "headers": [
+            "Address",
+            "Remote AS",
+            "Flaps",
+            "State",
+            "Up/Down Time"
+          ],
+          "data": [
+            {
+              "Address": "10.100.250.2",
+              "Remote AS": "64790",
+              "Flaps": "0",
+              "State": "Established",
+              "Up/Down Time": "3:11:40"
+            }
+          ],
+          "error": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,112 +1,86 @@
-/**
- * React component for rendering script-specific custom sidebar options.
- * Delegates to BaselineScriptOptions for standard inputs or custom components for specialized scripts.
- */
+// =============================================================================
+// FILE:               src/components/ScriptOptionsRenderer.jsx
+//
+// DESCRIPTION:
+//   Component for rendering script-specific sidebar options, delegating to
+//   specialized components or BaselineScriptOptions based on script capabilities.
+//
+// OVERVIEW:
+//   This component acts as a router for rendering script-specific options. It
+//   checks the script's capabilities to determine whether to render a custom
+//   options component (e.g., JsnapyOptions) or the default BaselineScriptOptions.
+//
+// KEY FEATURES:
+//   - Supports dynamic test discovery for scripts with the dynamicDiscovery capability.
+//   - Extensible for custom sidebar components via sidebarComponent capability.
+//   - Falls back to BaselineScriptOptions for standard inputs.
+//
+// DEPENDENCIES:
+//   - react: For component rendering.
+//   - BaselineScriptOptions: For rendering standard script options.
+//   - JsnapyOptions: For rendering JSNAPy-specific options.
+//
+// HOW TO USE:
+//   Use this component in a parent component that provides script metadata and
+//   parameter management:
+//   ```javascript
+//   import ScriptOptionsRenderer from '../components/ScriptOptionsRenderer';
+//
+//   function ParentComponent({ script, parameters, onParamChange }) {
+//     return (
+//       <ScriptOptionsRenderer script={script} parameters={parameters} onParamChange={onParamChange} />
+//     );
+//   }
+//   ```
+// =============================================================================
 
+// =============================================================================
+// SECTION 1: IMPORTS
+// =============================================================================
 import React from "react";
-import { useTestDiscovery } from "../hooks/useTestDiscovery";
-import TestSelector from "./TestSelector";
 import BaselineScriptOptions from "./BaselineScriptOptions";
+import JsnapyOptions from "./tool_options/JsnapyOptions";
 
-// -----------------------------------
-// Discoverable Test Options Component
-// -----------------------------------
-
+// =============================================================================
+// SECTION 2: COMPONENT DEFINITION
+// =============================================================================
 /**
- * Component for rendering test selection UI for scripts with dynamic test discovery.
- * @param {Object} props - Component props.
- * @param {Object} props.script - Script metadata.
- * @param {Object} props.parameters - Current script parameters.
- * @param {Function} props.onParamChange - Callback to update parameters.
- */
-function DiscoverableTestOptions({ script, parameters, onParamChange }) {
-  const { categorizedTests, loading, error } = useTestDiscovery(script.id, parameters.environment);
-
-  /**
-   * Toggle a test's selection state.
-   * @param {string} testId - ID of the test to toggle.
-   */
-  const handleTestToggle = (testId) => {
-    const currentTests = parameters.tests || [];
-    const newSelection = currentTests.includes(testId)
-      ? currentTests.filter((id) => id !== testId)
-      : [...currentTests, testId];
-    onParamChange("tests", newSelection);
-  };
-
-  /**
-   * Select all available tests.
-   */
-  const handleSelectAll = () => {
-    const allTestNames = Object.values(categorizedTests).flat().map((t) => t.id);
-    onParamChange("tests", allTestNames);
-  };
-
-  /**
-   * Clear all selected tests.
-   */
-  const handleClearAll = () => {
-    onParamChange("tests", []);
-  };
-
-  // Render loading, error, or test selection UI
-  if (loading) return <p className="text-xs text-slate-500 italic">Discovering tests...</p>;
-  if (error) return <p className="text-xs font-semibold text-red-600">Error: {error}</p>;
-  return (
-    <>
-      <TestSelector
-        categorizedTests={categorizedTests}
-        selectedTests={parameters.tests || []}
-        onTestToggle={handleTestToggle}
-      />
-      <div className="mt-4 flex gap-4 border-t border-slate-200 pt-3">
-        <button type="button" onClick={handleSelectAll} className="text-blue-600 hover:underline text-sm font-medium">
-          Select All
-        </button>
-        <button type="button" onClick={handleClearAll} className="text-blue-600 hover:underline text-sm font-medium">
-          Clear All
-        </button>
-      </div>
-    </>
-  );
-}
-
-// -----------------------------------
-// Main Script Options Renderer
-// -----------------------------------
-
-/**
- * Main component for rendering script-specific sidebar options.
- * Uses BaselineScriptOptions for standard inputs or custom components for specialized scripts.
+ * Renders script-specific sidebar options.
  * @param {Object} props - Component props.
  * @param {Object} props.script - Script metadata.
  * @param {Object} props.parameters - Current script parameters.
  * @param {Function} props.onParamChange - Callback to update parameters.
  */
 function ScriptOptionsRenderer({ script, parameters, onParamChange }) {
-  if (!script) return null;
+  // =============================================================================
+  // SECTION 3: RENDER LOGIC
+  // =============================================================================
+  if (!script) {
+    return null;
+  }
 
-  // Handle scripts with dynamic test discovery
+  // Handle scripts with dynamic test discovery (e.g., JSNAPy)
   if (script.capabilities?.dynamicDiscovery) {
     return (
-      <DiscoverableTestOptions script={script} parameters={parameters} onParamChange={onParamChange} />
+      <JsnapyOptions script={script} parameters={parameters} onParamChange={onParamChange} />
     );
   }
 
-  // Handle custom sidebar components (extendable for future custom UIs)
+  // Handle custom sidebar components
   if (script.capabilities?.sidebarComponent) {
-    // Example: Add custom component mappings here as needed
-    // if (script.capabilities.sidebarComponent === 'CustomComponent') return <CustomComponent ... />;
-    // For now, assume custom components like BackupRestoreOptions use BaselineScriptOptions
+    // Add custom component mappings here as needed
     return (
       <BaselineScriptOptions script={script} parameters={parameters} onParamChange={onParamChange} />
     );
   }
 
-  // Default to baseline options for all other scripts
+  // Default to baseline options
   return (
     <BaselineScriptOptions script={script} parameters={parameters} onParamChange={onParamChange} />
   );
 }
 
+// =============================================================================
+// SECTION 4: EXPORT
+// =============================================================================
 export default ScriptOptionsRenderer;

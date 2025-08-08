@@ -1,152 +1,172 @@
 // ==============================================================================
-// FILE: utils/fileUtils.js
+// FILE: utils/fileUtils.js (Refactored for Directory Scanning)
 // ==============================================================================
 // Overview:
-// This module provides utility functions for file operations related to templates,
-// inventories, and directory management in the Vlabs backend. It handles reading
-// and parsing template configurations, retrieving template content, and ensuring
-// directories exist for file operations.
+// This module provides utility functions for file operations related to templates.
+// It is specifically designed to discover templates by scanning a categorized
+// directory structure (templates/<category>/<file>.yml), making the system
+// flexible and removing the need for a single monolithic configuration file.
 //
 // Key Features:
-// - Discovers templates from a configuration file or directory, optionally filtered by category.
-// - Retrieves content and metadata for a specific template, including parameters.
-// - Ensures directories exist for file operations (e.g., saving reports).
+// - Discovers templates by scanning the filesystem for .yml files within category subdirectories.
+// - Retrieves content and metadata for a specific template, including its Jinja2 content.
+// - Caches template configurations in memory to improve performance and reduce disk I/O.
 //
 // Dependencies:
-// - fs: Node.js module for file system operations.
+// - fs.promises: Modern, promise-based Node.js module for file system operations.
 // - path: Node.js module for path manipulation.
 // - js-yaml: Library for parsing YAML configuration files.
-// - ../config/paths: Path constants for template directories.
-//
-// How to Use:
-// 1. Place this file in /vlabs/backend/utils/.
-// 2. Import in route files: `const { getTemplatesConfig, getTemplateContent, ensureDirectoryExists } = require('../utils/fileUtils');`.
-// 3. Call `getTemplatesConfig(category)` to discover templates, optionally filtered.
-// 4. Call `getTemplateContent(templateId)` to retrieve a specific template's details.
-// 5. Call `ensureDirectoryExists(dirPath)` to create a directory if it doesn't exist.
-// 6. Ensure template files, configuration (e.g., templates.yml), and output directories are in the correct paths.
-// 7. Verify Docker volume mounts provide access to template and output directories.
+// - ../config/paths: Path constants pointing to the root templates directory.
 
 // ==============================================================================
 // SECTION 1: IMPORTS
 // ==============================================================================
-const fs = require("fs"); // File system operations
-const path = require("path"); // Path manipulation
-const yaml = require("js-yaml"); // YAML parsing
-const { TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER, TEMPLATES_DIRECTORY_PATH } = require("../config/paths"); // Path constants
+const fs = require("fs").promises; // Use the promise-based version of fs
+const path = require("path");
+const yaml = require("js-yaml");
+const { TEMPLATES_DIRECTORY_PATH } = require("../config/paths"); // Ensure this points to the root 'templates' directory
 
-// Debug imports to confirm paths
-console.log(`[FILEUTILS] Loading paths from: ${require.resolve("../config/paths")}`);
+/**
+ * Caches the template configuration to avoid repeated file system reads.
+ * This simple in-memory cache is cleared on server restart.
+ */
+let templateCache = null;
 
 // ==============================================================================
-// SECTION 2: TEMPLATE DISCOVERY
+// SECTION 2: TEMPLATE DISCOVERY (REWRITTEN FOR DIRECTORY SCANNING)
 // ==============================================================================
-// Discover templates, optionally filtered by category
-async function getTemplatesConfig(category = null) {
+/**
+ * Scans the template directory structure (templates/<category>/<file>.yml)
+ * and builds a comprehensive, categorized list of all available templates.
+ *
+ * @param {string} [filterCategory=null] - Optional category to filter results.
+ * @returns {Promise<Object>} A promise that resolves to an object where keys are categories
+ *                            and values are arrays of template metadata objects.
+ */
+async function getTemplatesConfig(filterCategory = null) {
+  // Return from cache if available and no filter is applied
+  if (templateCache && !filterCategory) {
+    console.log("[fileUtils] Returning all templates from cache.");
+    return templateCache;
+  }
+
+  console.log(`[fileUtils] Scanning for templates in: ${TEMPLATES_DIRECTORY_PATH}`);
+  const categorizedTemplates = {};
+
   try {
-    if (!fs.existsSync(TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER)) {
-      console.error(`[FILEUTILS] Templates configuration not found: ${TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER}`);
-      console.error(`[FILEUTILS] Directory contents:`, fs.readdirSync(path.dirname(TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER)));
-      throw new Error("Templates configuration not found");
+    // 1. Read the top-level directory to find category folders (e.g., 'interfaces', 'protocols')
+    const categoryDirs = await fs.readdir(TEMPLATES_DIRECTORY_PATH, { withFileTypes: true });
+
+    for (const categoryDir of categoryDirs) {
+      if (!categoryDir.isDirectory()) continue; // Skip files, only process directories
+
+      const categoryName = categoryDir.name;
+      const categoryPath = path.join(TEMPLATES_DIRECTORY_PATH, categoryName);
+
+      // Initialize array for the category
+      if (!categorizedTemplates[categoryName]) {
+        categorizedTemplates[categoryName] = [];
+      }
+
+      // 2. Read all files within the category folder
+      const filesInDir = await fs.readdir(categoryPath);
+      const ymlFiles = filesInDir.filter(file => file.endsWith(".yml"));
+
+      for (const ymlFile of ymlFiles) {
+        try {
+          // 3. Read and parse the YAML file content
+          const ymlPath = path.join(categoryPath, ymlFile);
+          const fileContent = await fs.readFile(ymlPath, "utf-8");
+          const parsedYaml = yaml.load(fileContent);
+
+          // The YAML structure contains a 'templates' array
+          if (!parsedYaml || !Array.isArray(parsedYaml.templates)) continue;
+
+          for (const template of parsedYaml.templates) {
+            const templateFilePath = path.join(categoryPath, template.template_file);
+
+            // 4. Enrich the template object with data derived from its location
+            const enrichedTemplate = {
+              ...template, // All properties from YAML (id, name, description, parameters)
+              category: categoryName, // Set category from the folder name
+              path: templateFilePath, // Store the full path to the .j2 file for later use
+            };
+
+            categorizedTemplates[categoryName].push(enrichedTemplate);
+            console.log(`[fileUtils] Discovered template: '${template.id}' in category '${categoryName}'`);
+          }
+        } catch (parseError) {
+            console.error(`[fileUtils] ERROR: Could not parse or process YAML file: ${ymlFile} in ${categoryName}. Skipping.`, parseError);
+        }
+      }
     }
 
-    const config = yaml.load(fs.readFileSync(TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
-    if (!config || !config.templates) {
-      console.error(`[FILEUTILS] Templates configuration malformed at: ${TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER}`);
-      throw new Error("Templates configuration malformed");
+    // Cache the full result if no filter was applied
+    if (!filterCategory) {
+        templateCache = categorizedTemplates;
     }
 
-    // Support both array and object formats for backward compatibility
-    const templates = Array.isArray(config.templates)
-      ? config.templates
-      : Object.entries(config.templates).map(([id, def]) => ({ id, ...def }));
+    // If a filter was applied, return only the filtered data
+    if (filterCategory) {
+        return { [filterCategory]: categorizedTemplates[filterCategory] || [] };
+    }
 
-    // Group templates by category
-    const categorizedTemplates = {};
-    templates.forEach((template) => {
-      const templateCategory = template.category || "uncategorized";
-      if (!categorizedTemplates[templateCategory]) {
-        categorizedTemplates[templateCategory] = [];
-      }
-      if (!category || templateCategory === category) {
-        categorizedTemplates[templateCategory].push({
-          id: template.id,
-          name: template.name || template.id,
-          path: path.join(TEMPLATES_DIRECTORY_PATH, `${template.template_file || template.id}.j2`),
-          description: template.description || "",
-          parameters: template.parameters || [], // Include parameters for discovery
-        });
-      }
-    });
-
-    console.log(`[FILEUTILS] Discovered templates for categories: ${Object.keys(categorizedTemplates).join(", ")}`);
     return categorizedTemplates;
+
   } catch (error) {
-    console.error(`[FILEUTILS] Error in getTemplatesConfig: ${error.message}`);
-    throw error;
+    console.error("[fileUtils] CRITICAL: Failed to scan templates directory.", error);
+    templateCache = null; // Invalidate cache on error
+    throw new Error("Could not discover templates. Check server logs for details.");
   }
 }
 
 // ==============================================================================
-// SECTION 3: TEMPLATE CONTENT
+// SECTION 3: TEMPLATE CONTENT (REWRITTEN TO USE CACHE/SCANNER)
 // ==============================================================================
-// Retrieve details and content for a specific template
+/**
+ * Retrieves the full details for a single template, including its Jinja2 content.
+ *
+ * @param {string} templateId - The unique ID of the template to find (e.g., "interface_config").
+ * @returns {Promise<Object|null>} A promise resolving to the full template object or null if not found.
+ */
 async function getTemplateContent(templateId) {
   try {
-    if (!fs.existsSync(TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER)) {
-      console.error(`[FILEUTILS] Templates configuration not found: ${TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER}`);
-      console.error(`[FILEUTILS] Directory contents:`, fs.readdirSync(path.dirname(TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER)));
-      throw new Error("Templates configuration not found");
-    }
+    // 1. Get all templates using the main discovery function to ensure cache is populated
+    const allTemplatesByCategory = await getTemplatesConfig();
+    const allTemplates = Object.values(allTemplatesByCategory).flat();
 
-    const config = yaml.load(fs.readFileSync(TEMPLATES_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
-    const templateDef = Array.isArray(config.templates)
-      ? config.templates.find((t) => t.id === templateId)
-      : config.templates[templateId];
+    // 2. Find the specific template by its ID in the discovered list
+    const templateInfo = allTemplates.find(t => t.id === templateId);
 
-    if (!templateDef) {
-      console.error(`
-
-[FILEUTILS] Template not found: ${templateId}`);
+    if (!templateInfo) {
+      console.warn(`[fileUtils] getTemplateContent: Template ID '${templateId}' not found after scanning.`);
       return null;
     }
 
-    const templateFile = templateDef.template_file || `${templateId}.j2`;
-    const templatePath = path.join(TEMPLATES_DIRECTORY_PATH, templateFile);
-    if (!fs.existsSync(templatePath)) {
-      console.error(`[FILEUTILS] Template file not found: ${templatePath}`);
-      throw new Error(`Template file not found: ${templateId}`);
-    }
+    // 3. Read the content of the .j2 file using the path stored during discovery
+    const content = await fs.readFile(templateInfo.path, "utf-8");
 
-    const content = fs.readFileSync(templatePath, "utf8");
-    return {
-      id: templateDef.id,
-      name: templateDef.name || templateDef.id,
-      category: templateDef.category || "uncategorized",
-      description: templateDef.description || "",
-      path: templatePath,
-      content,
-      parameters: templateDef.parameters || [], // Include parameters
-    };
+    // 4. Return the complete template object with its content
+    return { ...templateInfo, content };
+
   } catch (error) {
-    console.error(`[FILEUTILS] Error in getTemplateContent: ${error.message}`);
+    console.error(`[fileUtils] CRITICAL: Error in getTemplateContent for ID '${templateId}':`, error);
     throw error;
   }
 }
 
 // ==============================================================================
-// SECTION 4: DIRECTORY MANAGEMENT
+// SECTION 4: DIRECTORY MANAGEMENT (Unchanged)
 // ==============================================================================
 // Ensure a directory exists, creating it if necessary
-function ensureDirectoryExists(dirPath) {
+async function ensureDirectoryExists(dirPath) {
   try {
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-      console.log(`[FILEUTILS] Created directory: ${dirPath}`);
-    }
+    await fs.mkdir(dirPath, { recursive: true });
   } catch (error) {
-    console.error(`[FILEUTILS] Error creating directory ${dirPath}: ${error.message}`);
-    throw error;
+    if (error.code !== 'EEXIST') { // Ignore error if directory already exists
+      console.error(`[fileUtils] Error creating directory ${dirPath}: ${error.message}`);
+      throw error;
+    }
   }
 }
 

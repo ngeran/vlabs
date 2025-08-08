@@ -1,0 +1,939 @@
+Jun  7 09:16:15  pe2 mgd[279]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:16:15  pe2 mgd[279]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [279], ssh-connection '', client-mode 'cli'
+Jun  7 09:16:15  pe2 mgd[279]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Jun  7 09:16:15  pe2 mgd[279]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 09:16:16  pe2 mgd[276]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:16:16  pe2 mgd[276]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [276], ssh-connection '', client-mode 'netconf'
+Jun  7 09:16:16  pe2 mgd[276]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Jun  7 09:16:16  pe2 mgd[276]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Jun  7 09:16:17  pe2 mgd[317]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:16:17  pe2 mgd[317]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [317], ssh-connection '', client-mode 'cli'
+Jun  7 09:16:17  pe2 mgd[317]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Jun  7 09:16:17  pe2 mgd[317]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 09:16:17  pe2 mgd[316]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:16:17  pe2 mgd[316]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [316], ssh-connection '', client-mode 'netconf'
+Jun  7 09:16:17  pe2 mgd[316]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Jun  7 09:16:17  pe2 mgd[316]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  7 09:16:17  pe2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Jun  7 09:16:17  pe2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  7 09:16:17  pe2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Jun  7 09:16:17  pe2 mgd[316]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Jun  7 09:16:17  pe2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Jun  7 09:16:17  pe2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Jun  7 09:16:17  pe2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  7 09:16:17  pe2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  7 09:16:17  pe2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  7 09:16:17  pe2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  7 09:16:17  pe2 mgd[316]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Jun  7 09:16:17  pe2 mgd[316]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Jun  7 09:16:17  pe2 mgd[316]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Jun  7 09:23:55  pe2 mgd[280]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:23:55  pe2 mgd[280]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [280], ssh-connection '', client-mode 'cli'
+Jun  7 09:23:55  pe2 mgd[280]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Jun  7 09:23:55  pe2 mgd[280]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 09:23:55  pe2 mgd[277]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:23:55  pe2 mgd[277]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [277], ssh-connection '', client-mode 'netconf'
+Jun  7 09:23:55  pe2 mgd[277]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Jun  7 09:23:55  pe2 mgd[277]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Jun  7 09:23:56  pe2 mgd[315]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:23:56  pe2 mgd[315]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [315], ssh-connection '', client-mode 'cli'
+Jun  7 09:23:56  pe2 mgd[315]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Jun  7 09:23:56  pe2 mgd[315]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 09:23:56  pe2 mgd[314]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:23:56  pe2 mgd[314]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [314], ssh-connection '', client-mode 'netconf'
+Jun  7 09:23:56  pe2 mgd[314]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Jun  7 09:23:56  pe2 mgd[314]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  7 09:23:56  pe2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Jun  7 09:23:56  pe2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  7 09:23:56  pe2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Jun  7 09:23:56  pe2 mgd[314]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Jun  7 09:23:56  pe2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Jun  7 09:23:56  pe2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Jun  7 09:23:56  pe2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  7 09:23:56  pe2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  7 09:23:56  pe2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  7 09:23:56  pe2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  7 09:23:56  pe2 mgd[314]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Jun  7 09:23:56  pe2 mgd[314]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Jun  7 09:23:56  pe2 mgd[314]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Jun  7 10:37:37  pe2 mgd[279]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 10:37:37  pe2 mgd[279]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [279], ssh-connection '', client-mode 'cli'
+Jun  7 10:37:37  pe2 mgd[279]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Jun  7 10:37:37  pe2 mgd[279]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 10:37:37  pe2 mgd[277]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 10:37:37  pe2 mgd[277]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [277], ssh-connection '', client-mode 'netconf'
+Jun  7 10:37:37  pe2 mgd[277]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Jun  7 10:37:37  pe2 mgd[277]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Jun  7 10:37:38  pe2 mgd[318]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 10:37:38  pe2 mgd[318]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [318], ssh-connection '', client-mode 'cli'
+Jun  7 10:37:38  pe2 mgd[318]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Jun  7 10:37:38  pe2 mgd[318]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 10:37:38  pe2 mgd[317]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 10:37:38  pe2 mgd[317]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [317], ssh-connection '', client-mode 'netconf'
+Jun  7 10:37:38  pe2 mgd[317]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Jun  7 10:37:38  pe2 mgd[317]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  7 10:37:38  pe2 mgd[317]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Jun  7 10:37:38  pe2 mgd[317]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  7 10:37:38  pe2 mgd[317]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Jun  7 10:37:38  pe2 mgd[317]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Jun  7 10:37:38  pe2 mgd[317]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Jun  7 10:37:38  pe2 mgd[317]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Jun  7 10:37:38  pe2 mgd[317]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  7 10:37:38  pe2 mgd[317]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  7 10:37:38  pe2 mgd[317]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  7 10:37:38  pe2 mgd[317]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  7 10:37:38  pe2 mgd[317]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Jun  7 10:37:38  pe2 mgd[317]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Jun  7 10:37:38  pe2 mgd[317]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Jun  7 13:39:49  pe2 mgd[281]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 13:39:49  pe2 mgd[281]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [281], ssh-connection '', client-mode 'cli'
+Jun  7 13:39:49  pe2 mgd[281]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Jun  7 13:39:49  pe2 mgd[281]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 13:39:49  pe2 mgd[279]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 13:39:49  pe2 mgd[279]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [279], ssh-connection '', client-mode 'netconf'
+Jun  7 13:39:49  pe2 mgd[279]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Jun  7 13:39:49  pe2 mgd[279]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Jun  7 13:39:50  pe2 mgd[325]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 13:39:50  pe2 mgd[325]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [325], ssh-connection '', client-mode 'cli'
+Jun  7 13:39:50  pe2 mgd[325]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Jun  7 13:39:50  pe2 mgd[325]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 13:39:50  pe2 mgd[324]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 13:39:50  pe2 mgd[324]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [324], ssh-connection '', client-mode 'netconf'
+Jun  7 13:39:50  pe2 mgd[324]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Jun  7 13:39:50  pe2 mgd[324]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  7 13:39:50  pe2 mgd[324]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Jun  7 13:39:50  pe2 mgd[324]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  7 13:39:50  pe2 mgd[324]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Jun  7 13:39:50  pe2 mgd[324]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Jun  7 13:39:50  pe2 mgd[324]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Jun  7 13:39:50  pe2 mgd[324]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Jun  7 13:39:50  pe2 mgd[324]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  7 13:39:50  pe2 mgd[324]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  7 13:39:50  pe2 mgd[324]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  7 13:39:50  pe2 mgd[324]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  7 13:39:50  pe2 mgd[324]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Jun  7 13:39:50  pe2 mgd[324]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Jun  7 13:39:50  pe2 mgd[324]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Jun  9 20:48:42  pe2 mgd[282]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  9 20:48:42  pe2 mgd[282]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [282], ssh-connection '', client-mode 'cli'
+Jun  9 20:48:42  pe2 mgd[282]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Jun  9 20:48:42  pe2 mgd[282]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  9 20:48:42  pe2 mgd[280]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  9 20:48:42  pe2 mgd[280]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [280], ssh-connection '', client-mode 'netconf'
+Jun  9 20:48:42  pe2 mgd[280]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Jun  9 20:48:42  pe2 mgd[280]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Jun  9 20:48:43  pe2 mgd[319]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  9 20:48:43  pe2 mgd[319]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [319], ssh-connection '', client-mode 'cli'
+Jun  9 20:48:43  pe2 mgd[319]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Jun  9 20:48:43  pe2 mgd[319]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  9 20:48:43  pe2 mgd[318]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  9 20:48:43  pe2 mgd[318]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [318], ssh-connection '', client-mode 'netconf'
+Jun  9 20:48:43  pe2 mgd[318]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Jun  9 20:48:43  pe2 mgd[318]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  9 20:48:43  pe2 mgd[318]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Jun  9 20:48:43  pe2 mgd[318]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 20:48:43  pe2 mgd[318]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Jun  9 20:48:43  pe2 mgd[318]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Jun  9 20:48:43  pe2 mgd[318]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Jun  9 20:48:43  pe2 mgd[318]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Jun  9 20:48:43  pe2 mgd[318]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 20:48:43  pe2 mgd[318]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 20:48:43  pe2 mgd[318]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 20:48:43  pe2 mgd[318]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 20:48:43  pe2 mgd[318]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Jun  9 20:48:43  pe2 mgd[318]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Jun  9 20:48:43  pe2 mgd[318]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Jun  9 20:58:48  pe2 mgd[366]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  9 20:58:48  pe2 mgd[366]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [366], ssh-connection '', client-mode 'cli'
+Jun  9 20:59:02  pe2 mgd[366]: UI_CMDLINE_READ_LINE: User 'root', command 'request system license add terminal '
+Jun  9 20:59:12  pe2 mgd[366]: UI_CMDLINE_READ_LINE: User 'root', command 'exit '
+Jun  9 20:59:12  pe2 mgd[366]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  9 21:11:04  pe2 mgd[402]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  9 21:11:04  pe2 mgd[402]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [402], ssh-connection '', client-mode 'cli'
+Jun  9 21:11:05  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'configure '
+Jun  9 21:11:05  pe2 mgd[402]: UI_DBASE_LOGIN_EVENT: User 'root' entering configuration mode
+Jun  9 21:27:50  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups basic system root-authentication plain-text-password '
+Jun  9 21:28:23  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups basic system login user admin class super-user authentication plain-text-password '
+Jun  9 21:28:37  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups basic system services ssh '
+Jun  9 21:28:47  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups basic system services netconf ssh '
+Jun  9 21:28:56  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set apply-groups basic '
+Jun  9 21:29:30  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set interfaces lo0 unit 0 family inet address 10.100.255.9/24 '
+Jun  9 21:29:49  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set routing-options router-id 10.100.255.9 '
+Jun  9 21:30:01  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set routing-options autonomous-system 64710 '
+Jun  9 21:30:25  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group SITE-B type external '
+Jun  9 21:31:14  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast type internal local-address 10.100.255.9 '
+Jun  9 21:31:26  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast neighbor 10.100.255.6 '
+Jun  9 21:31:29  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast neighbor 10.100.255.7 '
+Jun  9 21:31:33  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'show | compare '
+Jun  9 21:31:36  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 455, status 0
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 464, status 0
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 465, status 0
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Event processing process to check new configuration
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/eventd'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Event processing process
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/eventd', PID 468, status 0
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Juniper Outbound SSH Daemon to check new configuration
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/sdxd'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Juniper Outbound SSH Daemon
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/sdxd', PID 469, status 0
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:31:36  pe2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 470, status 0
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/master.passwd'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/passwd'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/group'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/rc.conf.inc'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/sshd_conf'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/xinetd.conf'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ssh_config'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/login.conf'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/logrotate.d/container_logrotate'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/crontab'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: executing ui_commit in rc.ui
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying mgd(1)
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Management process', pid 200, signal 1, status 0 with notification errors enabled
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 219, signal 1, status 0 with notification errors enabled
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying eventd(19)
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Event processing process', pid 203, signal 1, status 0 with notification errors enabled
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying aaasd(23)
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'AAA Service Daemon', signal 1, no pid
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying sdxd(48)
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Juniper Outbound SSH Daemon', pid 184, signal 1, status 0 with notification errors disabled
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749504696-3' and old database revision 'localhost-1749502122-2'
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 21:31:36  pe2 mgd[402]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 21:33:10  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups basic system host-name PE2 '
+Jun  9 21:33:12  pe2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Should rebuild persist groups tree
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path full in candidate db
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 21:33:12  pe2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 21:33:12  pe2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 583, status 0
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 21:33:12  pe2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:33:12  pe2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 592, status 0
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 21:33:12  pe2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 21:33:12  pe2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 593, status 0
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Event processing process to check new configuration
+Jun  9 21:33:12  pe2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/eventd'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Event processing process
+Jun  9 21:33:12  pe2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/eventd', PID 596, status 0
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 21:33:12  pe2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:33:12  pe2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 597, status 0
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/rc.conf.inc'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: executing ui_commit in rc.ui
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying mgd(1)
+Jun  9 21:33:12  pe2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Management process', pid 200, signal 1, status 0 with notification errors enabled
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 219, signal 1, status 0 with notification errors enabled
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying chassisd(6)
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'Chassis control process', signal 1, no pid
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying eventd(19)
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Event processing process', pid 203, signal 1, status 0 with notification errors enabled
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749504792-4' and old database revision 'localhost-1749504696-3'
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 21:33:12  PE2 mgd[402]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 21:34:33  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'show protocols '
+Jun  9 21:34:55  PE2 mgd[402]: UI_CHILD_START: Starting child '/sbin/ifinfo'
+Jun  9 21:34:55  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/sbin/ifinfo', PID 669, status 0
+Jun  9 21:34:55  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'run show interfaces terse '
+Jun  9 21:34:55  PE2 mgd[402]: UI_CHILD_START: Starting child '/sbin/ifinfo'
+Jun  9 21:34:55  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/sbin/ifinfo', PID 671, status 0
+Jun  9 21:36:26  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'show interfaces lo0 '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface <eth*> interface-type p2p '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface <eth*> link-protection '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface <eth*> bfd-liveness-detection minimum-interval 300 '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface <eth*> bfd-liveness-detection multiplier 3 '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface <eth*> ldp-synchronization '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface lo0.0 passive '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface eth1 disable '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups LDP protocols ldp track-igp-metric '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups LDP protocols ldp explicit-null '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups LDP protocols ldp interface eth1 disable '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups LDP protocols ldp interface lo0.0 '
+Jun  9 21:50:07  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups MPLS protocols mpls explicit-null '
+Jun  9 21:50:10  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups MPLS protocols mpls interface eth1 disable '
+Jun  9 21:50:15  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Should rebuild persist groups tree
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path full in candidate db
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 21:50:15  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 21:50:15  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 728, status 0
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 21:50:15  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:50:15  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 737, status 0
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 21:50:15  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:50:15  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 738, status 0
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749505815-5' and old database revision 'localhost-1749504792-4'
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 21:50:15  PE2 mgd[402]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 21:51:28  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols ospf area 0.0.0.0 interface eth3 '
+Jun  9 21:51:30  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols ospf area 0.0.0.0 interface eth4 '
+Jun  9 21:51:42  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols ldp interface eth3 '
+Jun  9 21:51:43  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols ldp interface eth4 '
+Jun  9 21:51:50  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols mpls interface eth3 '
+Jun  9 21:51:52  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols mpls interface eth4 '
+Jun  9 21:51:53  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 21:51:53  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 21:51:54  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 21:51:54  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 809, status 0
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 21:51:54  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:51:54  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 818, status 0
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 21:51:54  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 21:51:54  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 819, status 0
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 21:51:54  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:51:54  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 822, status 0
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 219, signal 1, status 0 with notification errors enabled
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749505913-6' and old database revision 'localhost-1749505815-5'
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 21:51:54  PE2 mgd[402]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 21:52:44  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set apply-groups [ OSPF LDP MPLS ] '
+Jun  9 21:52:47  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 21:52:47  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 21:52:47  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 893, status 0
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 21:52:47  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:52:47  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 902, status 0
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 21:52:47  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 21:52:47  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 903, status 0
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 21:52:47  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:52:47  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 906, status 0
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 219, signal 1, status 0 with notification errors enabled
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749505967-7' and old database revision 'localhost-1749505913-6'
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 21:52:47  PE2 mgd[402]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 21:53:02  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'run show ospf neighbor '
+Jun  9 22:01:03  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'run show bgp summary '
+Jun  9 22:08:02  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast family inet unicast '
+Jun  9 22:08:03  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Should rebuild persist groups tree
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path full in candidate db
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 22:08:03  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 22:08:03  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 1008, status 0
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 22:08:03  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:08:03  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1017, status 0
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 22:08:03  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 22:08:03  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 22:08:04  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 1018, status 0
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 22:08:04  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:08:04  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1021, status 0
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 219, signal 1, status 0 with notification errors enabled
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749506883-8' and old database revision 'localhost-1749505967-7'
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 22:08:04  PE2 mgd[402]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 22:21:08  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'show protocols bgp '
+Jun  9 22:22:04  PE2 mgd[402]: UI_CHILD_START: Starting child '/sbin/ifinfo'
+Jun  9 22:22:04  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/sbin/ifinfo', PID 1117, status 0
+Jun  9 22:22:05  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'run show interfaces terse '
+Jun  9 22:22:05  PE2 mgd[402]: UI_CHILD_START: Starting child '/sbin/ifinfo'
+Jun  9 22:22:05  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/sbin/ifinfo', PID 1119, status 0
+Jun  9 22:38:28  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set policy-options policy-statement BGP-Next-Hop term eBGP from protocol bgp '
+Jun  9 22:38:28  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set policy-options policy-statement BGP-Next-Hop term eBGP from route-type external '
+Jun  9 22:38:28  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set policy-options policy-statement BGP-Next-Hop term eBGP then next-hop self '
+Jun  9 22:38:28  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set policy-options policy-statement BGP-Next-Hop term eBGP then accept '
+Jun  9 22:38:28  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set policy-options policy-statement BGP-Next-Hop term iBGP from protocol bgp '
+Jun  9 22:38:28  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set policy-options policy-statement BGP-Next-Hop term iBGP from route-type internal '
+Jun  9 22:38:28  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set policy-options policy-statement BGP-Next-Hop term iBGP then accept '
+Jun  9 22:39:59  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast export BGP-Next-Hop '
+Jun  9 22:40:02  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 22:40:02  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 22:40:02  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 1180, status 0
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 22:40:02  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:40:02  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1189, status 0
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 22:40:02  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 22:40:02  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 1190, status 0
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 22:40:02  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:40:02  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1193, status 0
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 219, signal 1, status 0 with notification errors enabled
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749508802-9' and old database revision 'localhost-1749506883-8'
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 22:40:02  PE2 mgd[402]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 22:45:20  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast family inet unicast add-path receive '
+Jun  9 22:45:28  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 22:45:28  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 22:45:28  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 1277, status 0
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 22:45:28  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:45:28  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1286, status 0
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 22:45:28  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 22:45:28  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 1287, status 0
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 22:45:28  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:45:28  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1290, status 0
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 219, signal 1, status 0 with notification errors enabled
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749509128-10' and old database revision 'localhost-1749508802-9'
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 22:45:28  PE2 mgd[402]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 22:45:34  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'run show bgp summary '
+Jun  9 22:45:39  PE2 last message repeated 8 times
+Jun  9 22:45:49  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'run show log messages | last 50 '
+Jun  9 23:05:19  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'show routing-options '
+Jun  9 23:06:36  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'show interfaces lo0 '
+Jun  9 23:06:44  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'delete interfaces lo0 '
+Jun  9 23:07:48  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'set interfaces lo0 unit 0 family inet address 10.100.255.9/32 '
+Jun  9 23:07:52  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 23:07:52  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 23:07:52  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 1408, status 0
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 23:07:52  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 23:07:52  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1417, status 0
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 23:07:52  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 23:07:52  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 1418, status 0
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 23:07:52  PE2 mgd[402]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 23:07:52  PE2 mgd[402]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1421, status 0
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 219, signal 1, status 0 with notification errors enabled
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749510472-11' and old database revision 'localhost-1749509128-10'
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 23:07:52  PE2 mgd[402]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 23:08:15  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'run show bgp summary '
+Jun 10 00:43:53  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'exit '
+Jun 10 00:43:53  PE2 mgd[402]: UI_DBASE_LOGOUT_EVENT: User 'root' exiting configuration mode
+Jun 10 00:43:54  PE2 mgd[402]: UI_CMDLINE_READ_LINE: User 'root', command 'exit '
+Jun 10 00:43:54  PE2 mgd[402]: UI_LOGOUT_EVENT: User 'root' logout

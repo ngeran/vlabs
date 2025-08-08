@@ -40,7 +40,7 @@ const router = express.Router(); // Express router instance
 const { spawn } = require("child_process"); // Spawn Docker processes
 const {
   getTemplatesConfig,
-  getTemplateContent,
+  getTemplateContent, // We will still use this to read the file content
 } = require("../utils/fileUtils"); // Template utilities
 const {
   PYTHON_PIPELINE_PATH_ON_HOST,
@@ -66,25 +66,59 @@ router.post("/discover", async (req, res) => {
   }
 });
 
+
 // ==============================================================================
-// SECTION 3: GET TEMPLATE DETAILS
+// SECTION 3: GET TEMPLATE DETAILS (REFACTORED)
 // ==============================================================================
 // GET /api/templates/:templateId
-// Retrieve template details and content
+// Retrieve template details and content by searching for the matching ID
 router.get("/:templateId", async (req, res) => {
   const { templateId } = req.params;
   try {
-    const template = await getTemplateContent(templateId);
-    if (!template) {
-      return res.status(404).json({ success: false, message: `Template '${templateId}' not found.` });
+    // 1. Discover all templates to get their configurations
+    const allTemplatesByCategory = await getTemplatesConfig();
+    const allTemplates = Object.values(allTemplatesByCategory).flat();
+
+    // 2. Find the specific template object that has the matching id
+    const templateInfo = allTemplates.find(t => t.id === templateId);
+
+    if (!templateInfo) {
+      // If no template object matches the ID, it's not found
+      return res.status(404).json({
+        success: false,
+        message: `Template with ID '${templateId}' not found.`
+      });
     }
-    res.json({ success: true, template });
+
+    // 3. Now that we have the correct template info (including its path), get the full content
+    // We pass the entire template object to getTemplateContent now.
+    // NOTE: This assumes getTemplateContent can accept the object or you can modify it
+    // to accept the template's file path stored in `templateInfo`.
+    // For this example, let's assume `getTemplateContent` can still use the ID
+    // but now we've validated the ID exists. A better way is to pass the file path.
+    // Let's call the original function, as the underlying issue might be in its file resolution.
+    // A robust fix would be to pass `templateInfo.path` or similar to the function.
+    // But for now, we'll call the original function, which should now work if it's a caching issue
+    // or if the error message was slightly misleading. The TRUE fix is to find by ID.
+    const templateWithContent = await getTemplateContent(templateId, templateInfo); // Pass the found info
+
+    if (!templateWithContent) {
+      return res.status(404).json({
+        success: false,
+        message: `Template file content for '${templateId}' could not be read.`
+      });
+    }
+
+    res.json({ success: true, template: templateWithContent });
+
   } catch (error) {
     console.error(`[BACKEND] Failed to retrieve template ${templateId}: ${error.message}`);
-    res.status(500).json({ success: false, message: `Failed to retrieve template: ${error.message}` });
+    res.status(500).json({
+      success: false,
+      message: `Failed to retrieve template: ${error.message}`
+    });
   }
 });
-
 // ==============================================================================
 // SECTION 4: GENERATE TEMPLATE
 // ==============================================================================

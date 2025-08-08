@@ -1,0 +1,28 @@
+{#
+ # Jinja2 Template for Juniper BGP Configuration
+ #
+ # This template configures the BGP protocol. It sets the local autonomous system (AS),
+ # the router-ID, and configures a list of BGP neighbors within a specified group.
+ #
+ # Variables:
+ # - local_as (number): The local BGP autonomous system number.
+ # - router_id (string): The router-ID for the BGP process (e.g., "1.1.1.1").
+ # - bgp_group_name (string): The name for the BGP peer group.
+ # - bgp_neighbors (list of objects): A list of neighbors, where each neighbor is a
+ #   dictionary with 'ip_address', 'remote_as', and 'description'.
+ #}
+
+# ==> Global Routing Options
+set routing-options router-id {{ router_id }}
+set routing-options autonomous-system {{ local_as }}
+
+# ==> BGP Protocol Configuration
+{% if bgp_neighbors %}
+set protocols bgp group {{ bgp_group_name }} type external
+
+# ==> Loop through and configure each BGP neighbor
+{% for neighbor in bgp_neighbors %}
+set protocols bgp group {{ bgp_group_name }} neighbor {{ neighbor.ip_address }} description "{{ neighbor.description }}"
+set protocols bgp group {{ bgp_group_name }} neighbor {{ neighbor.ip_address }} peer-as {{ neighbor.remote_as }}
+{% endfor %}
+{% endif %}

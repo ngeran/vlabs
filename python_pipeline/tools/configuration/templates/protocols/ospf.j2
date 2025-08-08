@@ -1,0 +1,26 @@
+{#
+ # Jinja2 Template for Juniper OSPF Configuration
+ #
+ # This template configures the OSPFv2 protocol. It sets the router-ID and enables
+ # OSPF on a list of interfaces within a specified area.
+ #
+ # Variables:
+ # - router_id (string): The router-ID for the OSPF process (e.g., "2.2.2.2").
+ # - ospf_area_id (string): The OSPF area ID (e.g., "0.0.0.0" for the backbone area).
+ # - ospf_interfaces (list of objects): A list of interfaces, where each interface is a
+ #   dictionary with 'name' and an optional 'passive' boolean.
+ #}
+
+# ==> Global Routing Options (can be shared with BGP, but good to ensure it's set)
+set routing-options router-id {{ router_id }}
+
+# ==> OSPF Protocol Configuration
+{% if ospf_interfaces %}
+# ==> Loop through and configure each OSPF interface
+{% for interface in ospf_interfaces %}
+set protocols ospf area {{ ospf_area_id }} interface {{ interface.name }}
+{% if interface.passive %}
+set protocols ospf area {{ ospf_area_id }} interface {{ interface.name }} passive
+{% endif %}
+{% endfor %}
+{% endif %}

@@ -1,0 +1,49 @@
+templates:
+  # -------------------------------------------------------------------------------------------------
+  # TEMPLATE: Juniper BGP Configuration
+  # -------------------------------------------------------------------------------------------------
+  - id: "juniper_bgp_config"
+    name: "Juniper BGP Configuration"
+    description: "Configure the BGP routing protocol, including AS number and a list of neighbors."
+    template_file: "bgp.j2"
+    parameters:
+      - name: "local_as"
+        label: "Local AS Number"
+        type: "number"
+        required: true
+        min: 1
+        max: 65535
+        placeholder: "e.g., 65001"
+        description: "The autonomous system number for the local router."
+      - name: "router_id"
+        label: "Router ID"
+        type: "text"
+        required: true
+        placeholder: "e.g., 1.1.1.1"
+        regex: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
+        description: "A unique 32-bit number in IP address format to identify this router."
+      - name: "bgp_group_name"
+        label: "BGP Group Name"
+        type: "text"
+        required: true
+        default_value: "EBGP-PEERS"
+        placeholder: "e.g., EBGP-PEERS"
+        description: "The name of the peer group to which neighbors will be added."
+      - name: "bgp_neighbors"
+        label: "BGP Neighbors (JSON Format)"
+        type: "textarea" # The frontend should render this as a multi-line text input
+        required: true
+        placeholder: |
+          [
+            {
+              "ip_address": "192.168.1.2",
+              "remote_as": 65002,
+              "description": "Link to PEER-A"
+            },
+            {
+              "ip_address": "172.16.10.2",
+              "remote_as": 65003,
+              "description": "Link to PEER-B"
+            }
+          ]
+        description: "Enter a list of BGP neighbors in JSON format. Each object must contain 'ip_address', 'remote_as', and 'description'."

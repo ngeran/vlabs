@@ -1,0 +1,39 @@
+templates:
+  # -----------------------------------------------------------------------------------------------
+  # TEMPLATE: Juniper BGP Configuration
+  # -----------------------------------------------------------------------------------------------
+  - id: "juniper_ospf_config"
+    name: "Juniper OSPF Configuration"
+    description: "Configure the OSPF routing protocol and enable it on specified interfaces."
+    template_file: "ospf.j2"
+    parameters:
+      - name: "router_id"
+        label: "Router ID"
+        type: "text"
+        required: true
+        placeholder: "e.g., 2.2.2.2"
+        regex: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
+        description: "A unique 32-bit number in IP address format to identify this router."
+      - name: "ospf_area_id"
+        label: "OSPF Area ID"
+        type: "text"
+        required: true
+        default_value: "0.0.0.0"
+        placeholder: "e.g., 0.0.0.0"
+        description: "The OSPF area to which interfaces will be added (e.g., 0.0.0.0 for backbone)."
+      - name: "ospf_interfaces"
+        label: "OSPF Interfaces (JSON Format)"
+        type: "textarea" # The frontend should render this as a multi-line text input
+        required: true
+        placeholder: |
+          [
+            {
+              "name": "ge-0/0/0.0",
+              "passive": false
+            },
+            {
+              "name": "lo0.0",
+              "passive": true
+            }
+          ]
+        description: "Enter a list of interfaces in JSON format. Each object must contain 'name' and a 'passive' boolean."

@@ -4,19 +4,24 @@ import { useState, useEffect, useCallback } from "react";
 const API_BASE_URL = "http://localhost:3001";
 
 // Hook: useTemplateDiscovery
-export const useTemplateDiscovery = () => {
+export const useTemplateDiscovery = (templateSource) => {
   const [categorizedTemplates, setCategorizedTemplates] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const discoverTemplates = async () => {
+      // Do not fetch if the source URL isn't provided
+      if (!templateSource) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
-      console.log(`[useTemplateDiscovery] Fetching templates with body: { category: null, environment: "development" }`);
+      console.log(`[useTemplateDiscovery] Fetching templates from ${templateSource}`);
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/templates/discover`, {
+        const response = await fetch(`${API_BASE_URL}${templateSource}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ category: null, environment: "development" }),
@@ -45,7 +50,7 @@ export const useTemplateDiscovery = () => {
     };
 
     discoverTemplates();
-  }, []);
+  }, [templateSource]); // Rerun effect if templateSource changes
 
   return { categorizedTemplates, loading, error };
 };

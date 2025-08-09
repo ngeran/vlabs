@@ -1,0 +1,149 @@
+templates:
+  # -------------------------------------------------------------------------------------------------
+  # TEMPLATE: Basic System Configuration
+  # -------------------------------------------------------------------------------------------------
+  - id: "system_basic"
+    name: "Basic System"
+    description: "Configure basic system settings including authentication, logging, and NTP."
+    category: "System"
+    template_file: "basic.j2"
+    parameters:
+      - name: "domain_name"
+        label: "Domain Name"
+        type: "text"
+        required: false
+        default_value: "vanguard.com"
+        description: "System domain name."
+
+      - name: "time_zone"
+        label: "Time Zone"
+        type: "text"
+        required: false
+        default_value: "America/New_York"
+        description: "System time zone."
+
+      - name: "login_message"
+        label: "Login Message"
+        type: "textarea"
+        required: false
+        description: "System login banner message."
+
+      - name: "authentication_order"
+        label: "Authentication Order"
+        type: "array"
+        required: false
+        default_value: ["password", "tacplus"]
+        description: "Authentication method order."
+
+      - name: "name_servers"
+        label: "Name Servers"
+        type: "array"
+        required: false
+        default_value: ["192.175.207.136", "192.175.208.14"]
+        description: "DNS server IP addresses."
+
+      - name: "tacplus_servers"
+        label: "TACACS+ Servers"
+        type: "object_array"
+        required: false
+        properties:
+          - name: "ip"
+            type: "text"
+            required: true
+          - name: "port"
+            type: "number"
+            required: false
+          - name: "secret"
+            type: "text"
+            required: false
+          - name: "single_connection"
+            type: "boolean"
+            required: false
+        default_value:
+          - ip: "10.39.8.8"
+            port: 49
+            secret: "$9$g54aUji.TF/bsY4aJDj/CAt1RhSr"
+            single_connection: true
+          - ip: "10.139.8.8"
+            secret: "$9$GEUjqmPQ6Cu4aJUji.muOB1SrevW"
+            single_connection: true
+        description: "TACACS+ server configurations."
+
+      - name: "accounting_events"
+        label: "Accounting Events"
+        type: "array"
+        required: false
+        default_value: ["login", "change-log", "interactive-commands"]
+        description: "Events to log for accounting."
+
+      - name: "accounting_destinations"
+        label: "Accounting Destinations"
+        type: "object_array"
+        required: false
+        properties:
+          - name: "type"
+            type: "text"
+            required: true
+          - name: "server"
+            type: "text"
+            required: true
+          - name: "secret"
+            type: "text"
+            required: true
+        default_value:
+          - type: "tacplus"
+            server: "192.175.148.109"
+            secret: "$9$.mfz3nC01hjHkmf5F3hSyrWLxNd"
+        description: "Accounting destination servers."
+
+      - name: "syslog_configs"
+        label: "Syslog Configurations"
+        type: "object_array"
+        required: false
+        properties:
+          - name: "type"
+            type: "enum"
+            options:
+              - { value: "user", label: "User" }
+              - { value: "host", label: "Host" }
+              - { value: "file", label: "File" }
+            required: true
+          - name: "target"
+            type: "text"
+            required: true
+          - name: "facility"
+            type: "text"
+            required: true
+          - name: "level"
+            type: "text"
+            required: true
+          - name: "interactive_commands"
+            type: "boolean"
+            required: false
+          - name: "explicit_priority"
+            type: "boolean"
+            required: false
+          - name: "allow_duplicates"
+            type: "boolean"
+            required: false
+        description: "Syslog configuration entries."
+
+      - name: "ntp_servers"
+        label: "NTP Servers"
+        type: "object_array"
+        required: false
+        properties:
+          - name: "ip"
+            type: "text"
+            required: true
+          - name: "prefer"
+            type: "boolean"
+            required: false
+        default_value:
+          - ip: "10.84.128.6"
+            prefer: true
+          - ip: "10.84.128.7"
+          - ip: "10.84.128.8"
+          - ip: "10.184.128.6"
+          - ip: "10.184.128.7"
+        description: "NTP server configurations."

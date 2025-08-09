@@ -1,0 +1,49 @@
+{# Basic System Configuration Template #}
+set groups basic system login password format sha512
+set groups basic system login message "{{ login_message | default('================================WARNING=================================\n\n This system is for the use of authorized users only. Individuals using\n this computer without authority or in excess of their authority, are\n subject to having all of their activities on this system monitored and\n recorded by system personnel.\n\n In the course of monitoring individuals improperly using the system,\n or in the course of system maintenance, the activities of authorized\n users may also be monitored.\n\n Anyone using this system expressly consents to such monitoring and is\n advised that if such monitoring reveals possible evidence of criminal\n activity, system personnel may provide the evidence of such monitoring\n to law enforcement officials.\n\n======================================================================') }}"
+set groups basic system services ssh
+set groups basic system services netconf ssh
+set groups basic system domain-name {{ domain_name | default('vanguard.com') }}
+set groups basic system time-zone {{ time_zone | default('America/New_York') }}
+{% for auth_order in authentication_order %}
+set groups basic system authentication-order {{ auth_order }}
+{% endfor %}
+{% for name_server in name_servers %}
+set groups basic system name-server {{ name_server }}
+{% endfor %}
+{% for tacplus in tacplus_servers %}
+set groups basic system tacplus-server {{ tacplus.ip }}{% if tacplus.port %} port {{ tacplus.port }}{% endif %}
+{% if tacplus.secret %}
+set groups basic system tacplus-server {{ tacplus.ip }} secret "{{ tacplus.secret }}"
+{% endif %}
+{% if tacplus.single_connection %}
+set groups basic system tacplus-server {{ tacplus.ip }} single-connection
+{% endif %}
+{% endfor %}
+{% for event in accounting_events %}
+set groups basic system accounting events {{ event }}
+{% endfor %}
+{% for destination in accounting_destinations %}
+set groups basic system accounting destination {{ destination.type }} server {{ destination.server }} secret "{{ destination.secret }}"
+{% endfor %}
+{% for syslog_config in syslog_configs %}
+{% if syslog_config.type == 'user' %}
+set groups basic system syslog user {{ syslog_config.target }} {{ syslog_config.facility }} {{ syslog_config.level }}
+{% elif syslog_config.type == 'host' %}
+set groups basic system syslog host {{ syslog_config.target }} {{ syslog_config.facility }} {{ syslog_config.level }}
+{% if syslog_config.interactive_commands %}
+set groups basic system syslog host {{ syslog_config.target }} interactive-commands any
+{% endif %}
+{% if syslog_config.explicit_priority %}
+set groups basic system syslog host {{ syslog_config.target }} explicit-priority
+{% endif %}
+{% elif syslog_config.type == 'file' %}
+set groups basic system syslog file {{ syslog_config.target }} {{ syslog_config.facility }} {{ syslog_config.level }}
+{% if syslog_config.allow_duplicates %}
+set groups basic system syslog file {{ syslog_config.target }} allow-duplicates
+{% endif %}
+{% endif %}
+{% endfor %}
+{% for ntp_server in ntp_servers %}
+set groups basic system ntp server {{ ntp_server.ip }}{% if ntp_server.prefer %} prefer{% endif %}
+{% endfor %}

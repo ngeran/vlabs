@@ -3,8 +3,8 @@ templates:
   # TEMPLATE: Juniper BGP Configuration
   # -------------------------------------------------------------------------------------------------
   - id: "juniper_bgp_config"
-    name: "Juniper BGP Configuration"
-    description: "Configure the BGP routing protocol, including AS number and a list of neighbors."
+    name: "Basic BGP"
+    description: "Configure basic BGP routing protocol, AS number, neighbors."
     template_file: "bgp.j2"
     parameters:
       - name: "local_as"

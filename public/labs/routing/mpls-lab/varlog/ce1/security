@@ -148,3 +148,70 @@ Jun  9 20:59:33  ce1 mgd[391]: UI_LOGIN_EVENT: User 'root' login, class 'super-u
 Jun  9 20:59:44  ce1 mgd[391]: UI_CMDLINE_READ_LINE: User 'root', command 'request system license add terminal '
 Jun  9 20:59:48  ce1 mgd[391]: UI_CMDLINE_READ_LINE: User 'root', command 'exit '
 Jun  9 20:59:48  ce1 mgd[391]: UI_LOGOUT_EVENT: User 'root' logout
+Aug  9 11:44:41  ce1 mgd[295]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Aug  9 11:44:41  ce1 mgd[295]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [295], ssh-connection '', client-mode 'cli'
+Aug  9 11:44:41  ce1 mgd[295]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Aug  9 11:44:41  ce1 mgd[295]: UI_LOGOUT_EVENT: User 'root' logout
+Aug  9 11:44:41  ce1 mgd[289]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Aug  9 11:44:41  ce1 mgd[289]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [289], ssh-connection '', client-mode 'netconf'
+Aug  9 11:44:41  ce1 mgd[289]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Aug  9 11:44:41  ce1 mgd[289]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Aug  9 11:44:42  ce1 mgd[346]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Aug  9 11:44:42  ce1 mgd[346]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [346], ssh-connection '', client-mode 'cli'
+Aug  9 11:44:42  ce1 mgd[346]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Aug  9 11:44:42  ce1 mgd[346]: UI_LOGOUT_EVENT: User 'root' logout
+Aug  9 11:44:42  ce1 mgd[345]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Aug  9 11:44:42  ce1 mgd[345]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [345], ssh-connection '', client-mode 'netconf'
+Aug  9 11:44:42  ce1 mgd[345]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Aug  9 11:44:42  ce1 mgd[345]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Aug  9 11:44:42  ce1 mgd[345]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Aug  9 11:44:42  ce1 mgd[345]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Aug  9 11:44:42  ce1 mgd[345]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Aug  9 11:44:42  ce1 mgd[345]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Aug  9 11:44:42  ce1 mgd[345]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Aug  9 11:44:42  ce1 mgd[345]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Aug  9 11:44:42  ce1 mgd[345]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Aug  9 11:44:42  ce1 mgd[345]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Aug  9 11:44:42  ce1 mgd[345]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Aug  9 11:44:42  ce1 mgd[345]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Aug  9 11:44:42  ce1 mgd[345]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Aug  9 11:44:42  ce1 mgd[345]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Aug  9 11:44:42  ce1 mgd[345]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Aug  9 12:43:23  ce1 mgd[298]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Aug  9 12:43:23  ce1 mgd[298]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [298], ssh-connection '', client-mode 'cli'
+Aug  9 12:43:24  ce1 mgd[298]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Aug  9 12:43:24  ce1 mgd[298]: UI_LOGOUT_EVENT: User 'root' logout
+Aug  9 12:43:24  ce1 mgd[295]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Aug  9 12:43:24  ce1 mgd[295]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [295], ssh-connection '', client-mode 'netconf'
+Aug  9 12:43:24  ce1 mgd[295]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Aug  9 12:43:24  ce1 mgd[295]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Aug  9 12:43:25  ce1 mgd[344]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Aug  9 12:43:25  ce1 mgd[344]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [344], ssh-connection '', client-mode 'cli'
+Aug  9 12:43:25  ce1 mgd[344]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Aug  9 12:43:25  ce1 mgd[344]: UI_LOGOUT_EVENT: User 'root' logout
+Aug  9 12:43:25  ce1 mgd[343]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Aug  9 12:43:25  ce1 mgd[343]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [343], ssh-connection '', client-mode 'netconf'
+Aug  9 12:43:25  ce1 mgd[343]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Aug  9 12:43:25  ce1 mgd[343]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Aug  9 12:43:25  ce1 mgd[343]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Aug  9 12:43:25  ce1 mgd[343]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Aug  9 12:43:25  ce1 mgd[343]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Aug  9 12:43:25  ce1 mgd[343]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Aug  9 12:43:25  ce1 mgd[343]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Aug  9 12:43:25  ce1 mgd[343]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Aug  9 12:43:25  ce1 mgd[343]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Aug  9 12:43:25  ce1 mgd[343]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Aug  9 12:43:25  ce1 mgd[343]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Aug  9 12:43:25  ce1 mgd[343]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Aug  9 12:43:25  ce1 mgd[343]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Aug  9 12:43:25  ce1 mgd[343]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Aug  9 12:43:25  ce1 mgd[343]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Aug  9 14:03:32  ce1 mgd[548]: UI_AUTH_EVENT: Authenticated user 'admin' assigned to class 'super-user'
+Aug  9 14:03:32  ce1 mgd[548]: UI_LOGIN_EVENT: User 'admin' login, class 'super-user' [548], ssh-connection '192.168.100.1 50298 192.168.100.41 22', client-mode 'cli'
+Aug  9 14:03:35  ce1 mgd[548]: UI_CMDLINE_READ_LINE: User 'admin', command 'configure '
+Aug  9 14:03:35  ce1 mgd[548]: UI_DBASE_LOGIN_EVENT: User 'admin' entering configuration mode
+Aug  9 14:03:37  ce1 mgd[548]: UI_CMDLINE_READ_LINE: User 'admin', command 'show '
+Aug  9 14:13:57  ce1 mgd[548]: UI_CMDLINE_READ_LINE: User 'admin', command 'exit '
+Aug  9 14:13:57  ce1 mgd[548]: UI_DBASE_LOGOUT_EVENT: User 'admin' exiting configuration mode
+Aug  9 14:13:58  ce1 mgd[548]: UI_CMDLINE_READ_LINE: User 'admin', command 'exit '
+Aug  9 14:13:58  ce1 mgd[548]: UI_LOGOUT_EVENT: User 'admin' logout

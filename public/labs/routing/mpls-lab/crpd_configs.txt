@@ -1,0 +1,1107 @@
+# PE1 Configuration (pe1.conf)
+system {
+    host-name pe1;
+    root-authentication {
+        encrypted-password "$6$..."; # Set your password
+    }
+    services {
+        ssh;
+        netconf {
+            ssh;
+            rfc-compliant;
+        }
+        extension-service {
+            request-response {
+                grpc {
+                    clear-text {
+                        address 0.0.0.0;
+                        port 50051;
+                    }
+                    max-connections 10;
+                    skip-authentication;
+                }
+            }
+            notification {
+                allow-clients {
+                    address 0.0.0.0/0;
+                }
+            }
+        }
+    }
+}
+
+interfaces {
+    lo0 {
+        unit 0 {
+            family inet {
+                address 10.100.255.2/32;
+            }
+        }
+    }
+    eth1 {
+        description "Link to P1";
+        unit 0 {
+            family inet {
+                address 10.255.100.2/29;
+            }
+            family mpls;
+        }
+    }
+    eth2 {
+        description "Link to P3";
+        unit 0 {
+            family inet {
+                address 10.255.100.18/29;
+            }
+            family mpls;
+        }
+    }
+    eth3 {
+        description "Link to CE1";
+        unit 0 {
+            family inet {
+                address 10.255.100.122/29;
+            }
+        }
+    }
+}
+
+routing-options {
+    router-id 10.100.255.2;
+    autonomous-system 64710;
+}
+
+protocols {
+    mpls {
+        interface eth1.0;
+        interface eth2.0;
+    }
+    ldp {
+        interface eth1.0;
+        interface eth2.0;
+    }
+    ospf {
+        area 0.0.0.0 {
+            interface lo0.0 {
+                passive;
+            }
+            interface eth1.0 {
+                interface-type p2p;
+            }
+            interface eth2.0 {
+                interface-type p2p;
+            }
+        }
+    }
+    bgp {
+        group internal {
+            type internal;
+            local-address 10.100.255.2;
+            family inet-vpn {
+                unicast;
+            }
+            neighbor 10.100.255.21;  # RR1
+            neighbor 10.100.255.22;  # RR2
+        }
+        group external {
+            type external;
+            peer-as 65001;
+            neighbor 10.255.100.123;  # CE1
+        }
+    }
+}
+
+routing-instances {
+    VPN-A {
+        instance-type vrf;
+        interface eth3.0;
+        route-distinguisher 10.100.255.2:100;
+        vrf-target target:64710:100;
+        vrf-table-label;
+        protocols {
+            bgp {
+                group ce {
+                    type external;
+                    peer-as 65001;
+                    neighbor 10.255.100.123;
+                }
+            }
+        }
+    }
+}
+
+# PE2 Configuration (pe2.conf)
+system {
+    host-name pe2;
+    root-authentication {
+        encrypted-password "$6$..."; # Set your password
+    }
+    services {
+        ssh;
+        netconf {
+            ssh;
+            rfc-compliant;
+        }
+        extension-service {
+            request-response {
+                grpc {
+                    clear-text {
+                        address 0.0.0.0;
+                        port 50051;
+                    }
+                    max-connections 10;
+                    skip-authentication;
+                }
+            }
+            notification {
+                allow-clients {
+                    address 0.0.0.0/0;
+                }
+            }
+        }
+    }
+}
+
+interfaces {
+    lo0 {
+        unit 0 {
+            family inet {
+                address 10.100.255.3/32;
+            }
+        }
+    }
+    eth1 {
+        description "Link to P2";
+        unit 0 {
+            family inet {
+                address 10.255.100.10/29;
+            }
+            family mpls;
+        }
+    }
+    eth2 {
+        description "Link to P4";
+        unit 0 {
+            family inet {
+                address 10.255.100.26/29;
+            }
+            family mpls;
+        }
+    }
+    eth3 {
+        description "Link to CE2";
+        unit 0 {
+            family inet {
+                address 10.255.100.130/29;
+            }
+        }
+    }
+}
+
+routing-options {
+    router-id 10.100.255.3;
+    autonomous-system 64710;
+}
+
+protocols {
+    mpls {
+        interface eth1.0;
+        interface eth2.0;
+    }
+    ldp {
+        interface eth1.0;
+        interface eth2.0;
+    }
+    ospf {
+        area 0.0.0.0 {
+            interface lo0.0 {
+                passive;
+            }
+            interface eth1.0 {
+                interface-type p2p;
+            }
+            interface eth2.0 {
+                interface-type p2p;
+            }
+        }
+    }
+    bgp {
+        group internal {
+            type internal;
+            local-address 10.100.255.3;
+            family inet-vpn {
+                unicast;
+            }
+            neighbor 10.100.255.21;  # RR1
+            neighbor 10.100.255.22;  # RR2
+        }
+        group external {
+            type external;
+            peer-as 65002;
+            neighbor 10.255.100.131;  # CE2
+        }
+    }
+}
+
+routing-instances {
+    VPN-A {
+        instance-type vrf;
+        interface eth3.0;
+        route-distinguisher 10.100.255.3:100;
+        vrf-target target:64710:100;
+        vrf-table-label;
+        protocols {
+            bgp {
+                group ce {
+                    type external;
+                    peer-as 65002;
+                    neighbor 10.255.100.131;
+                }
+            }
+        }
+    }
+}
+
+# P1 Configuration (p1.conf)
+system {
+    host-name p1;
+    root-authentication {
+        encrypted-password "$6$..."; # Set your password
+    }
+    services {
+        ssh;
+        netconf {
+            ssh;
+            rfc-compliant;
+        }
+        extension-service {
+            request-response {
+                grpc {
+                    clear-text {
+                        address 0.0.0.0;
+                        port 50051;
+                    }
+                    max-connections 10;
+                    skip-authentication;
+                }
+            }
+            notification {
+                allow-clients {
+                    address 0.0.0.0/0;
+                }
+            }
+        }
+    }
+}
+
+interfaces {
+    lo0 {
+        unit 0 {
+            family inet {
+                address 10.100.255.11/32;
+            }
+        }
+    }
+    eth1 {
+        description "Link to PE1";
+        unit 0 {
+            family inet {
+                address 10.255.100.3/29;
+            }
+            family mpls;
+        }
+    }
+    eth2 {
+        description "Link to P2";
+        unit 0 {
+            family inet {
+                address 10.255.100.34/29;
+            }
+            family mpls;
+        }
+    }
+    eth3 {
+        description "Link to P3";
+        unit 0 {
+            family inet {
+                address 10.255.100.42/29;
+            }
+            family mpls;
+        }
+    }
+    eth4 {
+        description "Link to P4";
+        unit 0 {
+            family inet {
+                address 10.255.100.50/29;
+            }
+            family mpls;
+        }
+    }
+    eth5 {
+        description "Link to RR1";
+        unit 0 {
+            family inet {
+                address 10.255.100.82/29;
+            }
+        }
+    }
+}
+
+routing-options {
+    router-id 10.100.255.11;
+}
+
+protocols {
+    mpls {
+        interface eth1.0;
+        interface eth2.0;
+        interface eth3.0;
+        interface eth4.0;
+    }
+    ldp {
+        interface eth1.0;
+        interface eth2.0;
+        interface eth3.0;
+        interface eth4.0;
+    }
+    ospf {
+        area 0.0.0.0 {
+            interface lo0.0 {
+                passive;
+            }
+            interface eth1.0 {
+                interface-type p2p;
+            }
+            interface eth2.0 {
+                interface-type p2p;
+            }
+            interface eth3.0 {
+                interface-type p2p;
+            }
+            interface eth4.0 {
+                interface-type p2p;
+            }
+            interface eth5.0 {
+                interface-type p2p;
+            }
+        }
+    }
+}
+
+# P2 Configuration (p2.conf)
+system {
+    host-name p2;
+    root-authentication {
+        encrypted-password "$6$..."; # Set your password
+    }
+    services {
+        ssh;
+        netconf {
+            ssh;
+            rfc-compliant;
+        }
+        extension-service {
+            request-response {
+                grpc {
+                    clear-text {
+                        address 0.0.0.0;
+                        port 50051;
+                    }
+                    max-connections 10;
+                    skip-authentication;
+                }
+            }
+            notification {
+                allow-clients {
+                    address 0.0.0.0/0;
+                }
+            }
+        }
+    }
+}
+
+interfaces {
+    lo0 {
+        unit 0 {
+            family inet {
+                address 10.100.255.12/32;
+            }
+        }
+    }
+    eth1 {
+        description "Link to PE2";
+        unit 0 {
+            family inet {
+                address 10.255.100.11/29;
+            }
+            family mpls;
+        }
+    }
+    eth2 {
+        description "Link to P1";
+        unit 0 {
+            family inet {
+                address 10.255.100.35/29;
+            }
+            family mpls;
+        }
+    }
+    eth3 {
+        description "Link to P3";
+        unit 0 {
+            family inet {
+                address 10.255.100.58/29;
+            }
+            family mpls;
+        }
+    }
+    eth4 {
+        description "Link to P4";
+        unit 0 {
+            family inet {
+                address 10.255.100.66/29;
+            }
+            family mpls;
+        }
+    }
+    eth5 {
+        description "Link to RR1";
+        unit 0 {
+            family inet {
+                address 10.255.100.90/29;
+            }
+        }
+    }
+}
+
+routing-options {
+    router-id 10.100.255.12;
+}
+
+protocols {
+    mpls {
+        interface eth1.0;
+        interface eth2.0;
+        interface eth3.0;
+        interface eth4.0;
+    }
+    ldp {
+        interface eth1.0;
+        interface eth2.0;
+        interface eth3.0;
+        interface eth4.0;
+    }
+    ospf {
+        area 0.0.0.0 {
+            interface lo0.0 {
+                passive;
+            }
+            interface eth1.0 {
+                interface-type p2p;
+            }
+            interface eth2.0 {
+                interface-type p2p;
+            }
+            interface eth3.0 {
+                interface-type p2p;
+            }
+            interface eth4.0 {
+                interface-type p2p;
+            }
+            interface eth5.0 {
+                interface-type p2p;
+            }
+        }
+    }
+}
+
+# P3 Configuration (p3.conf)
+system {
+    host-name p3;
+    root-authentication {
+        encrypted-password "$6$..."; # Set your password
+    }
+    services {
+        ssh;
+        netconf {
+            ssh;
+            rfc-compliant;
+        }
+        extension-service {
+            request-response {
+                grpc {
+                    clear-text {
+                        address 0.0.0.0;
+                        port 50051;
+                    }
+                    max-connections 10;
+                    skip-authentication;
+                }
+            }
+            notification {
+                allow-clients {
+                    address 0.0.0.0/0;
+                }
+            }
+        }
+    }
+}
+
+interfaces {
+    lo0 {
+        unit 0 {
+            family inet {
+                address 10.100.255.13/32;
+            }
+        }
+    }
+    eth1 {
+        description "Link to PE1";
+        unit 0 {
+            family inet {
+                address 10.255.100.19/29;
+            }
+            family mpls;
+        }
+    }
+    eth2 {
+        description "Link to P1";
+        unit 0 {
+            family inet {
+                address 10.255.100.43/29;
+            }
+            family mpls;
+        }
+    }
+    eth3 {
+        description "Link to P2";
+        unit 0 {
+            family inet {
+                address 10.255.100.59/29;
+            }
+            family mpls;
+        }
+    }
+    eth4 {
+        description "Link to P4";
+        unit 0 {
+            family inet {
+                address 10.255.100.74/29;
+            }
+            family mpls;
+        }
+    }
+    eth5 {
+        description "Link to RR2";
+        unit 0 {
+            family inet {
+                address 10.255.100.98/29;
+            }
+        }
+    }
+}
+
+routing-options {
+    router-id 10.100.255.13;
+}
+
+protocols {
+    mpls {
+        interface eth1.0;
+        interface eth2.0;
+        interface eth3.0;
+        interface eth4.0;
+    }
+    ldp {
+        interface eth1.0;
+        interface eth2.0;
+        interface eth3.0;
+        interface eth4.0;
+    }
+    ospf {
+        area 0.0.0.0 {
+            interface lo0.0 {
+                passive;
+            }
+            interface eth1.0 {
+                interface-type p2p;
+            }
+            interface eth2.0 {
+                interface-type p2p;
+            }
+            interface eth3.0 {
+                interface-type p2p;
+            }
+            interface eth4.0 {
+                interface-type p2p;
+            }
+            interface eth5.0 {
+                interface-type p2p;
+            }
+        }
+    }
+}
+
+# P4 Configuration (p4.conf)
+system {
+    host-name p4;
+    root-authentication {
+        encrypted-password "$6$..."; # Set your password
+    }
+    services {
+        ssh;
+        netconf {
+            ssh;
+            rfc-compliant;
+        }
+        extension-service {
+            request-response {
+                grpc {
+                    clear-text {
+                        address 0.0.0.0;
+                        port 50051;
+                    }
+                    max-connections 10;
+                    skip-authentication;
+                }
+            }
+            notification {
+                allow-clients {
+                    address 0.0.0.0/0;
+                }
+            }
+        }
+    }
+}
+
+interfaces {
+    lo0 {
+        unit 0 {
+            family inet {
+                address 10.100.255.14/32;
+            }
+        }
+    }
+    eth1 {
+        description "Link to PE2";
+        unit 0 {
+            family inet {
+                address 10.255.100.27/29;
+            }
+            family mpls;
+        }
+    }
+    eth2 {
+        description "Link to P1";
+        unit 0 {
+            family inet {
+                address 10.255.100.51/29;
+            }
+            family mpls;
+        }
+    }
+    eth3 {
+        description "Link to P2";
+        unit 0 {
+            family inet {
+                address 10.255.100.67/29;
+            }
+            family mpls;
+        }
+    }
+    eth4 {
+        description "Link to P3";
+        unit 0 {
+            family inet {
+                address 10.255.100.75/29;
+            }
+            family mpls;
+        }
+    }
+    eth5 {
+        description "Link to RR2";
+        unit 0 {
+            family inet {
+                address 10.255.100.106/29;
+            }
+        }
+    }
+}
+
+routing-options {
+    router-id 10.100.255.14;
+}
+
+protocols {
+    mpls {
+        interface eth1.0;
+        interface eth2.0;
+        interface eth3.0;
+        interface eth4.0;
+    }
+    ldp {
+        interface eth1.0;
+        interface eth2.0;
+        interface eth3.0;
+        interface eth4.0;
+    }
+    ospf {
+        area 0.0.0.0 {
+            interface lo0.0 {
+                passive;
+            }
+            interface eth1.0 {
+                interface-type p2p;
+            }
+            interface eth2.0 {
+                interface-type p2p;
+            }
+            interface eth3.0 {
+                interface-type p2p;
+            }
+            interface eth4.0 {
+                interface-type p2p;
+            }
+            interface eth5.0 {
+                interface-type p2p;
+            }
+        }
+    }
+}
+
+# RR1 Configuration (rr1.conf)
+system {
+    host-name rr1;
+    root-authentication {
+        encrypted-password "$6$..."; # Set your password
+    }
+    services {
+        ssh;
+        netconf {
+            ssh;
+            rfc-compliant;
+        }
+        extension-service {
+            request-response {
+                grpc {
+                    clear-text {
+                        address 0.0.0.0;
+                        port 50051;
+                    }
+                    max-connections 10;
+                    skip-authentication;
+                }
+            }
+            notification {
+                allow-clients {
+                    address 0.0.0.0/0;
+                }
+            }
+        }
+    }
+}
+
+interfaces {
+    lo0 {
+        unit 0 {
+            family inet {
+                address 10.100.255.21/32;
+            }
+        }
+    }
+    eth1 {
+        description "Link to P1";
+        unit 0 {
+            family inet {
+                address 10.255.100.83/29;
+            }
+        }
+    }
+    eth2 {
+        description "Link to P2";
+        unit 0 {
+            family inet {
+                address 10.255.100.91/29;
+            }
+        }
+    }
+    eth3 {
+        description "Link to RR2";
+        unit 0 {
+            family inet {
+                address 10.255.100.114/29;
+            }
+        }
+    }
+}
+
+routing-options {
+    router-id 10.100.255.21;
+    autonomous-system 64710;
+}
+
+protocols {
+    ospf {
+        area 0.0.0.0 {
+            interface lo0.0 {
+                passive;
+            }
+            interface eth1.0 {
+                interface-type p2p;
+            }
+            interface eth2.0 {
+                interface-type p2p;
+            }
+            interface eth3.0 {
+                interface-type p2p;
+            }
+        }
+    }
+    bgp {
+        group internal {
+            type internal;
+            local-address 10.100.255.21;
+            cluster 10.100.255.21;
+            family inet-vpn {
+                unicast;
+            }
+            neighbor 10.100.255.2;   # PE1
+            neighbor 10.100.255.3;   # PE2
+            neighbor 10.100.255.22;  # RR2
+        }
+    }
+}
+
+# RR2 Configuration (rr2.conf)
+system {
+    host-name rr2;
+    root-authentication {
+        encrypted-password "$6$..."; # Set your password
+    }
+    services {
+        ssh;
+        netconf {
+            ssh;
+            rfc-compliant;
+        }
+        extension-service {
+            request-response {
+                grpc {
+                    clear-text {
+                        address 0.0.0.0;
+                        port 50051;
+                    }
+                    max-connections 10;
+                    skip-authentication;
+                }
+            }
+            notification {
+                allow-clients {
+                    address 0.0.0.0/0;
+                }
+            }
+        }
+    }
+}
+
+interfaces {
+    lo0 {
+        unit 0 {
+            family inet {
+                address 10.100.255.22/32;
+            }
+        }
+    }
+    eth1 {
+        description "Link to P3";
+        unit 0 {
+            family inet {
+                address 10.255.100.99/29;
+            }
+        }
+    }
+    eth2 {
+        description "Link to P4";
+        unit 0 {
+            family inet {
+                address 10.255.100.107/29;
+            }
+        }
+    }
+    eth3 {
+        description "Link to RR1";
+        unit 0 {
+            family inet {
+                address 10.255.100.115/29;
+            }
+        }
+    }
+}
+
+routing-options {
+    router-id 10.100.255.22;
+    autonomous-system 64710;
+}
+
+protocols {
+    ospf {
+        area 0.0.0.0 {
+            interface lo0.0 {
+                passive;
+            }
+            interface eth1.0 {
+                interface-type p2p;
+            }
+            interface eth2.0 {
+                interface-type p2p;
+            }
+            interface eth3.0 {
+                interface-type p2p;
+            }
+        }
+    }
+    bgp {
+        group internal {
+            type internal;
+            local-address 10.100.255.22;
+            cluster 10.100.255.22;
+            family inet-vpn {
+                unicast;
+            }
+            neighbor 10.100.255.2;   # PE1
+            neighbor 10.100.255.3;   # PE2
+            neighbor 10.100.255.21;  # RR1
+        }
+    }
+}
+
+# CE1 Configuration (ce1.conf)
+system {
+    host-name ce1;
+    root-authentication {
+        encrypted-password "$6$..."; # Set your password
+    }
+    services {
+        ssh;
+        netconf {
+            ssh;
+            rfc-compliant;
+        }
+        extension-service {
+            request-response {
+                grpc {
+                    clear-text {
+                        address 0.0.0.0;
+                        port 50051;
+                    }
+                    max-connections 10;
+                    skip-authentication;
+                }
+            }
+            notification {
+                allow-clients {
+                    address 0.0.0.0/0;
+                }
+            }
+        }
+    }
+}
+
+interfaces {
+    lo0 {
+        unit 0 {
+            family inet {
+                address 10.100.255.31/32;
+            }
+        }
+    }
+    eth1 {
+        description "Link to PE1";
+        unit 0 {
+            family inet {
+                address 10.255.100.123/29;
+            }
+        }
+    }
+}
+
+routing-options {
+    router-id 10.100.255.31;
+    autonomous-system 65001;
+}
+
+protocols {
+    bgp {
+        group provider {
+            type external;
+            peer-as 64710;
+            neighbor 10.255.100.122;  # PE1
+        }
+    }
+}
+
+# CE2 Configuration (ce2.conf)
+system {
+    host-name ce2;
+    root-authentication {
+        encrypted-password "$6$..."; # Set your password
+    }
+    services {
+        ssh;
+        netconf {
+            ssh;
+            rfc-compliant;
+        }
+        extension-service {
+            request-response {
+                grpc {
+                    clear-text {
+                        address 0.0.0.0;
+                        port 50051;
+                    }
+                    max-connections 10;
+                    skip-authentication;
+                }
+            }
+            notification {
+                allow-clients {
+                    address 0.0.0.0/0;
+                }
+            }
+        }
+    }
+}
+
+interfaces {
+    lo0 {
+        unit 0 {
+            family inet {
+                address 10.100.255.32/32;
+            }
+        }
+    }
+    eth1 {
+        description "Link to PE2";
+        unit 0 {
+            family inet {
+                address 10.255.100.131/29;
+            }
+        }
+    }
+}
+
+routing-options {
+    router-id 10.100.255.32;
+    autonomous-system 65002;
+}
+
+protocols {
+    bgp {
+        group provider {
+            type external;
+            peer-as 64710;
+            neighbor 10.255.100.130;  # PE2
+        }
+    }
+}

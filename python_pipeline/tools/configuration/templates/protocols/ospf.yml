@@ -3,7 +3,7 @@ templates:
   # TEMPLATE: Juniper BGP Configuration
   # -----------------------------------------------------------------------------------------------
   - id: "juniper_ospf_config"
-    name: "Juniper OSPF Configuration"
+    name: "Basic OSPF"
     description: "Configure the OSPF routing protocol and enable it on specified interfaces."
     template_file: "ospf.j2"
     parameters:

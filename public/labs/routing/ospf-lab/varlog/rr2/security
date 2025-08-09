@@ -1,0 +1,1277 @@
+Jun  7 09:16:15  rr2 mgd[291]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:16:15  rr2 mgd[291]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [291], ssh-connection '', client-mode 'cli'
+Jun  7 09:16:15  rr2 mgd[291]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Jun  7 09:16:15  rr2 mgd[291]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 09:16:15  rr2 mgd[288]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:16:15  rr2 mgd[288]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [288], ssh-connection '', client-mode 'netconf'
+Jun  7 09:16:15  rr2 mgd[288]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Jun  7 09:16:15  rr2 mgd[288]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Jun  7 09:16:16  rr2 mgd[321]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:16:16  rr2 mgd[321]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [321], ssh-connection '', client-mode 'cli'
+Jun  7 09:16:16  rr2 mgd[321]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Jun  7 09:16:16  rr2 mgd[321]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 09:16:16  rr2 mgd[320]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:16:16  rr2 mgd[320]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [320], ssh-connection '', client-mode 'netconf'
+Jun  7 09:16:16  rr2 mgd[320]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Jun  7 09:16:16  rr2 mgd[320]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  7 09:16:16  rr2 mgd[320]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Jun  7 09:16:16  rr2 mgd[320]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  7 09:16:16  rr2 mgd[320]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Jun  7 09:16:16  rr2 mgd[320]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Jun  7 09:16:16  rr2 mgd[320]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Jun  7 09:16:16  rr2 mgd[320]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Jun  7 09:16:16  rr2 mgd[320]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  7 09:16:16  rr2 mgd[320]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  7 09:16:16  rr2 mgd[320]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  7 09:16:16  rr2 mgd[320]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  7 09:16:16  rr2 mgd[320]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Jun  7 09:16:16  rr2 mgd[320]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Jun  7 09:16:16  rr2 mgd[320]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Jun  7 09:23:55  rr2 mgd[277]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:23:55  rr2 mgd[277]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [277], ssh-connection '', client-mode 'cli'
+Jun  7 09:23:55  rr2 mgd[277]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Jun  7 09:23:55  rr2 mgd[277]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 09:23:55  rr2 mgd[274]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:23:55  rr2 mgd[274]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [274], ssh-connection '', client-mode 'netconf'
+Jun  7 09:23:55  rr2 mgd[274]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Jun  7 09:23:55  rr2 mgd[274]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Jun  7 09:23:56  rr2 mgd[315]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:23:56  rr2 mgd[315]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [315], ssh-connection '', client-mode 'cli'
+Jun  7 09:23:56  rr2 mgd[315]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Jun  7 09:23:56  rr2 mgd[315]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 09:23:56  rr2 mgd[314]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 09:23:56  rr2 mgd[314]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [314], ssh-connection '', client-mode 'netconf'
+Jun  7 09:23:56  rr2 mgd[314]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Jun  7 09:23:56  rr2 mgd[314]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  7 09:23:56  rr2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Jun  7 09:23:56  rr2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  7 09:23:56  rr2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Jun  7 09:23:56  rr2 mgd[314]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Jun  7 09:23:56  rr2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Jun  7 09:23:56  rr2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Jun  7 09:23:56  rr2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  7 09:23:56  rr2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  7 09:23:56  rr2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  7 09:23:56  rr2 mgd[314]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  7 09:23:56  rr2 mgd[314]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Jun  7 09:23:56  rr2 mgd[314]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Jun  7 09:23:56  rr2 mgd[314]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Jun  7 10:37:37  rr2 mgd[282]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 10:37:37  rr2 mgd[282]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [282], ssh-connection '', client-mode 'cli'
+Jun  7 10:37:37  rr2 mgd[282]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Jun  7 10:37:37  rr2 mgd[282]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 10:37:37  rr2 mgd[279]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 10:37:37  rr2 mgd[279]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [279], ssh-connection '', client-mode 'netconf'
+Jun  7 10:37:37  rr2 mgd[279]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Jun  7 10:37:37  rr2 mgd[279]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Jun  7 10:37:38  rr2 mgd[317]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 10:37:38  rr2 mgd[317]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [317], ssh-connection '', client-mode 'cli'
+Jun  7 10:37:38  rr2 mgd[317]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Jun  7 10:37:38  rr2 mgd[317]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 10:37:38  rr2 mgd[316]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 10:37:38  rr2 mgd[316]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [316], ssh-connection '', client-mode 'netconf'
+Jun  7 10:37:38  rr2 mgd[316]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Jun  7 10:37:38  rr2 mgd[316]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  7 10:37:38  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Jun  7 10:37:38  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  7 10:37:38  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Jun  7 10:37:38  rr2 mgd[316]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Jun  7 10:37:38  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Jun  7 10:37:38  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Jun  7 10:37:38  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  7 10:37:38  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  7 10:37:38  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  7 10:37:38  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  7 10:37:38  rr2 mgd[316]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Jun  7 10:37:38  rr2 mgd[316]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Jun  7 10:37:38  rr2 mgd[316]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Jun  7 13:39:48  rr2 mgd[282]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 13:39:48  rr2 mgd[282]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [282], ssh-connection '', client-mode 'cli'
+Jun  7 13:39:48  rr2 mgd[282]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Jun  7 13:39:48  rr2 mgd[282]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 13:39:48  rr2 mgd[279]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 13:39:48  rr2 mgd[279]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [279], ssh-connection '', client-mode 'netconf'
+Jun  7 13:39:48  rr2 mgd[279]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Jun  7 13:39:48  rr2 mgd[279]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Jun  7 13:39:49  rr2 mgd[317]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 13:39:49  rr2 mgd[317]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [317], ssh-connection '', client-mode 'cli'
+Jun  7 13:39:49  rr2 mgd[317]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Jun  7 13:39:49  rr2 mgd[317]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  7 13:39:49  rr2 mgd[316]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 13:39:49  rr2 mgd[316]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [316], ssh-connection '', client-mode 'netconf'
+Jun  7 13:39:49  rr2 mgd[316]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Jun  7 13:39:49  rr2 mgd[316]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  7 13:39:49  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Jun  7 13:39:49  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  7 13:39:49  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Jun  7 13:39:49  rr2 mgd[316]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Jun  7 13:39:49  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Jun  7 13:39:49  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Jun  7 13:39:49  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  7 13:39:49  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  7 13:39:49  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  7 13:39:49  rr2 mgd[316]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  7 13:39:49  rr2 mgd[316]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Jun  7 13:39:49  rr2 mgd[316]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Jun  7 13:39:49  rr2 mgd[316]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Jun  7 17:22:39  rr2 mgd[833]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  7 17:22:39  rr2 mgd[833]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [833], ssh-connection '', client-mode 'cli'
+Jun  7 17:22:41  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'configure '
+Jun  7 17:22:41  rr2 mgd[833]: UI_DBASE_LOGIN_EVENT: User 'root' entering configuration mode
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups basic system root-authentication encrypted-password /* SECRET-DATA */ '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups basic system login user admin uid 2000 '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups basic system login user admin class super-user '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups basic system login user admin authentication encrypted-password /* SECRET-DATA */ '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups basic system services netconf ssh '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups basic system services ssh '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface <eth*> interface-type p2p '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface <eth*> link-protection '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface <eth*> bfd-liveness-detection minimum-interval 300 '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface <eth*> bfd-liveness-detection multiplier 3 '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface <eth*> ldp-synchronization '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface lo0.0 passive '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups OSPF protocols ospf area 0.0.0.0 interface eth1 disable '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups LDP protocols ldp track-igp-metric '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups LDP protocols ldp explicit-null '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups LDP protocols ldp interface eth1 disable '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups LDP protocols ldp interface lo0.0 '
+Jun  7 17:23:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups MPLS protocols mpls explicit-null '
+Jun  7 17:23:04  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set groups MPLS protocols mpls interface eth1 disable '
+Jun  7 17:23:48  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set interfaces lo0 description LOOPBACK unit 0 family inet address 10.100.255.7/24 '
+Jun  7 17:24:02  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set routing-options router-id 10.100.255.7 '
+Jun  7 17:24:15  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set routing-options autonomous-system 64710 '
+Jun  7 17:24:46  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols ldp interface eth2 '
+Jun  7 17:24:46  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols ldp interface eth3 '
+Jun  7 17:24:46  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols ldp interface eth4 '
+Jun  7 17:24:46  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols mpls interface eth2 '
+Jun  7 17:24:46  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols mpls interface eth3 '
+Jun  7 17:24:46  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols mpls interface eth4 '
+Jun  7 17:24:46  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols ospf area 0.0.0.0 interface eth2 '
+Jun  7 17:24:46  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols ospf area 0.0.0.0 interface eth3 '
+Jun  7 17:24:48  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols ospf area 0.0.0.0 interface eth4 '
+Jun  7 17:25:01  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast local-address 10.100.255.7 '
+Jun  7 17:25:13  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast family inet unicast '
+Jun  7 17:25:20  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast neighbor 10.100.255.7 '
+Jun  7 17:25:20  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast neighbor 10.100.255.8 '
+Jun  7 17:25:21  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast neighbor 10.100.255.9 '
+Jun  7 17:25:30  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast cluster 10.100.255.7 '
+Jun  7 17:25:31  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  7 17:25:31  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  7 17:25:31  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 843, status 0
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  7 17:25:31  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  7 17:25:31  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  7 17:25:32  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 852, status 0
+Jun  7 17:25:32  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  7 17:25:32  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  7 17:25:32  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  7 17:25:32  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  7 17:25:32  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  7 17:25:32  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 853, status 0x100
+Jun  7 17:25:32  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  7 17:25:32  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 856, status 0
+Jun  7 17:25:32  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Commit failed, cleanup checked out files
+Jun  7 17:25:32  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  7 17:25:32  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 857, status 0
+Jun  7 17:26:00  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast type internal '
+Jun  7 17:26:22  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set interfaces eth1 description MGMT '
+Jun  7 17:26:40  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set apply-groups [ basic OSPF LDP MPLS ] '
+Jun  7 17:28:19  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set interfaces eth2 description "ETH|P3|ETH5|WAN" unit 0 family mpls '
+Jun  7 17:28:22  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set interfaces eth2 description "ETH|P3|ETH5|WAN" unit 0 family inet '
+Jun  7 17:28:34  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set interfaces eth3 description "ETH|P3|ETH5|WAN" unit 0 family mpls '
+Jun  7 17:28:39  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set interfaces eth3 description "ETH|P3|ETH5|WAN" unit 0 family inet '
+Jun  7 17:28:54  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set interfaces eth4 description "ETH|P3|ETH4|WAN" unit 0 family mpls '
+Jun  7 17:29:00  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 870, status 0
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 879, status 0
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 880, status 0
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Event processing process to check new configuration
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/eventd'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Event processing process
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/eventd', PID 883, status 0
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Juniper Outbound SSH Daemon to check new configuration
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/sdxd'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Juniper Outbound SSH Daemon
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/sdxd', PID 884, status 0
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  7 17:29:00  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 885, status 0
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/master.passwd'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/passwd'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/group'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/rc.conf.inc'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/sshd_conf'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/xinetd.conf'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ssh_config'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/login.conf'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/logrotate.d/container_logrotate'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/crontab'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  7 17:29:00  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: executing ui_commit in rc.ui
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying mgd(1)
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Management process', pid 188, signal 1, status 0 with notification errors enabled
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 205, signal 1, status 0 with notification errors enabled
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying eventd(19)
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Event processing process', pid 192, signal 1, status 0 with notification errors enabled
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying aaasd(23)
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'AAA Service Daemon', signal 1, no pid
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying sdxd(48)
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Juniper Outbound SSH Daemon', pid 180, signal 1, status 0 with notification errors disabled
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749317340-2' and old database revision 'localhost-1749287774-1'
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  7 17:29:01  rr2 mgd[833]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  7 17:29:17  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'run show ospf neighbor '
+Jun  7 17:29:29  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'run show bgp summary '
+Jun  7 17:36:08  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'replace pattern 10.100.255.7 with 10.100.255.6 '
+Jun  7 17:36:13  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'show | compare '
+Jun  7 17:36:30  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'rollback 0 '
+Jun  7 17:36:30  rr2 mgd[833]: UI_LOAD_EVENT: User 'root' is performing a 'rollback'
+Jun  7 17:36:37  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'show protocols bgp | display set | no-more '
+Jun  7 17:36:53  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'delete protocols bgp group iBGP-IPv4-Unicast neighbor 10.100.255.7 '
+Jun  7 17:37:13  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'set protocols bgp group iBGP-IPv4-Unicast neighbor 10.100.255.6 '
+Jun  7 17:37:14  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'commit '
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Should rebuild persist groups tree
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path full in candidate db
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  7 17:37:14  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  7 17:37:14  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 1019, status 0
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  7 17:37:14  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  7 17:37:14  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1028, status 0
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  7 17:37:14  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  7 17:37:14  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  7 17:37:15  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 1029, status 0
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  7 17:37:15  rr2 mgd[833]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  7 17:37:15  rr2 mgd[833]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1032, status 0
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 205, signal 1, status 0 with notification errors enabled
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749317834-3' and old database revision 'localhost-1749317340-2'
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  7 17:37:15  rr2 mgd[833]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  7 17:37:18  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'run show bgp summary '
+Jun  7 20:46:57  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'exit '
+Jun  7 20:46:57  rr2 mgd[833]: UI_DBASE_LOGOUT_EVENT: User 'root' exiting configuration mode
+Jun  7 20:46:59  rr2 mgd[833]: UI_CMDLINE_READ_LINE: User 'root', command 'exit '
+Jun  7 20:46:59  rr2 mgd[833]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  9 20:48:43  rr2 mgd[312]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  9 20:48:43  rr2 mgd[312]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [312], ssh-connection '', client-mode 'cli'
+Jun  9 20:48:43  rr2 mgd[312]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer '
+Jun  9 20:48:43  rr2 mgd[312]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  9 20:48:43  rr2 mgd[310]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  9 20:48:43  rr2 mgd[310]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [310], ssh-connection '', client-mode 'netconf'
+Jun  9 20:48:43  rr2 mgd[310]: UI_CMDLINE_READ_LINE: User 'root', command 'hello capabilities capability urn:ietf:params:netconf:base:1.0 capability capabilities hello rpc command show task memory detail '
+Jun  9 20:48:43  rr2 mgd[310]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'get-task-memory-information level=detail'
+Jun  9 20:48:44  rr2 mgd[347]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  9 20:48:44  rr2 mgd[347]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [347], ssh-connection '', client-mode 'cli'
+Jun  9 20:48:44  rr2 mgd[347]: UI_CMDLINE_READ_LINE: User 'root', command 'xml-mode netconf need-trailer is-grpc '
+Jun  9 20:48:44  rr2 mgd[347]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  9 20:48:44  rr2 mgd[346]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  9 20:48:44  rr2 mgd[346]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [346], ssh-connection '', client-mode 'netconf'
+Jun  9 20:48:44  rr2 mgd[346]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'open-configuration ephemeral-instance=junos-analytics commit-check'
+Jun  9 20:48:44  rr2 mgd[346]: UI_COMMIT: User 'root' requested 'commit' operation (comment: none)
+Jun  9 20:48:44  rr2 mgd[346]: UI_COMMIT_PROGRESS: Commit operation in progress: Started ephemeral db commit
+Jun  9 20:48:44  rr2 mgd[346]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 20:48:44  rr2 mgd[346]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtained Lock
+Jun  9 20:48:44  rr2 mgd[346]: UI_EPHEMERAL_COMMIT: User 'root' has requested commit on 'junos-analytics' ephemeral database
+Jun  9 20:48:44  rr2 mgd[346]: UI_COMMIT_PROGRESS: Commit operation in progress: finished db_ephemeral_update_change_flags
+Jun  9 20:48:44  rr2 mgd[346]: UI_COMMIT_PROGRESS: Commit operation in progress: updating database version
+Jun  9 20:48:44  rr2 mgd[346]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 20:48:44  rr2 mgd[346]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 20:48:44  rr2 mgd[346]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 20:48:44  rr2 mgd[346]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 20:48:44  rr2 mgd[346]: UI_EPHEMERAL_COMMIT_COMPLETED: commit complete on 'junos-analytics' ephemeral database
+Jun  9 20:48:44  rr2 mgd[346]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-configuration'
+Jun  9 20:48:44  rr2 mgd[346]: UI_NETCONF_CMD: User 'root' used NETCONF client to run command 'close-session'
+Jun  9 20:57:05  rr2 mgd[388]: UI_AUTH_EVENT: Authenticated user 'admin' assigned to class 'super-user'
+Jun  9 20:57:05  rr2 mgd[388]: UI_LOGIN_EVENT: User 'admin' login, class 'super-user' [388], ssh-connection '192.168.100.1 60424 192.168.100.32 22', client-mode 'cli'
+Jun  9 20:57:16  rr2 mgd[388]: UI_CMDLINE_READ_LINE: User 'admin', command 'request system license add terminal '
+Jun  9 20:57:46  rr2 mgd[388]: UI_CMDLINE_READ_LINE: User 'admin', command 'exit '
+Jun  9 20:57:46  rr2 mgd[388]: UI_LOGOUT_EVENT: User 'admin' logout
+Jun  9 21:00:19  rr2 mgd[407]: UI_AUTH_EVENT: Authenticated user 'root' assigned to class 'super-user'
+Jun  9 21:00:19  rr2 mgd[407]: UI_LOGIN_EVENT: User 'root' login, class 'super-user' [407], ssh-connection '', client-mode 'cli'
+Jun  9 21:00:23  rr2 mgd[407]: UI_CMDLINE_READ_LINE: User 'root', command 'show system license '
+Jun  9 21:00:32  rr2 mgd[407]: UI_CMDLINE_READ_LINE: User 'root', command 'configure '
+Jun  9 21:00:32  rr2 mgd[407]: UI_DBASE_LOGIN_EVENT: User 'root' entering configuration mode
+Jun  9 21:00:44  rr2 mgd[407]: UI_CMDLINE_READ_LINE: User 'root', command 'run show bgp summary '
+Jun  9 21:01:31  rr2 mgd[407]: UI_CMDLINE_READ_LINE: User 'root', command 'show system '
+Jun  9 21:01:35  rr2 mgd[407]: UI_CMDLINE_READ_LINE: User 'root', command 'show system '
+Jun  9 21:04:45  rr2 mgd[421]: UI_AUTH_EVENT: Authenticated user 'admin' assigned to class 'super-user'
+Jun  9 21:04:45  rr2 mgd[421]: UI_LOGIN_EVENT: User 'admin' login, class 'super-user' [421], ssh-connection '192.168.100.1 46348 192.168.100.32 22', client-mode 'cli'
+Jun  9 21:04:51  rr2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'configure '
+Jun  9 21:04:51  rr2 mgd[421]: UI_DBASE_LOGIN_EVENT: User 'admin' entering configuration mode
+Jun  9 21:12:13  rr2 mgd[407]: UI_CMDLINE_READ_LINE: User 'root', command 'exit '
+Jun  9 21:12:13  rr2 mgd[407]: UI_DBASE_LOGOUT_EVENT: User 'root' exiting configuration mode
+Jun  9 21:12:15  rr2 mgd[407]: UI_CMDLINE_READ_LINE: User 'root', command 'exit '
+Jun  9 21:12:15  rr2 mgd[407]: UI_LOGOUT_EVENT: User 'root' logout
+Jun  9 21:32:18  rr2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'show groups '
+Jun  9 21:32:37  rr2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set groups basic system host-name RR2 '
+Jun  9 21:32:38  rr2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'commit '
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT: User 'admin' requested 'commit' operation (comment: none)
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Should rebuild persist groups tree
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path full in candidate db
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 21:32:38  rr2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 21:32:38  rr2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 487, status 0
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 21:32:38  rr2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:32:38  rr2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 496, status 0
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 21:32:38  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 21:32:38  rr2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 21:32:39  rr2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 497, status 0
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Event processing process to check new configuration
+Jun  9 21:32:39  rr2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/eventd'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Event processing process
+Jun  9 21:32:39  rr2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/eventd', PID 500, status 0
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 21:32:39  rr2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 21:32:39  rr2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 501, status 0
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/rc.conf.inc'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: executing ui_commit in rc.ui
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying mgd(1)
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Management process', pid 221, signal 1, status 0 with notification errors enabled
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 21:32:39  rr2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 239, signal 1, status 0 with notification errors enabled
+Jun  9 21:32:39  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying chassisd(6)
+Jun  9 21:32:39  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'Chassis control process', signal 1, no pid
+Jun  9 21:32:39  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying eventd(19)
+Jun  9 21:32:39  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Event processing process', pid 232, signal 1, status 0 with notification errors enabled
+Jun  9 21:32:39  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 21:32:39  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 21:32:39  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 21:32:39  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749504758-5' and old database revision 'localhost-1749502122-4'
+Jun  9 21:32:39  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 21:32:39  RR2 mgd[421]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 21:35:47  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp neighbor '
+Jun  9 21:35:53  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun  9 22:00:37  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun  9 22:01:50  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show ospf neighbor '
+Jun  9 22:01:59  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show ospf database '
+Jun  9 22:02:34  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'show protocols bgp '
+Jun  9 22:02:59  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'activate protocols bgp group iBGP-IPv4-Unicast cluster '
+Jun  9 22:03:03  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'commit '
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT: User 'admin' requested 'commit' operation (comment: none)
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Should rebuild persist groups tree
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path full in candidate db
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 22:03:03  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 22:03:03  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 641, status 0
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 22:03:03  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:03:03  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 650, status 0
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 22:03:03  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 22:03:03  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 651, status 0
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 22:03:03  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:03:03  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 654, status 0
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 239, signal 1, status 0 with notification errors enabled
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749506583-6' and old database revision 'localhost-1749504758-5'
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 22:03:03  RR2 mgd[421]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 22:03:55  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'show interfaces lo0 '
+Jun  9 22:04:08  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'show protocols bgp '
+Jun  9 22:08:45  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun  9 22:24:08  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'deactivate protocols bgp '
+Jun  9 22:24:09  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'commit '
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT: User 'admin' requested 'commit' operation (comment: none)
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Should rebuild persist groups tree
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path full in candidate db
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 22:24:09  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 22:24:09  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 768, status 0
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 22:24:09  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:24:09  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 777, status 0
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 22:24:09  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 22:24:09  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 778, status 0
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 22:24:09  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:24:09  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 781, status 0
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 239, signal 1, status 0 with notification errors enabled
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749507849-7' and old database revision 'localhost-1749506583-6'
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 22:24:09  RR2 mgd[421]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 22:24:36  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'rollback 1 '
+Jun  9 22:24:36  RR2 mgd[421]: UI_LOAD_EVENT: User 'admin' is performing a 'rollback 1'
+Jun  9 22:24:44  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun  9 22:24:55  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'show | compare '
+Jun  9 22:24:57  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'commit '
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT: User 'admin' requested 'commit' operation (comment: none)
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Should rebuild persist groups tree
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path full in candidate db
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 22:24:57  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 22:24:57  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 856, status 0
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 22:24:57  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:24:57  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 865, status 0
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 22:24:57  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 22:24:57  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 22:24:58  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 866, status 0
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 22:24:58  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:24:58  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 869, status 0
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 239, signal 1, status 0 with notification errors enabled
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749507897-8' and old database revision 'localhost-1749507849-7'
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 22:24:58  RR2 mgd[421]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 22:25:00  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun  9 22:25:05  RR2 last message repeated 7 times
+Jun  9 22:25:05  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'commit '
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT: User 'admin' requested 'commit' operation (comment: none)
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Should rebuild persist groups tree
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path full in candidate db
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 22:25:05  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 22:25:05  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 939, status 0
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 22:25:05  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:25:05  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 948, status 0
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 22:25:05  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:25:05  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 949, status 0
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749507905-9' and old database revision 'localhost-1749507897-8'
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 22:25:05  RR2 mgd[421]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 22:25:08  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun  9 22:25:08  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun  9 22:25:47  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show log messages | last 30 '
+Jun  9 22:26:13  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show log messages '
+Jun  9 22:32:10  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'show protocols bgp '
+Jun  9 22:38:21  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set policy-options policy-statement BGP-Next-Hop term eBGP from protocol bgp '
+Jun  9 22:38:21  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set policy-options policy-statement BGP-Next-Hop term eBGP from route-type external '
+Jun  9 22:38:21  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set policy-options policy-statement BGP-Next-Hop term eBGP then next-hop self '
+Jun  9 22:38:21  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set policy-options policy-statement BGP-Next-Hop term eBGP then accept '
+Jun  9 22:38:21  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set policy-options policy-statement BGP-Next-Hop term iBGP from protocol bgp '
+Jun  9 22:38:21  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set policy-options policy-statement BGP-Next-Hop term iBGP from route-type internal '
+Jun  9 22:38:22  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set policy-options policy-statement BGP-Next-Hop term iBGP then accept '
+Jun  9 22:38:58  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set protocols bgp group iBGP-IPv4-Unicast export BGP-Next-Hop '
+Jun  9 22:39:00  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'commit '
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT: User 'admin' requested 'commit' operation (comment: none)
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 22:39:00  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 22:39:00  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 1053, status 0
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 22:39:00  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:39:00  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1062, status 0
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 22:39:00  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 22:39:00  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 1063, status 0
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 22:39:00  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:39:00  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1066, status 0
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 239, signal 1, status 0 with notification errors enabled
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749508740-10' and old database revision 'localhost-1749507905-9'
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 22:39:00  RR2 mgd[421]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 22:43:49  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set protocols bgp group iBGP-IPV4-UNICAST family inet unicast add-path send path-count 2 '
+Jun  9 22:43:49  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set protocols bgp group iBGP-IPV4-UNICAST family inet-vpn unicast '
+Jun  9 22:43:49  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set protocols bgp group iBGP-IPV4-UNICAST family evpn signaling '
+Jun  9 22:43:50  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set protocols bgp group iBGP-IPV4-UNICAST family inet-mvpn signaling '
+Jun  9 22:49:03  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun  9 22:49:06  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show interfaces '
+Jun  9 22:49:06  RR2 mgd[421]: UI_CHILD_START: Starting child '/sbin/ifinfo'
+Jun  9 22:49:06  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/sbin/ifinfo', PID 1154, status 0
+Jun  9 22:49:09  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'show interfaces '
+Jun  9 22:51:51  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set interfaces eth4 unit 0 family mpls '
+Jun  9 22:52:17  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'commit '
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT: User 'admin' requested 'commit' operation (comment: none)
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 22:52:17  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 22:52:17  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 1182, status 0
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 22:52:17  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:52:17  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1191, status 0
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 22:52:17  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 22:52:17  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 1192, status 0
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 22:52:17  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 22:52:17  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1195, status 0
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 239, signal 1, status 0 with notification errors enabled
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749509537-11' and old database revision 'localhost-1749508740-10'
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 22:52:17  RR2 mgd[421]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 22:52:23  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun  9 23:03:38  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'show interfaces lo0 '
+Jun  9 23:03:45  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'delete interfaces lo0 '
+Jun  9 23:04:19  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set interfaces lo0 unit 0 family inet address 10.100.255.7/32 '
+Jun  9 23:04:21  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'commit '
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT: User 'admin' requested 'commit' operation (comment: none)
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 23:04:21  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 23:04:21  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 1291, status 0
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 23:04:21  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 23:04:21  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1300, status 0
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 23:04:21  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 23:04:21  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 1301, status 0
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 23:04:21  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 23:04:21  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1304, status 0
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 239, signal 1, status 0 with notification errors enabled
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749510261-12' and old database revision 'localhost-1749509537-11'
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 23:04:21  RR2 mgd[421]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 23:08:04  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun  9 23:08:22  RR2 last message repeated 4 times
+Jun  9 23:08:52  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'show system '
+Jun  9 23:08:58  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'show groups basic '
+Jun  9 23:17:04  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set protocols bgp group iBGP-IPv4-Unicast neighbor 10.100.255.8 peer-as 64710 '
+Jun  9 23:17:08  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'set protocols bgp group iBGP-IPv4-Unicast neighbor 10.100.255.9 peer-as 64710 '
+Jun  9 23:17:11  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'commit '
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT: User 'admin' requested 'commit' operation (comment: none)
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 23:17:11  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 23:17:11  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 1402, status 0
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 23:17:11  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 23:17:11  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1411, status 0
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 23:17:11  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 23:17:11  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 1412, status 0
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 23:17:11  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 23:17:11  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1415, status 0
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 239, signal 1, status 0 with notification errors enabled
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749511031-13' and old database revision 'localhost-1749510261-12'
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 23:17:11  RR2 mgd[421]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 23:17:30  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun  9 23:27:37  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'show protocols bgp '
+Jun  9 23:28:06  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'delete protocols bgp group iBGP-IPV4-UNICAST '
+Jun  9 23:28:08  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'commit '
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT: User 'admin' requested 'commit' operation (comment: none)
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Obtaining lock for commit
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: updating commit revision
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI extensions feature is not configured
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: UI change-notification feature is not configured
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Started running translation script
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No delta input for translation
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Finished running translation script
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start loading commit script changes
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no commit script changes
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: no transient commit script changes
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished loading commit script changes
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: No translation output from the scripts
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: building groups inheritance path proportional in candidate db
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished groups inheritance path
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: copying juniper.db to juniper.data+
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished copying juniper.db to juniper.data+
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: exporting juniper.conf
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: expanding interface-ranges
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finished expanding interface-ranges
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: setup foreign files
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: propagating foreign files
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Sending constraint check command to evaluate constraints
+Jun  9 23:28:08  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/mustd'
+Jun  9 23:28:08  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/mustd', PID 1506, status 0
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: constraints passed in mustd - not checking constraints in propagation
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: complete foreign files
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: dropping unchanged foreign files
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp propagate
+Jun  9 23:28:08  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 23:28:08  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1515, status 0
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp propagate
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: daemons checking new configuration
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Spawning Routing protocols process to check new configuration
+Jun  9 23:28:08  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/rpd'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Collecting status of Routing protocols process
+Jun  9 23:28:08  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/rpd', PID 1516, status 0
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit wrapup...
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: start ffp activate
+Jun  9 23:28:08  RR2 mgd[421]: UI_CHILD_START: Starting child '/usr/sbin/ffp'
+Jun  9 23:28:08  RR2 mgd[421]: UI_CHILD_STATUS: Cleanup child '/usr/sbin/ffp', PID 1519, status 0
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/issue'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam.conf'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/etc/pam.d/juniper-auth'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_radius.conf'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/pam_tacplus.conf'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_events.conf'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_radius_servers.conf'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_servers.conf'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/accounting_tacplus_options.conf'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/motd.junos'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/ephinst.conf'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/certs'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/etc/max-cli-sessions'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: executing foreign_commands
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: not executing ui_commit in rc.ui
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: finish ffp activate
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear start
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: db_groups_info_clear done
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: activating '/var/run/db/juniper.data'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: Rotate backup configs
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: notifying daemons of new configuration
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying none(0)
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: cannot signal 'None process', signal 1, no pid
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress:  notifying rpd(5)
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: signaling 'Routing protocols process', pid 239, signal 1, status 0 with notification errors enabled
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync begins
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: ssync ends
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: mgd tracing: disabled
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: New database revision 'localhost-1749511688-14' and old database revision 'localhost-1749511031-13'
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_PROGRESS: Commit operation in progress: commit complete
+Jun  9 23:28:08  RR2 mgd[421]: UI_COMMIT_COMPLETED:  : commit complete 
+Jun  9 23:28:35  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'run show bgp summary '
+Jun 10 00:43:49  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'exit '
+Jun 10 00:43:49  RR2 mgd[421]: UI_DBASE_LOGOUT_EVENT: User 'admin' exiting configuration mode
+Jun 10 00:43:50  RR2 mgd[421]: UI_CMDLINE_READ_LINE: User 'admin', command 'exit '
+Jun 10 00:43:50  RR2 mgd[421]: UI_LOGOUT_EVENT: User 'admin' logout

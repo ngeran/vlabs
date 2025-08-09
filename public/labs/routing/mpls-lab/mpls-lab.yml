@@ -1,0 +1,33 @@
+# Example content for /labs/your-category/your-slug/your-slug.yml
+
+# These fields typically come from your overall labs.json or similar manifest
+# and are used in the LabModal's header.
+title: Your Lab Title Here
+duration: 1 Hour
+difficulty: Intermediate
+category: YourCategory
+
+# 'description' field for the Overview tab content
+description: |
+  - Devices: 4 cRPDs running Junos OS 24.1R3.11
+  - Configured Interfaces:
+    - eth interfaces for in-band traffic
+    - lo0 as loopback interface
+  - Protocols: Configure OSPF, single area (0)
+  - IP addressing: All addresses are in the range 10.100.x.x/24
+
+# 'objectives' field for the "Things to do with the lab" tab content
+objectives: # Changed from 'prerequisites' to 'objectives'
+  - Try general OSPF features
+  - Split the topology into two areas
+  - Change the IGP to IS-IS
+  - Add BGP to the environment
+
+# You can add other lab-specific configurations here as needed
+# For example:
+# topology: your-topology-name.yaml
+# vm_images:
+#   - junos-vmx-21.1R3.11
+# startup_scripts:
+#   - router1_config.txt
+#   - router2_config.txt

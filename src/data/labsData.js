@@ -1,6 +1,15 @@
 const labsData = {
   routing: [
     {
+      id: "mpls-lab",
+      slug: "mpls-lab",
+      title: "MPLS With 2 x RR",
+      difficulty: "Expert",
+      duration: "320 min",
+      thumbnail: "/api/placeholder/400/200",
+      description: "MPLS Lab",
+    },
+    {
       id: "ospf-single-area",
       slug: "ospf-single-area",
       title: "OSPF Single Area",
@@ -17,24 +26,6 @@ const labsData = {
       duration: "120 min",
       thumbnail: "/api/placeholder/400/200",
       description: "Multi Area OSPF configuration",
-    },
-    {
-      id: "ospf-lab",
-      slug: "ospf-lab",
-      title: "BGP Multi-AS Nikos",
-      difficulty: "Intermediate",
-      duration: "240 min",
-      thumbnail: "/api/placeholder/400/200",
-      description: "BGP Multi-AS with OSPF underlay.",
-    },
-    {
-      id: "bgp-with-rr",
-      slug: "bgp-with-rr",
-      title: "BGP with Route Reflection",
-      difficulty: "Expert",
-      duration: "240 min",
-      thumbnail: "/api/placeholder/400/200",
-      description: "BGP Multi-AS with Route Reflection",
     },
   ],
   switching: [

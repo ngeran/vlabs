@@ -1,0 +1,7 @@
+tests:
+  - test_system_info:
+      command: "show system information"
+      tests:
+        - exists: host-name           # Hostname must exist
+        - exists: hardware-model      # Model must exist
+        - is-not-empty: os-version    # OS version check

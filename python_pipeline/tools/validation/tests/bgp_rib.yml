@@ -1,0 +1,9 @@
+tests:
+  - test_bgp_routes:
+      command: "show route protocol bgp"
+      iterate:
+        xpath: ".//rt-table/rt"
+        id: "rt-destination"
+        tests:
+          - exists: rt-entry/active-tag    # Route must be active
+          - is-not-empty: rt-entry/as-path # AS path should exist

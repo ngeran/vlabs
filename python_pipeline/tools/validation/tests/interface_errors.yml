@@ -1,0 +1,10 @@
+tests:
+  - test_interface_errors:
+      command: "show interfaces extensive"
+      iterate:
+        xpath: ".//physical-interface"
+        id: "name"
+        tests:
+          - is-zero: input-errors    # No input errors
+          - is-zero: output-errors   # No output errors
+          - is-zero: input-drops     # No packet drops

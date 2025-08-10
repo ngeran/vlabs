@@ -1,0 +1,10 @@
+tests:
+  - test_interface_status:
+      command: "show interfaces terse"
+      iterate:
+        xpath: ".//physical-interface"
+        id: "name"
+        tests:
+          - is-equal: admin-status, up      # Admin status must be up
+          - is-equal: oper-status, up       # Operational status must be up
+          - is-not-empty: description       # Description should exist

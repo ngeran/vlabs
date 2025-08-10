@@ -1,0 +1,9 @@
+tests:
+  - test_ospf_neighbors:
+      command: "show ospf neighbor"
+      iterate:
+        xpath: ".//ospf-neighbor"
+        id: "neighbor-id"
+        tests:
+          - is-equal: ospf-neighbor-state, Full  # Adjacency must be "Full"
+          - is-not-zero: ospf-neighbor-up-time   # Uptime check

@@ -1,0 +1,6 @@
+tests:
+  - test_alarms:
+      command: "show system alarms"
+      tests:
+        - is-empty: "alarm-detail[alarm-severity='Critical']"  # No critical alarms
+        - is-empty: "alarm-detail[alarm-severity='Major']"      # No major alarms

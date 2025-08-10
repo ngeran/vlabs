@@ -1,0 +1,9 @@
+tests:
+  - test_ospf_routes:
+      command: "show route protocol ospf"
+      iterate:
+        xpath: ".//rt-table/rt"
+        id: "rt-destination"
+        tests:
+          - exists: rt-entry/active-tag    # Route must be active
+          - is-not-empty: rt-entry/nh/via # Next-hop must exist

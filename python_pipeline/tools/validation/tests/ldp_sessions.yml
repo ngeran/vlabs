@@ -1,0 +1,9 @@
+tests:
+  - test_ldp_sessions:
+      command: "show ldp session"
+      iterate:
+        xpath: ".//ldp-session"
+        id: "ldp-neighbor-address"
+        tests:
+          - is-equal: ldp-session-state, Operational  # Session must be operational
+          - is-not-zero: ldp-connection-uptime       # Uptime check

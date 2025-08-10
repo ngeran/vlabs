@@ -2,7 +2,7 @@
 # Adding a new entry here makes it available to the script.
 
 test_bgp_summary:
-  title: "BGP Neighbor Summary"
+  title: "BGP Neighbor"
   category: "Routing"
   rpc: "get-bgp-summary-information"
   xpath: ".//bgp-peer"
@@ -14,7 +14,7 @@ test_bgp_summary:
     "Up/Down Time": "elapsed-time"
 
 test_interfaces:
-  title: "Interface Status Summary"
+  title: "Interface Status"
   category: "Interfaces"
   rpc: "get-interface-information"
   # We can pass arguments to the RPC call
@@ -26,19 +26,63 @@ test_interfaces:
     "Admin Status": "admin-status"
     "Link Status": "oper-status"
 
-test_ospf:
-  title: "OSPF Summary"
+test_ospf_neighbors:
+  title: "OSPF Neighbor"
   category: "Routing"
   rpc: "get-ospf-neighbor-information"
-  # We can pass arguments to the RPC call
-  rpc_args:
-    terse: true
-  xpath: "/ospf-interface-information/ospf-interface"
+  xpath: ".//ospf-neighbor"
   fields:
-    "Interface Name": "name"
-    "Admin Status": "admin-status"
-    "Link Status": "oper-status"
+    "Interface": "interface-name"
+    "Neighbor ID": "neighbor-id"
+    "State": "ospf-neighbor-state"
+    "Address": "neighbor-address"
+    "Up/Down Time": "ospf-neighbor-up-time"
 
+test_ldp_sessions:
+  title: "LDP Session"
+  category: "MPLS"
+  rpc: "get-ldp-session-information"
+  xpath: ".//ldp-session"
+  fields:
+    "Neighbor": "ldp-neighbor-address"
+    "State": "ldp-session-state"
+    "Up/Down Time": "ldp-connection-uptime"
+    "Label Distribution": "ldp-label-distribution"
+
+test_rsvp_sessions:
+  title: "RSVP Session"
+  category: "MPLS"
+  rpc: "get-rsvp-session-information"
+  xpath: ".//rsvp-session"
+  fields:
+    "Destination": "rsvp-destination-address"
+    "Source": "rsvp-source-address"
+    "State": "rsvp-session-state"
+    "Type": "rsvp-session-type"
+    "LSP Name": "rsvp-lsp-name"
+
+test_mpls_interfaces:
+  title: "MPLS Interface Status"
+  category: "MPLS"
+  rpc: "get-mpls-interface-information"
+  xpath: ".//mpls-interface"
+  fields:
+    "Interface": "interface-name"
+    "Admin Status": "interface-admin-status"
+    "Oper Status": "interface-oper-status"
+    "RSVP Status": "rsvp-status"
+    "LDP Status": "ldp-status"
+
+test_system_alarms:
+  title: "System Alarms"
+  category: "System"
+  rpc: "get-system-alarm-information"
+  xpath: ".//alarm-detail"
+  fields:
+    "Alarm Class": "alarm-class"
+    "Description": "alarm-description"
+    "Severity": "alarm-severity"
+    "Time": "alarm-time"
 
 
 # You can easily add more tests here in the future

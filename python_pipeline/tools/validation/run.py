@@ -1,153 +1,194 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 # =============================================================================
-# FILE:               python_pipeline/tools/validation/run.py
-#
+# FILE: run.py
 # DESCRIPTION:
-#   An asynchronous backend script that serves as the engine for the JSNAPy
-#   Validation Runner. It discovers and executes JSNAPy tests against Juniper
-#   devices, streaming real-time progress back to the UI.
+#   Asynchronous JSNAPy Validation Runner for Juniper devices.
+#   Executes predefined tests (from tests.yml) and streams real-time progress to UI.
 #
 # KEY FEATURES:
-#   - Real-Time Progress: Emits structured JSON to stdout for live UI updates.
-#   - Dynamic Test Discovery: Lists available validation tests from a config file.
-#   - Conforms to Runner Contract: Accepts `--list_tests` and `--tests` arguments
-#     to integrate seamlessly with the generic backend execution service.
-#   - Asynchronous Execution: Runs validations on multiple hosts concurrently.
+#   1. Dynamic Test Discovery: Lists available tests from tests.yml.
+#   2. Real-Time JSON Progress: Streams updates for UI integration.
+#   3. Multi-Device Async Execution: Runs tests concurrently across devices.
+#   4. JSNAPy Integration: Uses SnapAdmin for snapshot-based validation.
 #
 # DEPENDENCIES:
-#   - jnpr.junos: The PyEZ library for connecting to Juniper devices.
-#   - jnpr.jsnapy: The core JSNAPy library for snapshot testing.
-#   - PyYAML: For parsing the test definition file.
+#   - jnpr.junos (PyEZ): Device connectivity.
+#   - jnpr.jsnapy: Snapshot testing.
+#   - PyYAML: Parsing tests.yml.
+#   - asyncio: Concurrent execution.
 #
-# HOW TO USE:
-#   This script is not intended for direct manual execution. It is called by the
-#   Node.js backend service, which supplies the necessary command-line arguments.
-#   - For discovery: `python run.py --list_tests`
-#   - For execution: `python run.py --hostname <ip> --username <user> --password <pass> --tests <test1,test2>`
+# USAGE:
+#   Discovery: python run.py --list_tests
+#   Execution: python run.py --hostname <ip> --username <user> --password <pass> --tests <test1,test2>
 # =============================================================================
 
 # =============================================================================
-# SECTION 1: IMPORTS & INITIAL SETUP
+# SECTION 1: IMPORTS & INITIALIZATION
 # =============================================================================
 import argparse
-import sys
-import json
 import asyncio
+import json
+import sys
 from pathlib import Path
-# =============================================================================
-# SECTION 2: REAL-TIME PROGRESS REPORTING UTILITY
-# =============================================================================
-def send_progress(event_type, data, message=""):
-    """Formats and prints a JSON progress update to stdout for the backend to capture."""
-    progress_update = { "type": "progress", "event_type": event_type, "message": message, "data": data }
-    print(f"{json.dumps(progress_update)}", file=sys.stdout, flush=True)
+from jnpr.junos import Device
+from jnpr.junos.exception import ConnectError
+from jnpr.jsnapy import SnapAdmin
+import yaml
 
 # =============================================================================
-# SECTION 3: CORE JSNAPY EXECUTION LOGIC
+# SECTION 2: PROGRESS REPORTING UTILITIES
 # =============================================================================
-def run_single_jsnapy_test(device, test_name, test_definition):
-    """
-    Executes a single JSNAPy test against a connected device.
-    NOTE: This is a placeholder for actual JSNAPy logic. You would typically
-    use the jnpr.jsnapy.SnapAdmin class here.
-    """
-    # Placeholder for a successful result.
-    # In a real implementation, you would process the JSNAPy output here.
-    return {
-        "title": f"JSNAPy: {test_definition.get('title', test_name)}",
-        "headers": ["Device", "Test", "Result", "Details"],
-        "data": [{
-            "Device": device.hostname,
-            "Test": test_name,
-            "Result": "Passed",
-            "Details": "All checks passed successfully."
-        }]
+def send_progress(event_type, data=None, message=""):
+    """Emits structured JSON progress updates to stdout for UI consumption."""
+    progress = {
+        "type": "progress",
+        "event_type": event_type,
+        "data": data or {},
+        "message": message
     }
-
-async def run_validations_on_host(hostname, username, password, tests_to_run, all_test_defs, host_index):
-    """Connects to a single host and runs all specified JSNAPy validations."""
-    from jnpr.junos import Device
-    from jnpr.junos.exception import ConnectTimeoutError, ConnectAuthError
-
-    send_progress("STEP_START", {"step": host_index}, f"Connecting to {hostname} for validation...")
-    try:
-        with Device(host=hostname, user=username, passwd=password, timeout=20) as dev:
-            send_progress("STEP_PROGRESS", {"step": host_index}, f"Connection successful. Running {len(tests_to_run)} validation(s)...")
-
-            host_results = []
-            for test_name in tests_to_run:
-                if test_name in all_test_defs:
-                    result = run_single_jsnapy_test(dev, test_name, all_test_defs[test_name])
-                    host_results.append(result)
-
-            send_progress("STEP_COMPLETE", {"step": host_index}, f"Validation finished for {hostname}.")
-            # The key 'test_results' is used generically by the frontend table viewer.
-            return {"hostname": hostname, "status": "success", "test_results": host_results}
-
-    except (ConnectTimeoutError, ConnectAuthError, Exception) as e:
-        error_message = f"An error occurred with host {hostname}: {e}"
-        send_progress("STEP_COMPLETE", {"step": host_index, "status": "FAILED"}, error_message)
-        return {"hostname": hostname, "status": "error", "message": error_message}
+    print(json.dumps(progress), flush=True)
 
 # =============================================================================
-# SECTION 4: MAIN ASYNCHRONOUS ORCHESTRATOR
+# SECTION 3: JSNAPY TEST EXECUTION
+# =============================================================================
+def run_jsnapy_test(device, test_name, test_def):
+    """
+    Executes a JSNAPy test against a device and returns formatted results.
+    Args:
+        device (Device): Connected PyEZ device.
+        test_name (str): Test ID from tests.yml.
+        test_def (dict): Test definition (title, jsnapy_test_file, etc.).
+    Returns:
+        dict: Test results in UI-friendly format.
+    """
+    jsnapy = SnapAdmin()
+    test_file = Path(__file__).parent / test_def["jsnapy_test_file"]
+
+    try:
+        # Execute JSNAPy test and parse results
+        check_result = jsnapy.check(
+            device=device,
+            file_name=str(test_file),
+            test_name=test_name
+        )
+
+        # Format results for UI
+        return {
+            "title": test_def["title"],
+            "headers": ["Check", "Result", "Details"],
+            "data": [
+                {
+                    "Check": check["node_name"],
+                    "Result": "PASSED" if check["passed"] else "FAILED",
+                    "Details": check["error_message"] or "All conditions met."
+                }
+                for check in check_result[test_name]
+            ]
+        }
+    except Exception as e:
+        return {
+            "title": test_def["title"],
+            "headers": ["Error"],
+            "data": [{"Error": f"JSNAPy execution failed: {str(e)}"}]
+        }
+
+# =============================================================================
+# SECTION 4: ASYNC DEVICE VALIDATION
+# =============================================================================
+async def validate_host(hostname, username, password, tests, test_defs, host_index):
+    """
+    Validates a single device by running all specified JSNAPy tests.
+    Args:
+        hostname (str): Device IP/hostname.
+        tests (list): Test names to run.
+        test_defs (dict): All test definitions from tests.yml.
+    Returns:
+        dict: Host results with status and test outputs.
+    """
+    send_progress("HOST_START", {"host": hostname, "step": host_index})
+
+    try:
+        with Device(host=hostname, user=username, passwd=password, timeout=30) as dev:
+            dev.open()
+            host_results = []
+
+            for test_name in tests:
+                if test_name in test_defs:
+                    result = run_jsnapy_test(dev, test_name, test_defs[test_name])
+                    host_results.append(result)
+                    send_progress("TEST_COMPLETE", {"test": test_name, "host": hostname})
+
+            return {
+                "hostname": hostname,
+                "status": "success",
+                "test_results": host_results
+            }
+    except ConnectError as e:
+        return {
+            "hostname": hostname,
+            "status": "error",
+            "message": f"Connection failed: {str(e)}"
+        }
+
+# =============================================================================
+# SECTION 5: MAIN ASYNC ORCHESTRATOR
 # =============================================================================
 async def main_async(args):
-    """Loads definitions, discovers tests, or orchestrates test execution."""
-    import yaml
-    script_dir = Path(__file__).parent
-    test_definitions_path = script_dir / "tests.yml"
+    """Core orchestrator for test discovery/execution."""
+    # Load test definitions
+    tests_yml = Path(__file__).parent / "tests.yml"
+    with open(tests_yml) as f:
+        test_defs = yaml.safe_load(f)
 
-    if not test_definitions_path.exists():
-        raise FileNotFoundError(f"Test definition file 'tests.yml' not found in {script_dir}")
-    with open(test_definitions_path, 'r') as f:
-        all_test_defs = yaml.safe_load(f)
-
-    # --- Discovery Mode ---
+    # --- Test Discovery Mode ---
     if args.list_tests:
-        categorized_tests = {}
-        for test_name, test_def in all_test_defs.items():
-            category = test_def.get("category", "General")
-            if category not in categorized_tests: categorized_tests[category] = []
-            categorized_tests[category].append({"id": test_name, "description": test_def.get("title", "No description.")})
-        return {"success": True, "discovered_tests": categorized_tests}
+        return {
+            "discovered_tests": {
+                test: {"description": def_.get("description"), "category": def_.get("category")}
+                for test, def_ in test_defs.items()
+            }
+        }
 
-    # --- Execution Mode ---
-    hostnames = [h.strip() for h in args.hostname.split(',')]
-    test_names_to_run = [t.strip() for t in args.tests.split(',')]
-    if not hostnames or not test_names_to_run:
-        raise ValueError("Hostname and at least one test are required for execution.")
+    # --- Test Execution Mode ---
+    hosts = args.hostname.split(",")
+    tests_to_run = args.tests.split(",")
 
-    send_progress("OPERATION_START", {"total_steps": len(hostnames)}, "Starting JSNAPy validation run...")
-    tasks = [asyncio.create_task(run_validations_on_host(h, args.username, args.password, test_names_to_run, all_test_defs, i + 1)) for i, h in enumerate(hostnames)]
-    results_from_all_hosts = await asyncio.gather(*tasks)
-    final_results = {"results_by_host": results_from_all_hosts}
-    send_progress("OPERATION_COMPLETE", {"status": "SUCCESS"}, "All operations completed.")
-    return {"type": "result", "data": final_results}
+    send_progress("RUN_START", {"total_hosts": len(hosts)})
+
+    # Run tests concurrently across hosts
+    tasks = [
+        validate_host(
+            host, args.username, args.password,
+            tests_to_run, test_defs, idx + 1
+        )
+        for idx, host in enumerate(hosts)
+    ]
+    results = await asyncio.gather(*tasks)
+
+    return {
+        "results": results,
+        "summary": {
+            "passed_hosts": sum(1 for r in results if r["status"] == "success"),
+            "total_tests": len(tests_to_run) * len(hosts)
+        }
+    }
 
 # =============================================================================
-# SECTION 5: MAIN ENTRY POINT & ARGUMENT PARSING
+# SECTION 6: COMMAND-LINE ENTRY POINT
 # =============================================================================
-def main():
-    """Parses command-line arguments and invokes the main async orchestrator."""
-    try:
-        parser = argparse.ArgumentParser(description="JSNAPy Validation Runner")
-        parser.add_argument("--hostname", help="Target hostnames/IPs, comma-separated.")
-        parser.add_argument("--username", help="Username for device access.")
-        parser.add_argument("--password", help="Password for device access.")
-        parser.add_argument("--tests", help="JSNAPy tests to run, comma-separated.")
-        parser.add_argument("--list_tests", action="store_true", help="List available tests in JSON format.")
-        parser.add_argument("--environment", default="development", help="Execution environment context.")
-        args = parser.parse_args()
-
-        final_output = asyncio.run(main_async(args))
-        print(json.dumps(final_output))
-    except Exception as e:
-        error_message = f"A critical script error occurred: {str(e)}"
-        send_progress("OPERATION_COMPLETE", {"status": "FAILED"}, error_message)
-        error_output = {"type": "error", "message": error_message}
-        print(json.dumps(error_output))
-        sys.exit(1)
-
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--hostname", help="Comma-separated device IPs")
+    parser.add_argument("--username", help="Device login username")
+    parser.add_argument("--password", help="Device login password")
+    parser.add_argument("--tests", help="Comma-separated test names")
+    parser.add_argument("--list_tests", action="store_true", help="List available tests")
+    args = parser.parse_args()
+
+    try:
+        result = asyncio.run(main_async(args))
+        print(json.dumps(result))
+    except Exception as e:
+        print(json.dumps({"error": str(e)}), file=sys.stderr)
+        sys.exit(1)

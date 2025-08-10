@@ -1,0 +1,9 @@
+tests:
+  - test_mpls_interfaces:
+      command: "show mpls interface"
+      iterate:
+        xpath: ".//mpls-interface"
+        id: "interface-name"
+        tests:
+          - is-equal: mpls-admin-status, Enabled  # MPLS must be enabled
+          - is-equal: mpls-oper-status, Up        # Operational status check

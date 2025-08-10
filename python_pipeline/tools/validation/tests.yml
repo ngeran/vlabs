@@ -30,3 +30,75 @@ hardware_check:
   title: "Chassis Hardware Health"
   category: "System Health"
   description: "Checks for any active hardware alarms on the chassis."
+
+
+# --- BGP Validation ---
+bgp_summary:
+  title: "BGP Neighbor Summary"
+  category: "Routing"
+  jsnapy_test_file: "bgp_summary.yml"  # JSNAPy test file (contains assertions)
+  description: "Validates BGP peer states, AS numbers, and uptime."
+
+bgp_rib:
+  title: "BGP Route Inspection"
+  category: "Routing"
+  jsnapy_test_file: "bgp_rib.yml"
+  description: "Checks for presence of critical BGP routes."
+
+# --- OSPF Validation ---
+ospf_neighbors:
+  title: "OSPF Neighbor Summary"
+  category: "Routing"
+  jsnapy_test_file: "ospf_neighbors.yml"
+  description: "Validates OSPF adjacency states and interface bindings."
+
+ospf_routes:
+  title: "OSPF Route Validation"
+  category: "Routing"
+  jsnapy_test_file: "ospf_routes.yml"
+  description: "Checks OSPF learned routes in the routing table."
+
+# --- MPLS Validation ---
+ldp_sessions:
+  title: "LDP Session Status"
+  category: "MPLS"
+  jsnapy_test_file: "ldp_sessions.yml"
+  description: "Validates LDP neighbor sessions and label distribution."
+
+rsvp_sessions:
+  title: "RSVP Session Status"
+  category: "MPLS"
+  jsnapy_test_file: "rsvp_sessions.yml"
+  description: "Checks RSVP-TE tunnel states and reservations."
+
+mpls_interfaces:
+  title: "MPLS Interface Status"
+  category: "MPLS"
+  jsnapy_test_file: "mpls_interfaces.yml"
+  description: "Validates MPLS protocol status on interfaces."
+
+# --- Interface Validation ---
+interface_status:
+  title: "Interface Operational Status"
+  category: "Interfaces"
+  jsnapy_test_file: "interface_status.yml"
+  description: "Ensures all interfaces are administratively up/operational."
+
+interface_errors:
+  title: "Interface Error Counters"
+  category: "Interfaces"
+  jsnapy_test_file: "interface_errors.yml"
+  description: "Checks for interface CRC/input/output errors."
+
+# --- System Validation ---
+device_facts:
+  title: "Device System Facts"
+  category: "System"
+  jsnapy_test_file: "device_facts.yml"
+  description: "Validates hostname, OS version, and hardware model."
+
+system_alarms:
+  title: "System Alarms Check"
+  category: "System"
+  jsnapy_test_file: "system_alarms.yml"
+  description: "Checks for critical/high-severity alarms."

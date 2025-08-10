@@ -1,0 +1,8 @@
+tests:
+  - test_bgp_peers:
+      command: "show bgp summary"
+      iterate:
+        xpath: ".//bgp-peer"
+        tests:
+          - is-equal: peer-as, 65000   # Expected ASN
+          - is-equal: peer-state, Established

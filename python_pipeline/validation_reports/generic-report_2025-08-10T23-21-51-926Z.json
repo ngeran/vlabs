@@ -1,0 +1,25 @@
+{
+  "results": [
+    {
+      "hostname": "172.27.200.200",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "BGP Neighbor Summary",
+          "headers": [
+            "Error"
+          ],
+          "data": [
+            {
+              "Error": "JSNAPy test execution failed: Could not locate logging.yml"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "passed_hosts": 1,
+    "total_tests": 1
+  }
+}

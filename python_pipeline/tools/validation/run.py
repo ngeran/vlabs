@@ -50,47 +50,121 @@ def send_progress(event_type, data=None, message=""):
     print(json.dumps(progress), flush=True)
 
 # =============================================================================
-# SECTION 3: JSNAPY TEST EXECUTION
+# SECTION 3: JSNAPY TEST EXECUTION (FINAL CORRECTED VERSION)
 # =============================================================================
+
 def run_jsnapy_test(device, test_name, test_def):
     """
     Executes a JSNAPy test against a device and returns formatted results.
-    Args:
-        device (Device): Connected PyEZ device.
-        test_name (str): Test ID from tests.yml.
-        test_def (dict): Test definition (title, jsnapy_test_file, etc.).
-    Returns:
-        dict: Test results in UI-friendly format.
+    Uses the correct JSNAPy API based on official documentation.
     """
-    jsnapy = SnapAdmin()
-    test_file = Path(__file__).parent / test_def["jsnapy_test_file"]
+    jsnapy_file_name = test_def.get("jsnapy_test_file")
+    if not jsnapy_file_name:
+        return {
+            "title": test_def.get("title", test_name),
+            "headers": ["Error"],
+            "data": [{"Error": f"Test '{test_name}' missing 'jsnapy_test_file' in tests.yml"}]
+        }
+
+    test_file = Path(__file__).parent / "tests" / jsnapy_file_name
+    
+    if not test_file.exists():
+        return {
+            "title": test_def.get("title", test_name),
+            "headers": ["Error"],
+            "data": [{"Error": f"JSNAPy test file not found: {test_file}"}]
+        }
 
     try:
-        # Execute JSNAPy test and parse results
-        check_result = jsnapy.check(
-            device=device,
-            file_name=str(test_file),
-            test_name=test_name
-        )
-
-        # Format results for UI
-        return {
-            "title": test_def["title"],
-            "headers": ["Check", "Result", "Details"],
-            "data": [
-                {
-                    "Check": check["node_name"],
-                    "Result": "PASSED" if check["passed"] else "FAILED",
-                    "Details": check["error_message"] or "All conditions met."
-                }
-                for check in check_result[test_name]
-            ]
+        # Create snapshots directory if it doesn't exist (JSNAPy requirement)
+        snapshots_dir = Path(__file__).parent / "snapshots"
+        snapshots_dir.mkdir(exist_ok=True)
+        
+        jsnapy = SnapAdmin()
+        
+        # Method 1: Use the existing connected device object (recommended approach)
+        # Pass the test file as a dictionary structure as shown in the documentation
+        test_config = {
+            'tests': [str(test_file.absolute())]
         }
-    except Exception as e:
+        
+        print(f"DEBUG: Using existing device connection for {device.hostname}", file=sys.stderr)
+        print(f"DEBUG: test_config: {test_config}", file=sys.stderr)
+        
+        # Use snapcheck with the existing device object
+        # This avoids the connection issues we were having
+        check_result = jsnapy.snapcheck(test_config, "current", dev=device)
+        
+        print(f"DEBUG: check_result type: {type(check_result)}", file=sys.stderr)
+        print(f"DEBUG: check_result length: {len(check_result) if check_result else 0}", file=sys.stderr)
+        
+        # Parse JSNAPy results
+        formatted_data = []
+        
+        if check_result and len(check_result) > 0:
+            for result in check_result:
+                print(f"DEBUG: result.device: {getattr(result, 'device', 'Unknown')}", file=sys.stderr)
+                print(f"DEBUG: result.result: {getattr(result, 'result', 'Unknown')}", file=sys.stderr)
+                print(f"DEBUG: result.no_passed: {getattr(result, 'no_passed', 0)}", file=sys.stderr)
+                print(f"DEBUG: result.no_failed: {getattr(result, 'no_failed', 0)}", file=sys.stderr)
+                
+                if hasattr(result, 'test_results') and result.test_results:
+                    print(f"DEBUG: test_results keys: {list(result.test_results.keys())}", file=sys.stderr)
+                    
+                    # Parse detailed test results
+                    for command, command_results in result.test_results.items():
+                        for test_result in command_results:
+                            test_name_from_result = test_result.get('test_name', 'Unknown Test')
+                            
+                            # Process passed tests
+                            for passed_item in test_result.get('passed', []):
+                                formatted_data.append({
+                                    "Check": f"{test_name_from_result} - {command}",
+                                    "Result": "PASSED",
+                                    "Details": passed_item.get('message', 'Test passed')
+                                })
+                            
+                            # Process failed tests
+                            for failed_item in test_result.get('failed', []):
+                                formatted_data.append({
+                                    "Check": f"{test_name_from_result} - {command}",
+                                    "Result": "FAILED", 
+                                    "Details": failed_item.get('message', 'Test failed')
+                                })
+                            
+                            # If no individual results, show summary
+                            if not test_result.get('passed') and not test_result.get('failed'):
+                                formatted_data.append({
+                                    "Check": f"{test_name_from_result} - {command}",
+                                    "Result": "PASSED" if test_result.get('result', False) else "FAILED",
+                                    "Details": f"Count - Pass: {test_result.get('count', {}).get('pass', 0)}, Fail: {test_result.get('count', {}).get('fail', 0)}"
+                                })
+                else:
+                    # Fallback for basic results
+                    formatted_data.append({
+                        "Check": f"Device {getattr(result, 'device', device.hostname)}",
+                        "Result": "PASSED" if getattr(result, 'result', '') == 'Passed' else "FAILED",
+                        "Details": f"Passed: {getattr(result, 'no_passed', 0)}, Failed: {getattr(result, 'no_failed', 0)}"
+                    })
+        
+        if not formatted_data:
+            formatted_data = [{"Check": "No Results", "Result": "UNKNOWN", "Details": "JSNAPy returned no test data"}]
+        
         return {
-            "title": test_def["title"],
+            "title": test_def.get("title", test_name),
+            "headers": ["Check", "Result", "Details"],
+            "data": formatted_data
+        }
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"DEBUG: Full traceback:\n{error_details}", file=sys.stderr)
+        
+        return {
+            "title": test_def.get("title", test_name),
             "headers": ["Error"],
-            "data": [{"Error": f"JSNAPy execution failed: {str(e)}"}]
+            "data": [{"Error": f"JSNAPy test execution failed: {str(e)}"}]
         }
 
 # =============================================================================
@@ -136,19 +210,29 @@ async def validate_host(hostname, username, password, tests, test_defs, host_ind
 # =============================================================================
 async def main_async(args):
     """Core orchestrator for test discovery/execution."""
-    # Load test definitions
     tests_yml = Path(__file__).parent / "tests.yml"
     with open(tests_yml) as f:
         test_defs = yaml.safe_load(f)
 
-    # --- Test Discovery Mode ---
+    # --- Test Discovery Mode (MODIFIED) ---
     if args.list_tests:
-        return {
-            "discovered_tests": {
-                test: {"description": def_.get("description"), "category": def_.get("category")}
-                for test, def_ in test_defs.items()
-            }
-        }
+        # The frontend expects data grouped by category.
+        categorized_tests = {}
+        for test_id, details in test_defs.items():
+            category = details.get("category", "Uncategorized")
+            if category not in categorized_tests:
+                categorized_tests[category] = []
+            
+            # Append a complete test object.
+            categorized_tests[category].append({
+                "id": test_id,
+                "title": details.get("title", test_id),
+                "description": details.get("description", "No description provided."),
+                "category": category
+            })
+        
+        # Return the data in the structure expected by the frontend.
+        return {"discovered_tests": categorized_tests}
 
     # --- Test Execution Mode ---
     hosts = args.hostname.split(",")
@@ -156,7 +240,6 @@ async def main_async(args):
 
     send_progress("RUN_START", {"total_hosts": len(hosts)})
 
-    # Run tests concurrently across hosts
     tasks = [
         validate_host(
             host, args.username, args.password,
@@ -190,5 +273,5 @@ if __name__ == "__main__":
         result = asyncio.run(main_async(args))
         print(json.dumps(result))
     except Exception as e:
-        print(json.dumps({"error": str(e)}), file=sys.stderr)
+        print(json.dumps({"type": "error", "message": str(e)}), file=sys.stderr)
         sys.exit(1)

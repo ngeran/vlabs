@@ -53,13 +53,24 @@ function getDockerComposeStatus(labPath) {
     const dockerComposeFilePath = path.join(labDirectory, "docker-compose.yml");
     // Check if docker-compose.yml exists
     if (!fs.existsSync(dockerComposeFilePath))
-      return resolve({ status: "stopped", message: "Lab definition file not found." });
+      return resolve({
+        status: "stopped",
+        message: "Lab definition file not found.",
+      });
 
     const command = `docker compose -f "${dockerComposeFilePath}" ps --format json`;
     exec(command, { cwd: labDirectory }, (error, stdout) => {
       // Handle command execution errors
-      if (error) return resolve({ status: "stopped", message: `Docker Compose command failed: ${error.message}` });
-      if (!stdout.trim()) return resolve({ status: "stopped", message: "No active containers found." });
+      if (error)
+        return resolve({
+          status: "stopped",
+          message: `Docker Compose command failed: ${error.message}`,
+        });
+      if (!stdout.trim())
+        return resolve({
+          status: "stopped",
+          message: "No active containers found.",
+        });
 
       // Parse JSON output from Docker Compose
       let services = stdout
@@ -76,35 +87,57 @@ function getDockerComposeStatus(labPath) {
 
       // Determine lab status based on service states
       if (services.every((s) => s.State === "running"))
-        return resolve({ status: "running", message: "All lab containers are running." });
+        return resolve({
+          status: "running",
+          message: "All lab containers are running.",
+        });
       if (services.some((s) => s.State === "exited" || s.State === "degraded"))
-        return resolve({ status: "failed", message: "Some lab containers are unhealthy." });
+        return resolve({
+          status: "failed",
+          message: "Some lab containers are unhealthy.",
+        });
       if (services.some((s) => s.State === "starting"))
-        return resolve({ status: "starting", message: "Lab containers are starting." });
+        return resolve({
+          status: "starting",
+          message: "Lab containers are starting.",
+        });
 
       resolve({ status: "unknown", message: "Lab status is indeterminate." });
     });
   });
 }
-
 // ==============================================================================
-// SECTION 3: TEST DISCOVERY
+// SECTION 3: TEST DISCOVERY (CORRECTED VERSION)
 // ==============================================================================
-// Execute test discovery for a script using Docker
 function executeTestDiscovery(scriptId, environment = "development") {
-  return new Promise((resolve, reject) => {
-    // Check cache for existing results
+  // --> CHANGE 1: We now only use `resolve` to handle all outcomes.
+  return new Promise((resolve) => {
     const cacheKey = `${scriptId}-${environment}`;
     const cached = testDiscoveryCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) return resolve(cached.data);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log(
+        `[dockerUtils] Returning cached test discovery for '${scriptId}'.`,
+      );
+      return resolve({ success: true, ...cached.data });
+    }
 
-    // Load script configuration
-    const scriptsCfg = yaml.load(fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"));
+    const scriptsCfg = yaml.load(
+      fs.readFileSync(SCRIPTS_CONFIG_FILE_PATH_IN_CONTAINER, "utf8"),
+    );
     const scriptDef = scriptsCfg.scripts.find((s) => s.id === scriptId);
-    if (!scriptDef) return reject(new Error(`Script definition not found for ID: ${scriptId}`));
+    if (!scriptDef) {
+      // If script is not found, resolve with a failure message.
+      return resolve({
+        success: false,
+        message: `Script definition not found for ID: ${scriptId}`,
+      });
+    }
 
-    // Construct Docker command for test discovery
-    const scriptPath = path.join(SCRIPT_MOUNT_POINT_IN_CONTAINER, scriptDef.path, "run.py");
+    const scriptPath = path.join(
+      SCRIPT_MOUNT_POINT_IN_CONTAINER,
+      scriptDef.path,
+      "run.py",
+    );
     const args = [
       "run",
       "--rm",
@@ -114,25 +147,50 @@ function executeTestDiscovery(scriptId, environment = "development") {
       "python",
       scriptPath,
       "--list_tests",
-      "--environment",
-      environment,
     ];
 
-    // Execute Docker command with timeout
-    exec(`docker ${args.join(" ")}`, { timeout: 60000 }, (err, stdout) => {
-      if (err) return reject(new Error(`Test discovery failed: ${err.message}`));
-      try {
-        // Parse and cache test discovery results
-        const result = { ...JSON.parse(stdout), backend_metadata: { discovery_time: new Date().toISOString() } };
-        testDiscoveryCache.set(cacheKey, { data: result, timestamp: Date.now() });
-        resolve(result);
-      } catch (pErr) {
-        reject(new Error(`Failed to parse test discovery output: ${pErr.message}`));
-      }
-    });
+    console.log(`[dockerUtils] Executing command: docker ${args.join(" ")}`);
+
+    exec(
+      `docker ${args.join(" ")}`,
+      { timeout: 60000 },
+      (err, stdout, stderr) => {
+        // --> CHANGE 2: Handle the error case by resolving with success: false.
+        if (err) {
+          // We capture `stderr` from the Python script, which contains the real error.
+          console.error(
+            `[dockerUtils] Test discovery script failed. Stderr: ${stderr}`,
+          );
+          return resolve({ success: false, message: stderr || err.message });
+        }
+
+        // --> CHANGE 3: Wrap the success case in a try/catch for JSON parsing.
+        try {
+          const result = JSON.parse(stdout);
+          const dataToCache = {
+            ...result,
+            backend_metadata: { discovery_time: new Date().toISOString() },
+          };
+          testDiscoveryCache.set(cacheKey, {
+            data: dataToCache,
+            timestamp: Date.now(),
+          });
+          // Resolve with a success: true flag.
+          resolve({ success: true, ...dataToCache });
+        } catch (pErr) {
+          // If the Python script returns something that isn't valid JSON.
+          console.error(
+            `[dockerUtils] Failed to parse JSON from discovery script. Stdout: ${stdout}`,
+          );
+          resolve({
+            success: false,
+            message: `Failed to parse test discovery output: ${pErr.message}`,
+          });
+        }
+      },
+    );
   });
 }
-
 // ==============================================================================
 // SECTION 4: EXPORTS
 // ==============================================================================

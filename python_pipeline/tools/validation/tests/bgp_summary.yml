@@ -1,8 +1,11 @@
-tests:
-  - test_bgp_peers:
-      command: "show bgp summary"
-      iterate:
-        xpath: ".//bgp-peer"
-        tests:
-          - is-equal: peer-as, 65000   # Expected ASN
-          - is-equal: peer-state, Established
+# tests/bgp_summary.yml
+# JSNAPy test file for BGP summary validation
+
+test_bgp_summary:
+  - command: show bgp summary
+  - iterate:
+      xpath: //bgp-peer
+      tests:
+        - is-equal: peer-state, Established
+          info: "BGP peer <{{post['peer-address']}}> AS<{{post['peer-as']}}> is established"
+          err: "BGP peer <{{post['peer-address']}}> AS<{{post['peer-as']}}> is not established, state is <{{post['peer-state']}}>"

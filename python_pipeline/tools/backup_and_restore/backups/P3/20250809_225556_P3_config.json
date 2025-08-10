@@ -1,0 +1,299 @@
+{
+    "configuration": {
+        "@": {
+            "xmlns": "http://xml.juniper.net/xnm/1.1/xnm",
+            "junos:changed-seconds": "1754779928",
+            "junos:changed-localtime": "2025-08-09 22:52:08 UTC"
+        },
+        "version": "20250314.171404_builder.r1479783",
+        "groups": [
+            {
+                "name": "basic",
+                "system": {
+                    "host-name": "P3",
+                    "root-authentication": {
+                        "encrypted-password": "$6$yDi90$O1we6URgjk5GSxPgR2em9CGr.4vS23OhHkAs5xhL5sWejOg9tKTBqLcn.KAfnfg7gyvBrxbsEvDRR8TnM1Dmb/"
+                    },
+                    "login": {
+                        "user": [
+                            {
+                                "name": "admin",
+                                "uid": 2000,
+                                "class": "super-user",
+                                "authentication": {
+                                    "encrypted-password": "$6$gxEQu$cqVcV2drZ5Fk.TenzbHWynW5DdOLoroWQcPH.DOdhaZq2uQ0qa4aaU0yw7MfOMdec2XrL1R3hK32goMkJE5Sb1"
+                                }
+                            }
+                        ]
+                    },
+                    "services": {
+                        "netconf": {
+                            "ssh": {}
+                        },
+                        "ssh": {}
+                    }
+                }
+            },
+            {
+                "name": "OSPF",
+                "protocols": {
+                    "ospf": {
+                        "area": [
+                            {
+                                "name": "0.0.0.0",
+                                "interface": [
+                                    {
+                                        "name": "lo0.0",
+                                        "passive": {}
+                                    },
+                                    {
+                                        "name": "eth1",
+                                        "disable": [
+                                            null
+                                        ]
+                                    },
+                                    {
+                                        "name": "<eth*>",
+                                        "interface-type": "p2p",
+                                        "bfd-liveness-detection": {
+                                            "minimum-interval": 300,
+                                            "multiplier": 3
+                                        },
+                                        "ldp-synchronization": {}
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "name": "LDP",
+                "protocols": {
+                    "ldp": {
+                        "track-igp-metric": [
+                            null
+                        ],
+                        "explicit-null": [
+                            null
+                        ],
+                        "interface": [
+                            {
+                                "name": "lo0.0"
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "name": "MPLS",
+                "protocols": {
+                    "mpls": {
+                        "explicit-null": [
+                            null
+                        ],
+                        "interface": [
+                            {
+                                "name": "eth1",
+                                "disable": [
+                                    null
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        ],
+        "apply-groups": [
+            "basic",
+            "LDP",
+            "OSPF",
+            "MPLS"
+        ],
+        "system": {
+            "services": {
+                "extension-service": {
+                    "request-response": {
+                        "grpc": {
+                            "clear-text": {
+                                "port": 50051
+                            },
+                            "skip-authentication": [
+                                null
+                            ]
+                        }
+                    },
+                    "notification": {
+                        "allow-clients": {
+                            "address": [
+                                "172.27.200.240/32"
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "services": {
+            "analytics": {
+                "streaming-server": [
+                    {
+                        "name": "telegraf-server",
+                        "remote-address": "172.27.200.240",
+                        "remote-port": 50051,
+                        "transport": "grpc"
+                    }
+                ],
+                "export-profile": [
+                    {
+                        "name": "telegraf-export",
+                        "reporting-rate": 2,
+                        "format": "gpb"
+                    }
+                ],
+                "sensor": [
+                    {
+                        "name": "interface-sensor",
+                        "server-name": [
+                            "telegraf-server"
+                        ],
+                        "export-name": "telegraf-export",
+                        "resource": "/junos/system/linecard/interface/"
+                    }
+                ]
+            }
+        },
+        "interfaces": {
+            "interface": [
+                {
+                    "name": "eth2",
+                    "unit": [
+                        {
+                            "name": 0,
+                            "family": {
+                                "mpls": {}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "eth3",
+                    "unit": [
+                        {
+                            "name": 0,
+                            "family": {
+                                "mpls": {}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "eth4",
+                    "unit": [
+                        {
+                            "name": 0,
+                            "family": {
+                                "mpls": {}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "eth5",
+                    "description": "ETH|RR2|ETH2|WAN",
+                    "unit": [
+                        {
+                            "name": 0,
+                            "family": {
+                                "mpls": {}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "lo0",
+                    "unit": [
+                        {
+                            "name": 0,
+                            "family": {
+                                "inet": {
+                                    "address": [
+                                        {
+                                            "name": "10.100.255.4/24"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        "routing-options": {
+            "router-id": "10.100.255.4"
+        },
+        "protocols": {
+            "ldp": {
+                "interface": [
+                    {
+                        "name": "eth2"
+                    },
+                    {
+                        "name": "eth3"
+                    },
+                    {
+                        "name": "eth4"
+                    },
+                    {
+                        "name": "eth5"
+                    },
+                    {
+                        "name": "eth6"
+                    }
+                ]
+            },
+            "mpls": {
+                "interface": [
+                    {
+                        "name": "eth2"
+                    },
+                    {
+                        "name": "eth3"
+                    },
+                    {
+                        "name": "eth4"
+                    },
+                    {
+                        "name": "eth5"
+                    },
+                    {
+                        "name": "eth6"
+                    }
+                ]
+            },
+            "ospf": {
+                "area": [
+                    {
+                        "name": "0.0.0.0",
+                        "interface": [
+                            {
+                                "name": "eth2"
+                            },
+                            {
+                                "name": "eth3"
+                            },
+                            {
+                                "name": "eth4"
+                            },
+                            {
+                                "name": "eth5"
+                            },
+                            {
+                                "name": "eth6"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+}

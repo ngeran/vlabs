@@ -1,0 +1,117 @@
+{
+  "results_by_host": [
+    {
+      "hostname": "192.168.100.11",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "Get Version",
+          "error": "RpcError(severity: error, bad_element: terse, message: syntax error, expecting <invoke-on>)",
+          "headers": [],
+          "data": []
+        }
+      ]
+    },
+    {
+      "hostname": "192.168.100.12",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "Get Version",
+          "error": "RpcError(severity: error, bad_element: terse, message: syntax error, expecting <invoke-on>)",
+          "headers": [],
+          "data": []
+        }
+      ]
+    },
+    {
+      "hostname": "192.168.100.21",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "Get Version",
+          "error": "RpcError(severity: error, bad_element: terse, message: syntax error, expecting <invoke-on>)",
+          "headers": [],
+          "data": []
+        }
+      ]
+    },
+    {
+      "hostname": "192.168.100.22",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "Get Version",
+          "error": "RpcError(severity: error, bad_element: terse, message: syntax error, expecting <invoke-on>)",
+          "headers": [],
+          "data": []
+        }
+      ]
+    },
+    {
+      "hostname": "192.168.100.23",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "Get Version",
+          "error": "RpcError(severity: error, bad_element: terse, message: syntax error, expecting <invoke-on>)",
+          "headers": [],
+          "data": []
+        }
+      ]
+    },
+    {
+      "hostname": "192.168.100.24",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "Get Version",
+          "error": "RpcError(severity: error, bad_element: terse, message: syntax error, expecting <invoke-on>)",
+          "headers": [],
+          "data": []
+        }
+      ]
+    },
+    {
+      "hostname": "192.168.100.31",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "Get Version",
+          "error": "RpcError(severity: error, bad_element: terse, message: syntax error, expecting <invoke-on>)",
+          "headers": [],
+          "data": []
+        }
+      ]
+    },
+    {
+      "hostname": "192.168.100.32",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "Get Version",
+          "error": "RpcError(severity: error, bad_element: terse, message: syntax error, expecting <invoke-on>)",
+          "headers": [],
+          "data": []
+        }
+      ]
+    },
+    {
+      "hostname": "192.168.100.41",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "Get Version",
+          "error": "RpcError(severity: error, bad_element: terse, message: syntax error, expecting <invoke-on>)",
+          "headers": [],
+          "data": []
+        }
+      ]
+    },
+    {
+      "hostname": "192.168.100.42",
+      "status": "error",
+      "message": "An error occurred with host 192.168.100.42: ConnectRefusedError(192.168.100.42)"
+    }
+  ]
+}

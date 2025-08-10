@@ -1,0 +1,64 @@
+# FILE: python_pipeline/tools/reporting/metadata.yml
+
+# =============================================================================
+# SECTION 1: BASIC METADATA
+# =============================================================================
+# MODIFICATION: Update display name and description for the Reports tool.
+displayName: "Network Reports Runner"
+description: "Generates and displays operational state reports from network devices."
+
+# =============================================================================
+# SECTION 2: TOOL CATEGORIZATION & UI ROUTING
+# =============================================================================
+# MODIFICATION: Changed category to better reflect the tool's purpose.
+category: "Reporting & Analytics"
+# MODIFICATION: CRITICAL - This MUST match the key in PythonScriptRunner.jsx's RUNNER_MAP.
+runnerComponent: "ReportsRunner"
+
+# =============================================================================
+# SECTION 3: CAPABILITIES CONFIGURATION
+# =============================================================================
+capabilities:
+  deviceTargeting: true
+  deviceAuth: true
+  dynamicDiscovery: true
+  enableReportSaving: true
+  saveButton:
+    enabled: true
+    # MODIFICATION: Updated label and save path for reports.
+    label: "Save Generated Report"
+    savePath: "generated_reports" # This matches the savePath in your ReportsApiService
+
+# =============================================================================
+# SECTION 4: DEVICE TARGETING & AUTH CONFIG
+# =============================================================================
+# No changes needed here, targeting and auth are generic.
+deviceTargeting:
+  title: "Target Device Selection"
+  description: "Choose target devices for report generation."
+  requiredFields: ["hostname", "inventory_file"]
+
+deviceAuth:
+  title: "Device Authentication"
+  description: "Provide credentials to access the target device(s)."
+  requiredFields: ["username", "password"]
+
+# =============================================================================
+# SECTION 5: UI PARAMETERS
+# =============================================================================
+parameters:
+  - name: "environment"
+    label: "Environment"
+    type: "enum"
+    required: true
+    default: "development"
+    options:
+      - { value: "development", label: "Development" }
+      - { value: "lab", label: "Lab" }
+  # MODIFICATION: CRITICAL - This parameter name MUST match what the frontend sends.
+  # The ReportsRunner sidebar selection is stored in a parameter named "reports".
+  - name: "reports"
+    label: "Reports to run"
+    type: "string_array"
+    required: true
+    description: "Select reports from the sidebar options."

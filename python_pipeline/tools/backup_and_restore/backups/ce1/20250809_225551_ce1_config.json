@@ -1,0 +1,84 @@
+{
+    "configuration": {
+        "@": {
+            "xmlns": "http://xml.juniper.net/xnm/1.1/xnm",
+            "junos:changed-seconds": "1754779928",
+            "junos:changed-localtime": "2025-08-09 22:52:08 UTC"
+        },
+        "version": "20250314.171404_builder.r1479783",
+        "groups": [
+            {
+                "name": "basic",
+                "system": {
+                    "root-authentication": {
+                        "encrypted-password": "$6$KO2yp$hFpsVA8E.AhY9AilV7tRy9ucIkYDyOwCg9euNfa3s2CeCW.Fmmd.dglwCh.oPUpkV.UEXqXrp/TdhmzCdUOfX/"
+                    },
+                    "login": {
+                        "user": [
+                            {
+                                "name": "admin",
+                                "uid": 2000,
+                                "class": "super-user",
+                                "authentication": {
+                                    "encrypted-password": "$6$3.TSD$PE/PTypJUlnIJWMdw3WJ4ah3xLCeCNrzwlcLQftTkBG/V7uuI9MuETy0luVkwoLpOINbg4ZubhfFU/.xZd/a4."
+                                }
+                            }
+                        ]
+                    },
+                    "services": {
+                        "netconf": {
+                            "ssh": {}
+                        },
+                        "ssh": {},
+                        "extension-service": {
+                            "request-response": {
+                                "grpc": {
+                                    "clear-text": {
+                                        "address": "0.0.0.0",
+                                        "port": 50051
+                                    },
+                                    "max-connections": 8,
+                                    "skip-authentication": [
+                                        null
+                                    ]
+                                }
+                            },
+                            "notification": {
+                                "allow-clients": {
+                                    "address": [
+                                        "0.0.0.0/0"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "apply-groups": [
+            "basic"
+        ],
+        "routing-options": {
+            "router-id": "10.100.255.10",
+            "autonomous-system": {
+                "as-number": "65001"
+            }
+        },
+        "protocols": {
+            "bgp": {
+                "group": [
+                    {
+                        "name": "SITE-A",
+                        "type": "external",
+                        "neighbor": [
+                            {
+                                "name": "10.255.100.122",
+                                "peer-as": "64710"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+}

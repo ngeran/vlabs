@@ -58,7 +58,6 @@ import BackupAndRestoreRunner from './runners/BackupAndRestoreRunner.jsx';
 import CodeUpgradeRunner from './runners/CodeUpgradeRunner.jsx';
 import FileUploaderRunner from './runners/FileUploaderRunner.jsx';
 import DeviceConfigurationRunner from './runners/DeviceConfigurationRunner.jsx';
-import JsnapyRunner from "./runners/JsnapyRunner.jsx";
 import ReportsRunner from "./runners/ReportsRunner.jsx";
 import ValidationRunner from "./runners/ValidationRunner.jsx";
 
@@ -79,7 +78,6 @@ const RUNNER_MAP = {
   CodeUpgradeRunner,
   FileUploaderRunner,
   DeviceConfigurationRunner,
-  JsnapyRunner,
   ReportsRunner,
   ValidationRunner,
 };

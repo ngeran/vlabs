@@ -18,7 +18,7 @@
 # =============================================================================
 # SECTION 1: TOOL METADATA & ROUTING
 # =============================================================================
-displayName: "JSNAPy Validation"
+displayName: "Validation (JSNAPy)"
 description: "Executes JSNAPy snapshot tests to validate network device state."
 category: "Validation & Testing"
 

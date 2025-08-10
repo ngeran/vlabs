@@ -3,11 +3,6 @@
 # The backend will merge this with the individual metadata files.
 
 scripts:
-  - id: jsnapy_runner
-    # Path is relative to the python_pipeline directory
-    path: "tools/jsnapy_runner"
-    metadataFile: "metadata.yml"
-
   - id: config_templating
     path: "tools/configuration"
     metadataFile: "metadata.yml"

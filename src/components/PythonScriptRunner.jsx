@@ -59,14 +59,8 @@ import CodeUpgradeRunner from './runners/CodeUpgradeRunner.jsx';
 import FileUploaderRunner from './runners/FileUploaderRunner.jsx';
 import DeviceConfigurationRunner from './runners/DeviceConfigurationRunner.jsx';
 import JsnapyRunner from "./runners/JsnapyRunner.jsx";
-// =================================================================================================
-// MODIFICATION START: Import the new ReportsRunner component
-// =================================================================================================
 import ReportsRunner from "./runners/ReportsRunner.jsx";
-// =================================================================================================
-// MODIFICATION END
-// =================================================================================================
-
+import ValidationRunner from "./runners/ValidationRunner.jsx";
 
 // --- Core Application Hooks ---
 import { useWebSocket } from "../hooks/useWebSocket.jsx";
@@ -86,13 +80,8 @@ const RUNNER_MAP = {
   FileUploaderRunner,
   DeviceConfigurationRunner,
   JsnapyRunner,
-  // =================================================================================================
-  // MODIFICATION START: Add the new ReportsRunner to the map
-  // =================================================================================================
   ReportsRunner,
-  // =================================================================================================
-  // MODIFICATION END
-  // =================================================================================================
+  ValidationRunner,
 };
 
 // =================================================================================================

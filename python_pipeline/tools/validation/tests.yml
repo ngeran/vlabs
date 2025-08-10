@@ -1,0 +1,32 @@
+# =============================================================================
+# FILE:               python_pipeline/tools/validation/tests.yml
+#
+# DESCRIPTION:
+#   This file defines all runnable JSNAPy validation tests. Each entry represents
+#   a selectable item in the Validation Runner's UI.
+#
+# HOW TO USE:
+#   To add a new validation test, create a new top-level entry. The key (e.g.,
+#   'bgp_check') is the ID, and the 'title' and 'category' are used for display
+#   in the UI. The Python script reads this file for the discovery process.
+# =============================================================================
+
+bgp_check:
+  title: "BGP State Validation"
+  category: "Routing Protocols"
+  description: "Checks for established BGP peers and route counts."
+
+ospf_check:
+  title: "OSPF Adjacency Check"
+  category: "Routing Protocols"
+  description: "Verifies that all OSPF neighbors are in the 'Full' state."
+
+interface_check:
+  title: "Interface Health Check"
+  category: "Physical Layer"
+  description: "Ensures all critical interfaces are admin-up and oper-up."
+
+hardware_check:
+  title: "Chassis Hardware Health"
+  category: "System Health"
+  description: "Checks for any active hardware alarms on the chassis."

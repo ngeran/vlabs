@@ -1,0 +1,61 @@
+# =============================================================================
+# FILE:               python_pipeline/tools/validation/metadata.yml
+#
+# DESCRIPTION:
+#   Configuration file for the JSNAPy Validation Runner tool. It defines the
+#   tool's metadata, UI component, capabilities, and parameters.
+#
+# KEY FEATURES:
+#   - runnerComponent: Links this tool to the 'ValidationRunner.jsx' component.
+#   - capabilities: Enables UI features like device targeting and saving results.
+#   - parameters: Defines the inputs required from the UI, such as the list of
+#     selected tests.
+#
+# DEPENDENCIES:
+#   - PythonScriptRunner.jsx: The main frontend orchestrator that reads this file.
+# =============================================================================
+
+# =============================================================================
+# SECTION 1: TOOL METADATA & ROUTING
+# =============================================================================
+displayName: "JSNAPy Validation"
+description: "Executes JSNAPy snapshot tests to validate network device state."
+category: "Validation & Testing"
+
+# This is the critical link to the React component in the frontend.
+runnerComponent: "ValidationRunner"
+
+# =============================================================================
+# SECTION 2: CAPABILITIES
+# =============================================================================
+# Defines which generic UI features are enabled for this runner.
+capabilities:
+  deviceTargeting: true
+  deviceAuth: true
+  dynamicDiscovery: true
+  enableReportSaving: true
+  saveButton:
+    enabled: true
+    label: "Save Validation Report"
+    savePath: "validation_reports" # The sub-directory for saved reports.
+
+# =============================================================================
+# SECTION 3: PARAMETERS
+# =============================================================================
+# Defines the parameters the UI will manage and pass to the backend script.
+parameters:
+  - name: "environment"
+    label: "Environment"
+    type: "enum"
+    required: true
+    default: "development"
+    options:
+      - { value: "development", label: "Development" }
+      - { value: "lab", label: "Lab" }
+
+  # The name 'tests' is the contract required by the generic runner framework.
+  - name: "tests"
+    label: "Validations to run"
+    type: "string_array"
+    required: true
+    description: "Select validations from the sidebar options."

@@ -3,16 +3,13 @@
 # =============================================================================
 # SECTION 1: BASIC METADATA
 # =============================================================================
-# MODIFICATION: Update display name and description for the Reports tool.
-displayName: "Network Reports Runner"
+displayName: "Network Reports"
 description: "Generates and displays operational state reports from network devices."
 
 # =============================================================================
 # SECTION 2: TOOL CATEGORIZATION & UI ROUTING
 # =============================================================================
-# MODIFICATION: Changed category to better reflect the tool's purpose.
-category: "Reporting & Analytics"
-# MODIFICATION: CRITICAL - This MUST match the key in PythonScriptRunner.jsx's RUNNER_MAP.
+category: "Device Management" # move to category: "Reporting & Analytics"
 runnerComponent: "ReportsRunner"
 
 # =============================================================================
@@ -25,14 +22,12 @@ capabilities:
   enableReportSaving: true
   saveButton:
     enabled: true
-    # MODIFICATION: Updated label and save path for reports.
     label: "Save Generated Report"
-    savePath: "generated_reports" # This matches the savePath in your ReportsApiService
+    savePath: "generated_reports"
 
 # =============================================================================
 # SECTION 4: DEVICE TARGETING & AUTH CONFIG
 # =============================================================================
-# No changes needed here, targeting and auth are generic.
 deviceTargeting:
   title: "Target Device Selection"
   description: "Choose target devices for report generation."
@@ -55,9 +50,13 @@ parameters:
     options:
       - { value: "development", label: "Development" }
       - { value: "lab", label: "Lab" }
-  # MODIFICATION: CRITICAL - This parameter name MUST match what the frontend sends.
-  # The ReportsRunner sidebar selection is stored in a parameter named "reports".
-  - name: "reports"
+  # ================================================================================
+  # MODIFICATION: CRITICAL FIX
+  # The parameter name for the selectable items MUST be 'tests' to match the
+  # generic backend runner service that converts it into a command-line flag.
+  # The label can still say "Reports", but the 'name' must be 'tests'.
+  # ================================================================================
+  - name: "tests"
     label: "Reports to run"
     type: "string_array"
     required: true

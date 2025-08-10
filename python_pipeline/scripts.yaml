@@ -28,6 +28,11 @@ scripts:
     path: "tools/reporting"
     metadataFile: "metadata.yml"
 
+  - id: validation
+    path: "tools/validation"
+    metadataFile: "metadata.yml"
+
+
   # To add a new script, just add a new entry here.
   # - id: my_new_script
   #   path: "tools/my_new_script_folder"

@@ -23,32 +23,24 @@
 // SECTION 1: CONFIGURATION
 // =============================================================================
 const API_BASE_URL = "http://localhost:3001";
-const REPORTS_SCRIPT_ID = "reports_runner"; // Unique script ID for this tool
+const REPORTS_SCRIPT_ID = "reporting";
 
 // =============================================================================
 // SECTION 2: API SERVICE DEFINITION
 // =============================================================================
 const ReportsApiService = {
-  /**
-   * Fetches discoverable reports for the main reporting script.
-   * @param {string} environment - The target environment (e.g., 'development').
-   * @returns {Promise<object>} A promise that resolves to categorized reports.
-   * @throws {Error} If the API call fails or returns an error.
-   */
   async discoverReports(environment = "development") {
-    console.log(`[ReportsApiService] Discovering reports for environment: ${environment}`);
+    console.log(`[ReportsApiService] Discovering reports for scriptId: ${REPORTS_SCRIPT_ID} in environment: ${environment}`);
     try {
       const response = await fetch(`${API_BASE_URL}/api/scripts/discover-tests`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ scriptId: REPORTS_SCRIPT_ID, environment }),
       });
-
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-
       const data = await response.json();
       if (!data.success) {
         throw new Error(data.message || "API failed to discover reports.");
@@ -60,24 +52,22 @@ const ReportsApiService = {
     }
   },
 
-  /**
-   * Initiates the execution of the report generation script.
-   * @param {object} parameters - The script parameters, including selected reports.
-   * @param {string} wsClientId - The WebSocket client ID for real-time updates.
-   * @returns {Promise<void>} A promise that resolves on successful initiation.
-   * @throws {Error} If the API call fails.
-   */
   async runScript(parameters, wsClientId) {
     console.log(`[ReportsApiService] Initiating report script execution.`);
     if (!wsClientId) {
       throw new Error("WebSocket client ID is required for real-time updates.");
     }
 
+    // ==========================================================================
+    // MODIFICATION: Package the selected items under the 'tests' key, as this
+    // is what the generic backend service expects.
+    // ==========================================================================
     const paramsToSend = {
       ...parameters,
-      // The backend script expects a comma-separated string for multi-select params
-      reports: Array.isArray(parameters.reports) ? parameters.reports.join(",") : parameters.reports,
+      tests: Array.isArray(parameters.tests) ? parameters.tests.join(",") : parameters.tests,
     };
+    // The 'reports' key, if it exists, will now be ignored by the backend, which is correct.
+    delete paramsToSend.reports;
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/scripts/run`, {
@@ -104,26 +94,18 @@ const ReportsApiService = {
     }
   },
 
-  /**
-   * Saves the final report data using the generic report generation endpoint.
-   * @param {Object} resultsData - The final results object from the execution state.
-   * @returns {Promise<Object>} The JSON response from the server.
-   * @throws {Error} If the API call fails.
-   */
   async saveResults(resultsData) {
     console.log(`[ReportsApiService] Saving report results.`);
     try {
       const payload = {
-        savePath: "generated_reports", // Pre-defined save path for reports
+        savePath: "generated_reports",
         jsonData: resultsData,
       };
-
       const response = await fetch(`${API_BASE_URL}/api/report/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);

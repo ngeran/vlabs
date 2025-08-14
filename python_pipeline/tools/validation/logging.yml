@@ -1,0 +1,25 @@
+version: 1
+disable_existing_loggers: False
+
+formatters:
+  simple:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+handlers:
+  # Log to the console, but only for serious errors
+  console:
+    class: logging.StreamHandler
+    level: ERROR
+    formatter: simple
+    stream: ext://sys.stdout
+
+  # Log informational messages to a file within the project
+  file:
+    class: logging.FileHandler
+    formatter: simple
+    level: INFO
+    filename: ./jsnapy.log # Log file will appear in the validation folder
+
+root:
+  level: INFO
+  handlers: [console, file]

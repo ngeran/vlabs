@@ -1,0 +1,13 @@
+{
+  "results": [
+    {
+      "hostname": "172.27.200.200",
+      "status": "error",
+      "message": "Connection failed: ConnectTimeoutError(172.27.200.200)"
+    }
+  ],
+  "summary": {
+    "passed_hosts": 0,
+    "total_tests": 1
+  }
+}

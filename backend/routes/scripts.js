@@ -296,12 +296,20 @@ router.post("/run", async (req, res) => {
 
   // Add parameters to Docker command
   if (processedParameters) {
+    // --- MODIFICATION START ---
+    // Define keys that should NOT be passed to the Python script
+    const ignoredKeys = ['environment'];
+
     for (const [key, value] of Object.entries(processedParameters)) {
+      // If the key is in our ignore list, skip it
+      if (ignoredKeys.includes(key)) continue;
+
       if (value !== undefined && value !== null && value !== "") {
         dockerArgs.push(`--${key}`);
         dockerArgs.push(String(value));
       }
     }
+    // --- MODIFICATION END ---
   }
 
   console.log("[DEBUG][API] Final Docker command:", dockerArgs.join(" "));
@@ -430,15 +438,22 @@ router.post("/run-stream", (req, res) => {
     scriptPathInContainer,
   ];
 
+  // --- MODIFICATION START ---
   // Dynamically append all parameters from the request to the command.
+  const ignoredKeys = ['environment']; // Keys to exclude from the script's arguments
+
   for (const [key, value] of Object.entries(parameters || {})) {
+    if (ignoredKeys.includes(key)) continue; // Skip ignored keys
     if (value === null || value === undefined || value === "") continue;
+    
     if (value === true) {
       commandAndArgs.push(`--${key}`);
     } else if (value !== false) {
       commandAndArgs.push(`--${key}`, String(value));
     }
   }
+  // --- MODIFICATION END ---
+  
   const finalDockerCommand = [...dockerOptions, ...commandAndArgs];
 
   // -----------------------------------------------------------------------------------------------

@@ -1,0 +1,29 @@
+{
+  "results": [
+    {
+      "hostname": "172.27.200.200",
+      "status": "success",
+      "test_results": [
+        {
+          "title": "LDP Session Status",
+          "headers": [
+            "Check",
+            "Result",
+            "Details"
+          ],
+          "data": [
+            {
+              "Check": "ldp_sessions - 172.27.200.200",
+              "Result": "FAILED",
+              "Details": "Passed: 0, Failed: 0"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "passed_hosts": 1,
+    "total_tests": 1
+  }
+}

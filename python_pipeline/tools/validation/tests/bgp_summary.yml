@@ -1,11 +1,11 @@
 # tests/bgp_summary.yml
 # JSNAPy test file for BGP summary validation
-
+# Fixed to prevent HTML injection issues in web UI
 test_bgp_summary:
   - command: show bgp summary
   - iterate:
       xpath: //bgp-peer
       tests:
         - is-equal: peer-state, Established
-          info: "BGP peer <{{post['peer-address']}}> AS<{{post['peer-as']}}> is established"
-          err: "BGP peer <{{post['peer-address']}}> AS<{{post['peer-as']}}> is not established, state is <{{post['peer-state']}}>"
+          info: "BGP peer {{post['peer-address']}} AS{{post['peer-as']}} is established"
+          err: "BGP peer {{post['peer-address']}} AS{{post['peer-as']}} is not established, state is {{post['peer-state']}}"

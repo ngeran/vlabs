@@ -81,3 +81,9 @@ system_alarms:
   category: "System"
   jsnapy_test_file: "system_alarms.yml"
   description: "System Alarms"
+
+test_version:
+  title: "Device Version"
+  category: "System"
+  jsnapy_test_file: "test_version.yml"
+  description: "Device Version"

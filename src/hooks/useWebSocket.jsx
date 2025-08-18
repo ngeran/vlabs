@@ -23,21 +23,20 @@
 //     `useScriptRunnerStream` hook, passing in the `wsContext` from the parent.
 //
 // =================================================================================================
+// =================================================================================================
+//
+//  FIXED WEBSOCKET INTEGRATION HOOKS FOR REACT
+//  FILE: useWebSocket.jsx (ERROR-PROOF VERSION)
+//
+// =================================================================================================
 
 import { useState, useEffect, useCallback } from "react";
-// The singleton service handles the raw connection; it requires no changes.
 import websocketService from "../services/websocketServices";
 
 // ================================================================================
-// SECTION 1: CORE HOOK - useWebSocket
-// This hook manages the application's single, persistent WebSocket connection.
+// SECTION 1: CORE HOOK - useWebSocket (No changes needed here)
 // ================================================================================
 
-/**
- * Manages the global WebSocket connection state and provides the service instance.
- * @param {object} options - Configuration options.
- * @returns {object} A context object with `isConnected`, `clientId`, and the `websocketService` instance.
- */
 export const useWebSocket = (options = {}) => {
   const config = { autoConnect: true, wsUrl: "ws://localhost:3001", ...options };
 
@@ -47,7 +46,6 @@ export const useWebSocket = (options = {}) => {
     connectionError: null,
   });
 
-  // These handlers update the hook's state when the service emits events.
   const handleConnected = useCallback(() => {
     console.log("🟢 [HOOK] Service reported: Connected");
     setConnectionState({ isConnected: true, connectionError: null, clientId: websocketService.clientId });
@@ -68,7 +66,6 @@ export const useWebSocket = (options = {}) => {
     setConnectionState(prev => ({ ...prev, isConnected: false, connectionError: data.error || 'Unknown Error' }));
   }, []);
 
-  // This effect subscribes to the service and is StrictMode-safe.
   useEffect(() => {
     console.log("🔔 [HOOK] Setting up WebSocket listeners...");
     const unsubscribers = [
@@ -88,35 +85,24 @@ export const useWebSocket = (options = {}) => {
     };
   }, [config.autoConnect, config.wsUrl, handleConnected, handleDisconnected, handleClientId, handleError]);
 
-  // Provide the reactive state and the service instance as a single context object.
   return { ...connectionState, websocketService };
 };
 
-
 // ================================================================================
-// SECTION 2: SPECIALIZED HOOK - useScriptRunnerStream
-// This hook manages the full lifecycle of a single script execution.
+// SECTION 2: FIXED SCRIPT RUNNER HOOK - useScriptRunnerStream
 // ================================================================================
 
-/**
- * Manages the state for a script run that streams real-time updates.
- * @param {object} wsContext - The context object from the `useWebSocket` hook.
- * @returns {object} The complete state of the script run and a `resetState` function.
- */
 export const useScriptRunnerStream = (wsContext) => {
-  // -----------------------------------------------------------------------------------------------
-  // Subsection 2.1: State Management
-  // -----------------------------------------------------------------------------------------------
+  // State Management
   const [isRunning, setIsRunning] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [progressEvents, setProgressEvents] = useState([]);
   const [finalResult, setFinalResult] = useState(null);
   const [error, setError] = useState(null);
 
-  // -----------------------------------------------------------------------------------------------
-  // Subsection 2.2: State Reset Function
-  // -----------------------------------------------------------------------------------------------
+  // State Reset Function
   const resetState = useCallback(() => {
+    console.log("🔄 [HOOK] Resetting script runner state");
     setIsRunning(false);
     setIsComplete(false);
     setProgressEvents([]);
@@ -124,58 +110,185 @@ export const useScriptRunnerStream = (wsContext) => {
     setError(null);
   }, []);
 
-  // -----------------------------------------------------------------------------------------------
-  // Subsection 2.3: Effect Hook for Handling WebSocket Messages
-  // -----------------------------------------------------------------------------------------------
+  // CRITICAL FIX: Enhanced message handling with comprehensive error handling
   useEffect(() => {
-    // --- FIX: The 'data' parameter is now a pre-parsed JavaScript object ---
     const handleMessage = (data) => {
       try {
-        // --- FIX: REMOVE the redundant JSON.parse() call ---
-        // const data = JSON.parse(event.data); // This is no longer needed.
+        // Validate the data structure first
+        if (!data || typeof data !== 'object') {
+          console.warn("📥 [HOOK] Received invalid message data:", data);
+          return;
+        }
 
-        // The rest of the logic works perfectly now.
+        console.log("📥 [HOOK] Processing message type:", data.type, data);
+
         switch (data.type) {
           case 'script_start':
-            resetState();
-            setIsRunning(true);
-            break;
-          case 'progress':
-            setProgressEvents(prev => [...prev, data]);
-            break;
-          case 'result':
-            console.log("[DEBUG] Final Result View received:", data.data);
-            setFinalResult(data.data);
-            break;
-          case 'script_end':
-            setIsRunning(false);
-            setIsComplete(true);
-            if (data.exitCode !== 0 && !error) {
-              setError({ message: `Script finished with a non-zero exit code: ${data.exitCode}` });
+            console.log("🚀 [HOOK] Script starting...");
+            try {
+              resetState();
+              setIsRunning(true);
+            } catch (scriptStartError) {
+              console.error("❌ [HOOK] Error handling script_start:", scriptStartError);
+              setError({ message: `Failed to start script: ${scriptStartError.message}` });
             }
             break;
-          case 'error':
-            setError(data);
-            setIsRunning(false);
-            setIsComplete(true);
+
+          case 'progress':
+            console.log("📈 [HOOK] Progress event:", data.event_type);
+            try {
+              setProgressEvents(prev => {
+                // Validate progress data before adding
+                if (data.event_type && typeof data.event_type === 'string') {
+                  return [...prev, data];
+                } else {
+                  console.warn("📈 [HOOK] Invalid progress event:", data);
+                  return prev;
+                }
+              });
+            } catch (progressError) {
+              console.error("❌ [HOOK] Error handling progress:", progressError);
+              // Don't crash - just log the error
+            }
             break;
+
+          case 'result':
+            console.log("🎯 [HOOK] Processing result data...");
+            try {
+              // CRITICAL FIX: Comprehensive result validation
+              if (!data.data) {
+                console.error("❌ [HOOK] Result message missing data field:", data);
+                setError({ message: "Received result message without data" });
+                setIsRunning(false);
+                setIsComplete(true);
+                return;
+              }
+
+              // Validate result structure
+              if (typeof data.data !== 'object') {
+                console.error("❌ [HOOK] Result data is not an object:", data.data);
+                setError({ message: "Invalid result data format" });
+                setIsRunning(false);
+                setIsComplete(true);
+                return;
+              }
+
+              // CRITICAL FIX: Deep validation for BGP-like data
+              try {
+                // Test if the data can be safely stringified (this will catch problematic content)
+                JSON.stringify(data.data);
+
+                // Validate expected structure
+                if (data.data.results && Array.isArray(data.data.results)) {
+                  console.log("✅ [HOOK] Result data validated successfully");
+                  setFinalResult(data.data);
+
+                  // Don't set complete here - wait for script_end
+                  console.log("📊 [HOOK] Final result set, waiting for script_end...");
+                } else {
+                  console.warn("⚠️ [HOOK] Result data missing expected structure:", data.data);
+                  // Still set the result, but with a warning
+                  setFinalResult({
+                    ...data.data,
+                    _warning: "Result data structure may be incomplete"
+                  });
+                }
+              } catch (stringifyError) {
+                console.error("❌ [HOOK] Result data contains non-serializable content:", stringifyError);
+                setError({
+                  message: `Result data processing failed: ${stringifyError.message}`,
+                  originalData: "Result contained problematic content"
+                });
+                setIsRunning(false);
+                setIsComplete(true);
+                return;
+              }
+
+            } catch (resultError) {
+              console.error("❌ [HOOK] Critical error processing result:", resultError);
+              console.error("❌ [HOOK] Problematic result data:", data);
+              setError({
+                message: `Failed to process test results: ${resultError.message}`,
+                details: "The result data could not be processed safely"
+              });
+              setIsRunning(false);
+              setIsComplete(true);
+            }
+            break;
+
+          case 'script_end':
+            console.log("🏁 [HOOK] Script ended with exit code:", data.exitCode);
+            try {
+              setIsRunning(false);
+              setIsComplete(true);
+
+              if (data.exitCode !== 0 && !error && !finalResult) {
+                setError({ message: `Script finished with exit code ${data.exitCode} and no results` });
+              }
+
+              // If we have results but no script_end was processed properly before
+              if (finalResult && !error) {
+                console.log("✅ [HOOK] Script completed successfully with results");
+              }
+            } catch (scriptEndError) {
+              console.error("❌ [HOOK] Error handling script_end:", scriptEndError);
+              setError({ message: `Script end processing failed: ${scriptEndError.message}` });
+              setIsComplete(true);
+            }
+            break;
+
+          case 'error':
+            console.error("❌ [HOOK] Received error message:", data);
+            try {
+              setError(data);
+              setIsRunning(false);
+              setIsComplete(true);
+            } catch (errorHandlingError) {
+              console.error("❌ [HOOK] Error handling error message:", errorHandlingError);
+              setError({ message: "Multiple errors occurred during script execution" });
+              setIsRunning(false);
+              setIsComplete(true);
+            }
+            break;
+
           default:
+            console.log("📝 [HOOK] Unhandled message type:", data.type);
             break;
         }
-      } catch (e) {
-        // This catch block is now just a safety net for unexpected errors.
-        console.error("Error processing WebSocket message object:", data, e);
+
+      } catch (outerError) {
+        console.error("💥 [HOOK] Critical error in message handler:", outerError);
+        console.error("💥 [HOOK] Message that caused error:", data);
+
+        // Fail gracefully - don't let the error crash the component
+        setError({
+          message: `Message processing failed: ${outerError.message}`,
+          critical: true
+        });
+        setIsRunning(false);
+        setIsComplete(true);
       }
     };
-    // This part is now correct. It listens for the 'message' event and gets the parsed object.
+
+    // Set up the WebSocket listener
     if (wsContext && wsContext.websocketService) {
+      console.log("🔗 [HOOK] Setting up message listener");
       const unsubscribe = wsContext.websocketService.on('message', handleMessage);
-      return () => unsubscribe();
+
+      return () => {
+        console.log("🔌 [HOOK] Cleaning up message listener");
+        unsubscribe();
+      };
     }
-  }, [wsContext, resetState, error]);
-  // -----------------------------------------------------------------------------------------------
-  // Subsection 2.4: Return API
-  // -----------------------------------------------------------------------------------------------
-  // Expose all state and control functions to the consuming component.
-  return { isRunning, isComplete, progressEvents, finalResult, error, resetState };
+  }, [wsContext, resetState, error, finalResult]);
+
+  // Return the complete state
+  return {
+    isRunning,
+    isComplete,
+    progressEvents,
+    finalResult,
+    error,
+    resetState
+  };
 };

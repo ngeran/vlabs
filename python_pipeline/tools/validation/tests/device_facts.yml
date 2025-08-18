@@ -1,7 +1,15 @@
-tests:
-  - test_system_info:
-      command: "show system information"
+test_system_info:
+  - command: "show system information | display xml"
+  - iterate:
+      xpath: /*[local-name()='rpc-reply']/*[local-name()='system-information']
       tests:
-        - exists: host-name           # Hostname must exist
-        - exists: hardware-model      # Model must exist
-        - is-not-empty: os-version    # OS version check
+        - exists: host-name
+          info: "Hostname: {{post['host-name']}}"
+        - exists: hardware-model
+          info: "Hardware Model: {{post['hardware-model']}}"
+        - exists: os-name
+          info: "OS Name: {{post['os-name']}}"
+        - exists: os-version
+          info: "OS Version: {{post['os-version']}}"
+        - exists: serial-number
+          info: "Serial Number: {{post['serial-number']}}"

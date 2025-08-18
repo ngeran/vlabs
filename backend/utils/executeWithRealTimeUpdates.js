@@ -1,23 +1,28 @@
 // =================================================================================================
 //
-// FILE:               backend/utils/executeWithRealTimeUpdates.js (Hybrid Version)
+// FILE:               backend/utils/executeWithRealTimeUpdates.js (Enhanced Hybrid Version)
 //
-// OVERVIEW:
-//   This module provides a robust, self-contained utility function for executing a
-//   long-running command-line process. It has been upgraded to be "bilingual,"
-//   meaning it can correctly handle scripts that output a real-time stream of
-//   single-line JSON events AND scripts that output a single, multi-line JSON block at the end.
+// DESCRIPTION:
+//   A robust utility for executing command-line processes with real-time output processing.
+//   Handles both streaming JSON output (line-by-line) and bulk JSON output (end-of-process).
+//   Designed to work with Python scripts that may output in either format.
 //
 // KEY FEATURES:
-//   - Hybrid Parsing: Attempts to parse stdout line-by-line for real-time events. If no
-//     final result is found this way, it performs a fallback check, attempting to parse
-//     the entire stdout buffer as a single JSON object. This provides maximum compatibility.
-//   - Clean Stream Protocol: Still assumes `stdout` is for UI-facing JSON and `stderr` is for
-//     developer-facing logs, preventing UI pollution.
+//   - Hybrid JSON parsing (streaming + bulk fallback)
+//   - WebSocket integration for real-time UI updates
+//   - Automatic cleanup of temporary files
+//   - Comprehensive error handling
+//   - Debug logging for troubleshooting
 //
-// HOW-TO GUIDE:
-//   This version requires no changes to the calling code or the Python scripts. It is a
-//   drop-in replacement that is simply more resilient to different output formats.
+// DEPENDENCIES:
+//   - Node.js child_process module
+//   - Node.js fs module
+//
+// HOW TO USE:
+//   1. Import the function:
+//      const { executeWithRealTimeUpdates } = require('./executeWithRealTimeUpdates');
+//   2. Call with parameters:
+//      executeWithRealTimeUpdates(command, args, clientWs, cleanupPath);
 //
 // =================================================================================================
 
@@ -28,123 +33,176 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 
 // =================================================================================================
-// SECTION 2: FUNCTION DEFINITION
+// SECTION 2: CORE FUNCTIONALITY
 // =================================================================================================
 
 /**
- * Executes a command, intelligently processing its stdout to support both streaming
- * and block-based JSON output, with optional file cleanup.
+ * Executes a command with real-time output processing and WebSocket integration.
+ *
+ * @param {string} command - The command to execute (e.g., 'python')
+ * @param {Array} args - Command arguments (e.g., ['script.py', '--param'])
+ * @param {WebSocket} clientWs - WebSocket connection for real-time updates
+ * @param {string|null} cleanupPath - Optional file path to delete after execution
  */
 function executeWithRealTimeUpdates(command, args, clientWs, cleanupPath = null) {
-  // -----------------------------------------------------------------------------------------------
-  // Subsection 2.1: Initial Validation
-  // -----------------------------------------------------------------------------------------------
-  if (!clientWs || clientWs.readyState !== 1) {
-    console.error("[BACKEND] WebSocket client not available for real-time updates.");
-    if (cleanupPath) fs.unlink(cleanupPath, () => {});
-    return;
-  }
 
-  // -----------------------------------------------------------------------------------------------
-  // Subsection 2.2: Spawn Child Process & State Initialization
-  // -----------------------------------------------------------------------------------------------
-  const child = spawn(command, args);
-  let stdoutBuffer = ""; // This will now accumulate the ENTIRE stdout.
-  let finalResultFromStream = null; // Stores the result if found via line-by-line parsing.
+    // =============================================================================================
+    // SUBSECTION 2.1: INITIAL VALIDATION
+    // Validates inputs and WebSocket connection before proceeding
+    // =============================================================================================
+    if (!clientWs || clientWs.readyState !== 1) {
+        console.error("[BACKEND] WebSocket client not available for real-time updates.");
+        if (cleanupPath) fs.unlink(cleanupPath, () => {});
+        return;
+    }
 
-  // -----------------------------------------------------------------------------------------------
-  // Subsection 2.3: stdout Stream Processing Logic
-  // -----------------------------------------------------------------------------------------------
-  const processStdoutLines = (buffer) => {
-    const lines = buffer.split('\n');
-    const newBuffer = lines.pop() || '';
-    for (const line of lines) {
-      if (line.trim() === '') continue;
-      try {
-        const jsonData = JSON.parse(line.trim());
-        if (jsonData.event_type) {
-          if (clientWs.readyState === 1) {
-            clientWs.send(JSON.stringify({ type: 'progress', ...jsonData }));
-          }
-        } else {
-          // This assumes a streaming script prints its final result on a single line.
-          finalResultFromStream = jsonData;
+    // =============================================================================================
+    // SUBSECTION 2.2: PROCESS INITIALIZATION
+    // Spawns the child process and initializes state tracking variables
+    // =============================================================================================
+    const child = spawn(command, args);
+    let stdoutBuffer = ""; // Accumulates all stdout content
+    let finalResultFromStream = null; // Stores any result found via streaming
+
+    // =============================================================================================
+    // SUBSECTION 2.3: STDOUT PROCESSING LOGIC
+    // Handles real-time parsing of stdout data as it arrives
+    // =============================================================================================
+    const processStdoutLines = (buffer) => {
+        const lines = buffer.split('\n');
+        const newBuffer = lines.pop() || '';
+
+        for (const line of lines) {
+            if (line.trim() === '') continue;
+
+            try {
+                const jsonData = JSON.parse(line.trim());
+
+                // Handle progress events (streaming updates)
+                if (jsonData.event_type) {
+                    if (clientWs.readyState === 1) {
+                        clientWs.send(JSON.stringify({
+                            type: 'progress',
+                            ...jsonData
+                        }));
+                    }
+                }
+                // Capture potential final result in streaming mode
+                else {
+                    finalResultFromStream = jsonData;
+                }
+            } catch (e) {
+                // Non-JSON lines are expected in bulk output mode
+                console.debug("[BACKEND] Non-JSON stdout line:", line);
+            }
         }
-      } catch (e) {
-        // This is now expected for multi-line JSON. We will log it but allow it to continue.
-        console.warn("[BACKEND] Received non-JSON line on stdout (may be part of a larger JSON block):", line);
-      }
-    }
-    return newBuffer;
-  };
 
-  // =================================================================================================
-  // SECTION 3: CHILD PROCESS EVENT HANDLERS
-  // =================================================================================================
+        return newBuffer;
+    };
 
-  child.stdout.on('data', (data) => {
-    const dataStr = data.toString();
-    // Accumulate the entire output for our fallback parser.
-    stdoutBuffer += dataStr;
-    // Also, attempt to process line-by-line for streaming scripts.
-    processStdoutLines(dataStr);
-  });
+    // =============================================================================================
+    // SECTION 3: EVENT HANDLERS
+    // Handlers for process events (stdout, stderr, close, error)
+    // =============================================================================================
 
-  child.stderr.on('data', (data) => {
-    console.error(`[SCRIPT-STDERR]: ${data.toString().trim()}`);
-  });
+    // Handler for stdout data events
+    child.stdout.on('data', (data) => {
+        const dataStr = data.toString();
+        stdoutBuffer += dataStr; // Accumulate for bulk parsing
+        processStdoutLines(dataStr); // Process for streaming updates
+    });
 
-  // -----------------------------------------------------------------------------------------------
-  // Event: 'close' - The process has finished. THIS CONTAINS THE FIX.
-  // -----------------------------------------------------------------------------------------------
-  child.on('close', (code) => {
-    let finalResult = null;
+    // Handler for stderr data events
+    child.stderr.on('data', (data) => {
+        console.error(`[SCRIPT-STDERR]: ${data.toString().trim()}`);
+    });
 
-    // --- ### THE FIX IS HERE ### ---
-    // This logic makes the utility "bilingual".
+    // =============================================================================================
+    // SUBSECTION 3.1: PROCESS COMPLETION HANDLER
+    // Handles process completion and final result processing
+    // =============================================================================================
+    child.on('close', (code) => {
+        let finalResult = null;
 
-    // Priority 1: Check if the line-by-line streaming parser found a result.
-    // This works for the File Uploader.
-    if (finalResultFromStream) {
-      finalResult = finalResultFromStream;
-    }
-    // Priority 2 (Fallback): If no streaming result was found, try to parse the
-    // ENTIRE accumulated stdout buffer as a single JSON object.
-    // This works for the JSNAPy runner.
-    else if (stdoutBuffer.trim()) {
-      try {
-        finalResult = JSON.parse(stdoutBuffer.trim());
-      } catch (e) {
-        console.error("[BACKEND] CRITICAL: Script finished, but stdout could not be parsed as a single JSON block. Error:", e.message);
-        finalResult = null; // Ensure it's null on failure.
-      }
-    }
-    // --- ### END OF FIX ### ---
+        // PHASE 1: Attempt to get result from streaming parser
+        if (finalResultFromStream) {
+            finalResult = finalResultFromStream;
+        }
+        // PHASE 2: Fallback to bulk parsing of accumulated stdout
+        else if (stdoutBuffer.trim()) {
+            try {
+                // Strategy 1: Find last valid JSON object in output
+                const jsonObjects = stdoutBuffer.trim().split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0)
+                    .map(line => {
+                        try {
+                            return JSON.parse(line);
+                        } catch (e) {
+                            return null;
+                        }
+                    })
+                    .filter(obj => obj !== null);
 
-    if (clientWs.readyState !== 1) return;
+                if (jsonObjects.length > 0) {
+                    finalResult = jsonObjects[jsonObjects.length - 1];
+                }
+                // Strategy 2: Parse entire buffer as single JSON
+                else {
+                    finalResult = JSON.parse(stdoutBuffer.trim());
+                }
+            } catch (e) {
+                console.error("[BACKEND] JSON parse failed:", e.message);
+            }
+        }
 
-    // Now, send the final messages based on what we found.
-    if (code === 0 && finalResult) {
-      clientWs.send(JSON.stringify({ type: 'result', data: finalResult }));
-    } else {
-      clientWs.send(JSON.stringify({ type: 'error', message: `Script exited with code ${code} or produced invalid/no JSON output.` }));
-    }
+        // Ensure we have a WebSocket connection before sending
+        if (clientWs.readyState === 1) {
+            // Send final result or error
+            if (code === 0) {
+                if (finalResult) {
+                    clientWs.send(JSON.stringify({
+                        type: 'result',
+                        data: finalResult
+                    }));
+                } else {
+                    clientWs.send(JSON.stringify({
+                        type: 'error',
+                        message: 'Script completed but produced no valid output'
+                    }));
+                }
+            } else {
+                clientWs.send(JSON.stringify({
+                    type: 'error',
+                    message: `Script failed with exit code ${code}`
+                }));
+            }
 
-    clientWs.send(JSON.stringify({ type: 'script_end', exitCode: code }));
+            // Always send script_end to signal completion
+            clientWs.send(JSON.stringify({
+                type: 'script_end',
+                exitCode: code
+            }));
+        }
 
-    if (cleanupPath) {
-      fs.unlink(cleanupPath, (err) => {
-        if (err) console.error(`[BACKEND] Failed to delete temp file: ${cleanupPath}`, err);
-        else console.log(`[BACKEND] Deleted temp file: ${cleanupPath}`);
-      });
-    }
-  });
+        // Cleanup temporary files if specified
+        if (cleanupPath) {
+            fs.unlink(cleanupPath, (err) => {
+                if (err) console.error(`[BACKEND] Cleanup failed for ${cleanupPath}`);
+            });
+        }
+    });
 
-  child.on('error', (error) => {
-    if (clientWs.readyState === 1) {
-      clientWs.send(JSON.stringify({ type: 'error', message: `Failed to start process: ${error.message}` }));
-    }
-  });
+    // Handler for process errors
+    child.on('error', (error) => {
+        console.error("[BACKEND] Process error:", error.message);
+        if (clientWs.readyState === 1) {
+            clientWs.send(JSON.stringify({
+                type: 'error',
+                message: `Process failed: ${error.message}`
+            }));
+        }
+    });
 }
 
 // =================================================================================================

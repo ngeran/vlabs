@@ -22,7 +22,7 @@ pkgs.mkShell {
     pip install jsnapy junos-eznc pyyaml jinja2 tabulate
 
     # Point JSNAPy to this project’s config directory
-    export JSNAPY_HOME=$PWD
+    export JSNAPY_HOME=/tmp/jsnapy
 
     echo "🐍 Virtualenv activated with jsnapy + junos-eznc + yaml + jinja2 + tabulate"
     echo "JSNAPY_HOME set to: $JSNAPY_HOME"

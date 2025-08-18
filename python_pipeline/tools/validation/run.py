@@ -145,6 +145,7 @@ def create_result_table(test_name, test_title, raw_results):
 # =============================================================================
 # SECTION 4: JSNAPY TEST EXECUTION (WITH SAFE FORMATTING)
 # =============================================================================
+
 def run_jsnapy_test(device, test_name, test_def):
     """
     Executes a JSNAPy test against a device and returns safely formatted table results.
@@ -156,11 +157,7 @@ def run_jsnapy_test(device, test_name, test_def):
             "Result": "ERROR",
             "Details": f"Missing 'jsnapy_test_file' in tests.yml for test '{test_name}'"
         }]
-        return create_result_table(
-            test_name,
-            test_def.get("title", test_name),
-            error_result
-        )
+        return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
 
     test_file = Path(__file__).parent / "tests" / jsnapy_file_name
 
@@ -170,74 +167,179 @@ def run_jsnapy_test(device, test_name, test_def):
             "Result": "ERROR",
             "Details": f"JSNAPy test file not found: {test_file}"
         }]
-        return create_result_table(
-            test_name,
-            test_def.get("title", test_name),
-            error_result
-        )
+        return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
 
-    # Store original working directory
+    # Store original working directory and environment
     original_cwd = os.getcwd()
     original_jsnapy_home = os.environ.get("JSNAPY_HOME")
 
     try:
-        # Set working directory to script location
-        script_dir = Path(__file__).parent
-        os.chdir(script_dir)
+        # Create the JSNAPy home directory if it doesn't exist
+        jsnapy_home = Path('/tmp/jsnapy')
+        jsnapy_home.mkdir(parents=True, exist_ok=True)
 
-        # Set JSNAPY_HOME environment variable - this is crucial for finding config files
-        os.environ["JSNAPY_HOME"] = str(script_dir.absolute())
+        # Set JSNAPY_HOME environment variable to the directory containing jsnapy.cfg
+        os.environ["JSNAPY_HOME"] = str(jsnapy_home)
 
-        # Create snapshots directory if it doesn't exist (JSNAPy requirement)
-        snapshots_dir = script_dir / "snapshots"
-        snapshots_dir.mkdir(exist_ok=True)
+        # Switch to the JSNAPy home directory - this is crucial!
+        os.chdir(str(jsnapy_home))
 
-        # Import JSNAPy after setting environment
+        # Ensure the snapshots directory exists in the JSNAPy home directory
+        snapshots_dir = jsnapy_home / 'snapshots'
+        snapshots_dir.mkdir(parents=True, exist_ok=True)
+
+        # Ensure the tests directory exists and copy our test file there
+        tests_dir = jsnapy_home / 'tests'
+        tests_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy the test file to JSNAPy's expected location
+        import shutil
+        source_test_file = Path(__file__).parent / "tests" / jsnapy_file_name
+        target_test_file = tests_dir / jsnapy_file_name
+        shutil.copy2(source_test_file, target_test_file)
+
+        # Create a basic jsnapy.cfg file if it doesn't exist
+        jsnapy_cfg = jsnapy_home / 'jsnapy.cfg'
+        if not jsnapy_cfg.exists():
+            with open(jsnapy_cfg, 'w') as cfg_file:
+                cfg_file.write("""[DEFAULT]
+snapshot_path = /tmp/jsnapy/snapshots
+test_path = /tmp/jsnapy/tests
+""")
+
+        # Create logging.yml file if it doesn't exist
+        logging_yml = jsnapy_home / 'logging.yml'
+        if not logging_yml.exists():
+            with open(logging_yml, 'w') as log_file:
+                log_file.write("""version: 1
+disable_existing_loggers: False
+formatters:
+    simple:
+        format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+handlers:
+    console:
+        class: logging.StreamHandler
+        level: ERROR
+        formatter: simple
+        stream: ext://sys.stdout
+    file:
+        class: logging.FileHandler
+        level: INFO
+        formatter: simple
+        filename: /tmp/jsnapy/jsnapy.log
+root:
+    level: ERROR
+    handlers: [console, file]
+loggers:
+    jsnapy:
+        level: ERROR
+        handlers: [console, file]
+        propagate: no
+""")
+
+        # Ensure log file can be created
+        log_file_path = jsnapy_home / 'jsnapy.log'
+        log_file_path.touch(exist_ok=True)
+
+        # Import JSNAPy after setting the environment variables
         from jnpr.jsnapy import SnapAdmin
 
+        # Initialize SnapAdmin with comprehensive error handling
         jsnapy = None
-        try:
-            jsnapy = SnapAdmin()
-        except Exception as init_error:
-            error_result = [{
-                "Check": f"{test_name} - JSNAPy Init Error",
-                "Result": "ERROR",
-                "Details": f"Failed to initialize JSNAPy: {init_error}"
-            }]
-            return create_result_table(
-                test_name,
-                test_def.get("title", test_name),
-                error_result
-            )
+        initialization_attempts = [
+            # Attempt 1: Normal initialization
+            lambda: SnapAdmin(),
+            # Attempt 2: With suppressed stderr
+            lambda: _init_with_suppressed_stderr(),
+            # Attempt 3: With minimal temporary environment
+            lambda: _init_with_temp_env()
+        ]
 
-        # Configure test - use relative path as per jsnapy.cfg
+        def _init_with_suppressed_stderr():
+            import sys
+            original_stderr = sys.stderr
+            try:
+                sys.stderr = open(os.devnull, 'w')
+                return SnapAdmin()
+            finally:
+                sys.stderr.close()
+                sys.stderr = original_stderr
+
+        def _init_with_temp_env():
+            # Create absolute minimal environment
+            import tempfile
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_home = Path(temp_dir)
+                original_jsnapy_home = os.environ.get("JSNAPY_HOME")
+                try:
+                    os.environ["JSNAPY_HOME"] = str(temp_home)
+
+                    # Create ultra-minimal logging.yml
+                    temp_logging = temp_home / 'logging.yml'
+                    with open(temp_logging, 'w') as f:
+                        f.write("version: 1\nroot:\n  level: ERROR\n")
+
+                    return SnapAdmin()
+                finally:
+                    if original_jsnapy_home:
+                        os.environ["JSNAPY_HOME"] = original_jsnapy_home
+                    else:
+                        os.environ.pop("JSNAPY_HOME", None)
+
+        # Try each initialization method
+        last_error = None
+        for i, init_method in enumerate(initialization_attempts):
+            try:
+                jsnapy = init_method()
+                if jsnapy:
+                    print(f"DEBUG: SnapAdmin initialized successfully on attempt {i+1}", file=sys.stderr)
+                    break
+            except Exception as e:
+                last_error = e
+                print(f"DEBUG: SnapAdmin initialization attempt {i+1} failed: {e}", file=sys.stderr)
+                continue
+
+        if not jsnapy:
+            raise Exception(f"Failed to initialize JSNAPy SnapAdmin after all attempts. Last error: {last_error}")
+
+        # Configure test - use relative path from JSNAPy home
         test_config = {
             "tests": [f"tests/{jsnapy_file_name}"]
         }
 
         check_result = None
         try:
+            # Use snapcheck instead of separate snap and check
+            # This takes a snapshot and runs checks in one operation
             check_result = jsnapy.snapcheck(test_config, "current", dev=device)
-        except Exception:
-            # Fallback to separate snap and check if snapcheck fails
+
+        except Exception as jsnapy_error:
+            # If snapcheck fails, try the traditional snap then check approach
             try:
-                jsnapy.snap(test_config, "current", dev=device)
+                print(f"DEBUG: snapcheck failed, trying snap then check: {jsnapy_error}", file=sys.stderr)
+
+                # Take snapshot first
+                snap_result = jsnapy.snap(test_config, "current", dev=device)
+                print(f"DEBUG: Snap result: {snap_result}", file=sys.stderr)
+
+                # Then run check
                 check_result = jsnapy.check(test_config, "current", dev=device)
+                print(f"DEBUG: Check result: {check_result}", file=sys.stderr)
+
             except Exception as alt_error:
                 error_result = [{
                     "Check": f"{test_name} - Execution Error",
                     "Result": "ERROR",
                     "Details": f"JSNAPy execution failed: {alt_error}"
                 }]
-                return create_result_table(
-                    test_name,
-                    test_def.get("title", test_name),
-                    error_result
-                )
+                return {
+                    "table": create_result_table(test_name, test_def.get("title", test_name), error_result),
+                    "raw": [{"error": str(alt_error), "traceback": traceback.format_exc()}]
+                }
 
         # Process results
         formatted_data = []
-        raw_data = []  # Store raw results for detailed output
+        raw_data = []
         if check_result:
             for result in check_result:
                 test_results = getattr(result, "test_results", {})
@@ -252,27 +354,86 @@ def run_jsnapy_test(device, test_name, test_def):
 
                 if test_results:
                     for command, command_results in test_results.items():
-                        for test_result in command_results:
-                            # Process passed tests
-                            for passed_item in test_result.get("passed", []):
-                                formatted_data.append({"Check": f"{test_name} - {command}", "Result": "PASSED", "Details": passed_item.get("message", "Test passed")})
-                            # Process failed tests
-                            for failed_item in test_result.get("failed", []):
-                                formatted_data.append({"Check": f"{test_name} - {command}", "Result": "FAILED", "Details": failed_item.get("message", "Test failed")})
+                        # Debug: Print what we're getting from JSNAPy
+                        print(f"DEBUG: Command: {command}, Results: {command_results}", file=sys.stderr)
+
+                        if isinstance(command_results, list):
+                            for test_result in command_results:
+                                if isinstance(test_result, dict):
+                                    # Handle passed results
+                                    for passed_item in test_result.get("passed", []):
+                                        if isinstance(passed_item, dict):
+                                            message = passed_item.get("message", "Test passed")
+                                        else:
+                                            message = str(passed_item)
+                                        formatted_data.append({
+                                            "Check": f"{test_name} - {command}",
+                                            "Result": "PASSED",
+                                            "Details": message
+                                        })
+
+                                    # Handle failed results
+                                    for failed_item in test_result.get("failed", []):
+                                        if isinstance(failed_item, dict):
+                                            message = failed_item.get("message", "Test failed")
+                                        else:
+                                            message = str(failed_item)
+                                        formatted_data.append({
+                                            "Check": f"{test_name} - {command}",
+                                            "Result": "FAILED",
+                                            "Details": message
+                                        })
+
+                                    # If no passed/failed but result exists, check result field
+                                    if (not test_result.get("passed") and
+                                        not test_result.get("failed") and
+                                        test_result.get("result") is not None):
+                                        result_value = test_result.get("result")
+                                        if result_value:
+                                            formatted_data.append({
+                                                "Check": f"{test_name} - {command}",
+                                                "Result": "PASSED",
+                                                "Details": f"Command executed successfully: {result_value}"
+                                            })
+                                        else:
+                                            formatted_data.append({
+                                                "Check": f"{test_name} - {command}",
+                                                "Result": "FAILED",
+                                                "Details": "Command returned no data"
+                                            })
                 else:
-                    # Fallback for basic results
+                    # Fallback: use overall result if no detailed test_results
                     overall_result = "PASSED" if getattr(result, "result", "") == "Passed" else "FAILED"
-                    formatted_data.append({"Check": f"{test_name} - {getattr(result, 'device', device.hostname)}", "Result": overall_result, "Details": f"Passed: {getattr(result, 'no_passed', 0)}, Failed: {getattr(result, 'no_failed', 0)}"})
+                    passed_count = getattr(result, 'no_passed', 0)
+                    failed_count = getattr(result, 'no_failed', 0)
+
+                    if passed_count > 0 or failed_count > 0:
+                        details = f"Passed: {passed_count}, Failed: {failed_count}"
+                    else:
+                        details = "Test completed but no specific results available"
+
+                    formatted_data.append({
+                        "Check": f"{test_name} - {getattr(result, 'device', device.hostname)}",
+                        "Result": overall_result,
+                        "Details": details
+                    })
 
         if not formatted_data:
-            formatted_data = [{"Check": f"{test_name} - No Results", "Result": "UNKNOWN", "Details": "JSNAPy returned no interpretable test data"}]
+            formatted_data = [{
+                "Check": f"{test_name} - No Results",
+                "Result": "UNKNOWN",
+                "Details": "JSNAPy returned no interpretable test data"
+            }]
 
-        # Convert to safe table format
         table_result = create_result_table(test_name, test_def.get("title", test_name), formatted_data)
         return {"table": table_result, "raw": raw_data}
 
     except Exception as e:
-        error_result = [{"Check": f"{test_name} - Exception", "Result": "ERROR", "Details": f"JSNAPy test execution failed: {str(e)}"}]
+        error_result = [{
+            "Check": f"{test_name} - Exception",
+            "Result": "ERROR",
+            "Details": f"JSNAPy test execution failed: {str(e)}"
+        }]
         return {
             "table": create_result_table(test_name, test_def.get("title", test_name), error_result),
             "raw": [{"error": str(e), "traceback": traceback.format_exc()}]
@@ -285,7 +446,6 @@ def run_jsnapy_test(device, test_name, test_def):
             os.environ["JSNAPY_HOME"] = original_jsnapy_home
         elif "JSNAPY_HOME" in os.environ:
             del os.environ["JSNAPY_HOME"]
-
 
 # =============================================================================
 # SECTION 5: RESULT FORMATTING AND DISPLAY

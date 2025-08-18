@@ -1,0 +1,44 @@
+{
+  "data": {
+    "results_by_host": [
+      {
+        "hostname": "172.27.200.201",
+        "status": "success",
+        "test_results": [
+          {
+            "table": {
+              "test_name": "bgp_summary",
+              "title": "BGP Neighbor Summary",
+              "columns": [
+                "Check",
+                "Status",
+                "Details",
+                "Timestamp"
+              ],
+              "rows": [
+                {
+                  "Check": "bgp_summary - Exception",
+                  "Status": "ERROR",
+                  "Details": "JSNAPy test execution failed: [Errno 2] No such file or directory: '/tmp/jsnapy'",
+                  "Timestamp": ""
+                }
+              ]
+            },
+            "raw": [
+              {
+                "error": "[Errno 2] No such file or directory: '/tmp/jsnapy'",
+                "traceback": "Traceback (most recent call last):\n  File \"/app/python-scripts/tools/validation/run.py\", line 181, in run_jsnapy_test\n    os.chdir('/tmp/jsnapy')\nFileNotFoundError: [Errno 2] No such file or directory: '/tmp/jsnapy'\n"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "passed_hosts": 1,
+      "total_tests": 1,
+      "total_hosts": 1,
+      "tests_per_host": 1
+    }
+  }
+}

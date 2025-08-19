@@ -309,7 +309,8 @@ function ValidationRunner({ script, parameters, onParamChange }) {
               </Button>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 md:pl-20">
+            {/* UI IMPROVEMENT: Padding reduced from p-4 md:p-8 to p-2 md:p-4 for a more space-efficient layout. */}
+            <div className="flex-1 overflow-y-auto p-2 md:p-4 md:pl-4">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="config"><Cog className="h-4 w-4 mr-2" />Configure</TabsTrigger>
@@ -317,7 +318,8 @@ function ValidationRunner({ script, parameters, onParamChange }) {
                   <TabsTrigger value="results"><Table2 className="h-4 w-4 mr-2" />Results {getStatusIcon('results')}</TabsTrigger>
                 </TabsList>
 
-                <div className="mt-6 bg-white p-6 rounded-lg border">
+                {/* UI IMPROVEMENT: Padding reduced from p-6 to p-4 and margin from mt-6 to mt-4. */}
+                <div className="mt-4 bg-white p-4 rounded-lg border">
                   {/* CONFIGURATION TAB */}
                   <TabsContent value="config" className="space-y-6">
                     <div className="space-y-1"><h3 className="text-lg font-semibold">Device Target & Authentication</h3><p className="text-sm text-gray-600">Provide Juniper device credentials and target hostname.</p></div>

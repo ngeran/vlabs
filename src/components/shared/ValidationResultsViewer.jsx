@@ -49,9 +49,9 @@ import {
 
 // =============================================================================
 // UTILITY COMPONENTS
-// =============================================================================
 // This section defines small, reusable components for safe rendering of text, statuses, and JSON.
 // These prevent crashes from invalid data and provide consistent visual elements.
+// =============================================================================
 const BulletproofText = memo(({ children, className = "" }) => {
   // Safely renders text, replacing null/undefined with a dash
   if (children === null || children === undefined) {
@@ -107,9 +107,9 @@ const SafeJsonDisplay = memo(({ data }) => {
 
 // =============================================================================
 // ENHANCED SUMMARY METRICS COMPONENT
-// =============================================================================
 // This section computes and displays key metrics like device success rates and test pass rates.
 // Uses gradients and icons for a slick, dashboard-like appearance. Improved with tooltips for details.
+// =============================================================================
 const EnhancedSummaryMetrics = memo(({ hostResults, summary }) => {
   const [metrics, setMetrics] = useState({});
 
@@ -209,9 +209,9 @@ const EnhancedSummaryMetrics = memo(({ hostResults, summary }) => {
 
 // =============================================================================
 // ENHANCED SUMMARY TABLE COMPONENT
-// =============================================================================
 // This section creates a sortable, filterable summary table for all tests across devices.
-// Improved with search input, column sorting, and space-efficient pagination (stubbed for future).
+// Modified to remove Total Checks, Passed, Failed, Errors, Success Rate, and Overall Status columns.
+// =============================================================================
 const EnhancedSummaryTable = memo(({ hostResults }) => {
   const [tableData, setTableData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -224,21 +224,10 @@ const EnhancedSummaryTable = memo(({ hostResults }) => {
     hostResults.forEach((hostResult) => {
       if (hostResult.status === 'success' && hostResult.test_results) {
         hostResult.test_results.forEach((testResult) => {
-          const passed = testResult.table?.rows?.filter(row => row.Status === 'PASSED').length || 0;
-          const failed = testResult.table?.rows?.filter(row => row.Status === 'FAILED').length || 0;
-          const errors = testResult.table?.rows?.filter(row => row.Status === 'ERROR').length || 0;
-          const total = passed + failed + errors;
-
           data.push({
             host: hostResult.hostname,
             test: testResult.table?.test_name || 'Unknown Test',
             testTitle: testResult.table?.title || '',
-            passed,
-            failed,
-            errors,
-            total,
-            status: failed === 0 && errors === 0 ? 'PASS' : 'FAIL',
-            successRate: total > 0 ? Math.round((passed / total) * 100) : 0,
             connectionStatus: 'CONNECTED'
           });
         });
@@ -247,12 +236,6 @@ const EnhancedSummaryTable = memo(({ hostResults }) => {
           host: hostResult.hostname,
           test: 'CONNECTION',
           testTitle: 'Device Connection Test',
-          passed: 0,
-          failed: 0,
-          errors: 1,
-          total: 1,
-          status: 'FAIL',
-          successRate: 0,
           connectionStatus: 'FAILED'
         });
       }
@@ -323,24 +306,6 @@ const EnhancedSummaryTable = memo(({ hostResults }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Test Description
               </th>
-              <th onClick={() => requestSort('total')} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                Total Checks {sortConfig.key === 'total' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
-              </th>
-              <th onClick={() => requestSort('passed')} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                Passed {sortConfig.key === 'passed' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
-              </th>
-              <th onClick={() => requestSort('failed')} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                Failed {sortConfig.key === 'failed' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
-              </th>
-              <th onClick={() => requestSort('errors')} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                Errors {sortConfig.key === 'errors' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
-              </th>
-              <th onClick={() => requestSort('successRate')} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                Success Rate {sortConfig.key === 'successRate' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
-              </th>
-              <th onClick={() => requestSort('status')} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer">
-                Overall Status {sortConfig.key === 'status' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
-              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -361,32 +326,6 @@ const EnhancedSummaryTable = memo(({ hostResults }) => {
                 <td className="px-6 py-4 text-sm text-gray-600 max-w-xs">
                   <BulletproofText>{row.testTitle}</BulletproofText>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-semibold text-gray-700">
-                  {row.total}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    {row.passed}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    {row.failed}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                    {row.errors}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-semibold">
-                  <span className={`${row.successRate === 100 ? 'text-green-600' : row.successRate >= 80 ? 'text-yellow-600' : 'text-red-600'}`}>
-                    {row.successRate}%
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <SafeStatusIndicator status={row.status} />
-                </td>
               </tr>
             ))}
           </tbody>
@@ -398,9 +337,9 @@ const EnhancedSummaryTable = memo(({ hostResults }) => {
 
 // =============================================================================
 // DETAILED TEST RESULTS TABLE
+// This section renders detailed tables for individual tests, with improved formatting for Details.
+// Modified to remove Check, Status, and Timestamp fields, and enhance Details column formatting.
 // =============================================================================
-// This section renders detailed tables for individual tests, with status indicators and hover effects.
-// Space-efficient by limiting max height and adding scroll if needed.
 const DetailedTestTable = memo(({ test }) => {
   if (!test.table?.rows?.length) {
     return (
@@ -412,6 +351,11 @@ const DetailedTestTable = memo(({ test }) => {
       </div>
     );
   }
+
+  // Filter out Check, Status, and Timestamp columns
+  const filteredColumns = test.table.columns.filter(
+    column => !['Check', 'Status', 'Timestamp'].includes(column)
+  );
 
   return (
     <div className="border rounded-lg bg-white shadow-sm overflow-hidden mt-4">
@@ -429,7 +373,7 @@ const DetailedTestTable = memo(({ test }) => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              {test.table.columns.map((column, index) => (
+              {filteredColumns.map((column, index) => (
                 <th
                   key={index}
                   scope="col"
@@ -443,13 +387,15 @@ const DetailedTestTable = memo(({ test }) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {test.table.rows.map((row, rowIndex) => (
               <tr key={rowIndex} className={`${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
-                {test.table.columns.map((column, colIndex) => (
+                {filteredColumns.map((column, colIndex) => (
                   <td
                     key={colIndex}
                     className="px-6 py-4 text-sm text-gray-500"
                   >
-                    {column === 'Status' ? (
-                      <SafeStatusIndicator status={row[column]} />
+                    {column === 'Details' ? (
+                      <div className="p-2 bg-gray-100 rounded-lg text-gray-700 max-w-md">
+                        <BulletproofText>{row[column] || '-'}</BulletproofText>
+                      </div>
                     ) : (
                       <BulletproofText>{row[column] || '-'}</BulletproofText>
                     )}
@@ -466,9 +412,9 @@ const DetailedTestTable = memo(({ test }) => {
 
 // =============================================================================
 // DEVICE STATUS CARD COMPONENT
-// =============================================================================
 // This section defines expandable cards for device results, with status info and detailed tables.
 // Improved UX with smooth transitions and conditional coloring for quick visual scanning.
+// =============================================================================
 const DeviceStatusCard = memo(({ hostResult, index, isExpanded, onToggle }) => {
   const getDeviceStatusInfo = () => {
     // Compute device-specific metrics and status messages
@@ -570,9 +516,9 @@ const DeviceStatusCard = memo(({ hostResult, index, isExpanded, onToggle }) => {
 
 // =============================================================================
 // EXECUTION PROGRESS TRACKER
-// =============================================================================
 // This section tracks and displays execution progress with timestamps and status dots.
 // Enhanced with animation for running state and scroll-to-bottom for live updates.
+// =============================================================================
 const ExecutionProgressTracker = memo(({ progress, isRunning }) => {
   const progressRef = useRef(null);
 
@@ -634,10 +580,10 @@ const ExecutionProgressTracker = memo(({ progress, isRunning }) => {
 
 // =============================================================================
 // MAIN ENHANCED VALIDATION RESULTS VIEWER
-// =============================================================================
 // This is the primary component that orchestrates all sections.
 // Improved functionality: Added view mode toggle, export, raw data toggle, and better data handling.
 // UI/UX enhancements: Space-efficient layout with collapses, slick gradients/shadows, responsive grids.
+// =============================================================================
 const EnhancedValidationResultsViewer = memo(({ validationResults, progress, isRunning }) => {
   const [viewMode, setViewMode] = useState('table'); // 'cards' or 'table'
   const [expandedHosts, setExpandedHosts] = useState(new Set());
@@ -681,14 +627,10 @@ const EnhancedValidationResultsViewer = memo(({ validationResults, progress, isR
   };
 
   // Flexible data handling for various input formats
-  console.log("ValidationResults received:", validationResults);
-
   const dataPayload = validationResults?.data || validationResults;
   const hostResults = dataPayload?.results_by_host ||
                      dataPayload?.results ||
                      (Array.isArray(dataPayload) ? dataPayload : []);
-
-  console.log("Processed hostResults:", hostResults);
 
   if (!validationResults) {
     return (

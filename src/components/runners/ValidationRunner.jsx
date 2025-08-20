@@ -19,6 +19,7 @@
  *   - Dynamic Test Discovery: Automatically populates with JSNAPy tests.
  *   - Tabbed Workflow: A clear three-step process (Configure, Execute, Results).
  *   - Real-Time Execution Feedback: Integrates with WebSockets for live updates.
+ *   - Snapshot and Compare: Buttons for Pre-Change Snapshot and Post-Change Compare functionality.
  *
  * CRITICAL FIX IMPLEMENTED:
  *   - A significant bug was fixed where the application would crash and refresh
@@ -222,7 +223,7 @@ function ValidationRunner({ script, parameters, onParamChange }) {
   const hasResults = executionState.isComplete && !executionState.hasError && executionState.result;
 
   // --- Event Handlers ---
-  const handleRun = async (event) => {
+  const handleRunCurrent = async (event) => {
     event.preventDefault();
     if (!validation.isValid) {
       toast.error(`Configuration Invalid: ${validation.reason}`);
@@ -231,9 +232,53 @@ function ValidationRunner({ script, parameters, onParamChange }) {
     resetExecution(); // Clear any previous results.
     setActiveTab("execute"); // Switch to the execute tab.
     try {
+      // Run in 'current' mode (backend default)
       await runValidationScript(parameters);
     } catch (error) {
       toast.error(`Error starting validation: ${error.message}`);
+    }
+  };
+
+  const handlePreChangeSnapshot = async (event) => {
+    event.preventDefault();
+    if (!validation.isValid) {
+      toast.error(`Configuration Invalid: ${validation.reason}`);
+      return;
+    }
+    resetExecution();
+    setActiveTab("execute");
+    try {
+      const snapshotParams = {
+        ...parameters,
+        mode: 'snapshot',
+        snapshot_name: 'pre_change'
+      };
+      await runValidationScript(snapshotParams);
+      toast.success("Starting Pre-Change Snapshot...");
+    } catch (error) {
+      toast.error(`Error starting snapshot: ${error.message}`);
+    }
+  };
+
+  const handlePostChangeCompare = async (event) => {
+    event.preventDefault();
+    if (!validation.isValid) {
+      toast.error(`Configuration Invalid: ${validation.reason}`);
+      return;
+    }
+    resetExecution();
+    setActiveTab("execute");
+    try {
+      const compareParams = {
+        ...parameters,
+        mode: 'compare',
+        snapshot_name: 'post_change',
+        compare_with: 'pre_change'
+      };
+      await runValidationScript(compareParams);
+      toast.success("Starting Post-Change Comparison...");
+    } catch (error) {
+      toast.error(`Error starting comparison: ${error.message}`);
     }
   };
 
@@ -302,11 +347,36 @@ function ValidationRunner({ script, parameters, onParamChange }) {
               <div className="flex items-center gap-2" title={wsContext?.isConnected ? "WebSocket Connected" : "WebSocket Disconnected"}>
                 {wsContext?.isConnected ? <Wifi className="h-4 w-4 text-green-500" /> : <WifiOff className="h-4 w-4 text-red-500" />}
               </div>
-              {/* Main "Run" Button */}
-              <Button onClick={handleRun} disabled={isRunDisabled}>
-                <PlayCircle className="h-4 w-4 mr-2" />
-                {executionState.isRunning ? "Running..." : "Run Validation"}
-              </Button>
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                  <Tooltip>
+                      <TooltipTrigger asChild>
+                          <Button onClick={handleRunCurrent} disabled={isRunDisabled}>
+                              <PlayCircle className="h-4 w-4 mr-2" />
+                              {executionState.isRunning ? "Running..." : "Run Test"}
+                          </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Run a standard, real-time validation test.</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                      <TooltipTrigger asChild>
+                          <Button variant="outline" onClick={handlePreChangeSnapshot} disabled={isRunDisabled}>
+                              <Save className="h-4 w-4 mr-2" />
+                              Pre-Change Snap
+                          </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Take a 'pre_change' snapshot of the current state.</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                      <TooltipTrigger asChild>
+                          <Button variant="outline" onClick={handlePostChangeCompare} disabled={isRunDisabled}>
+                              <Table2 className="h-4 w-4 mr-2" />
+                              Post-Change & Compare
+                          </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Take a 'post_change' snapshot and compare it with the 'pre_change' snapshot.</TooltipContent>
+                  </Tooltip>
+              </div>
             </header>
 
             {/* UI IMPROVEMENT: Padding reduced from p-4 md:p-8 to p-2 md:p-4 for a more space-efficient layout. */}

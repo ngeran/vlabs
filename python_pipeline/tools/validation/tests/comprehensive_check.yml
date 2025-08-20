@@ -1,0 +1,136 @@
+---
+# BGP Summary Information
+- command: "show bgp summary"
+  rpc: "get-bgp-summary-information"
+  item: "bgp-information/bgp-rib"
+  tests:
+    - test: "active-prefix-count"
+      info: "BGP RIB {{ name }}: {{ active-prefix-count }} active prefixes"
+    - test: "received-prefix-count"
+      info: "BGP RIB {{ name }}: {{ received-prefix-count }} received prefixes"
+    - test: "accepted-prefix-count"
+      info: "BGP RIB {{ name }}: {{ accepted-prefix-count }} accepted prefixes"
+    - test: "suppressed-prefix-count"
+      info: "BGP RIB {{ name }}: {{ suppressed-prefix-count }} suppressed prefixes"
+
+# BGP Neighbors
+- command: "show bgp neighbor"
+  rpc: "get-bgp-neighbor-information"
+  item: "bgp-information/bgp-peer"
+  tests:
+    - test: "peer-address"
+      info: "BGP Peer {{ peer-address }} exists"
+    - test: "peer-as"
+      info: "BGP Peer {{ peer-address }} AS: {{ peer-as }}"
+    - test: "peer-state"
+      info: "BGP Peer {{ peer-address }} State: {{ peer-state }}"
+    - test: "flap-count"
+      info: "BGP Peer {{ peer-address }} Flap Count: {{ flap-count }}"
+    - test: "peer-restart-time"
+      info: "BGP Peer {{ peer-address }} Last Restart: {{ peer-restart-time }}"
+
+# LDP Neighbors
+- command: "show ldp neighbor"
+  rpc: "get-ldp-neighbor-information"
+  item: "ldp-neighbor-information/ldp-neighbor"
+  tests:
+    - test: "ldp-neighbor-address"
+      info: "LDP Neighbor {{ ldp-neighbor-address }} exists"
+    - test: "ldp-neighbor-state"
+      info: "LDP Neighbor {{ ldp-neighbor-address }} State: {{ ldp-neighbor-state }}"
+    - test: "ldp-session-state"
+      info: "LDP Neighbor {{ ldp-neighbor-address }} Session: {{ ldp-session-state }}"
+
+# RSVP Sessions
+- command: "show rsvp session"
+  rpc: "get-rsvp-session-information"
+  item: "rsvp-session-information/rsvp-session-data"
+  tests:
+    - test: "destination-address"
+      info: "RSVP Session to {{ destination-address }} exists"
+    - test: "session-state"
+      info: "RSVP Session {{ destination-address }} State: {{ session-state }}"
+    - test: "name"
+      info: "RSVP Session {{ destination-address }} LSP: {{ name }}"
+
+# MPLS Interfaces
+- command: "show mpls interface"
+  rpc: "get-mpls-interface-information"
+  item: "mpls-interface-information/mpls-interface"
+  tests:
+    - test: "interface-name"
+      info: "MPLS Interface {{ interface-name }} exists"
+    - test: "mpls-interface-state"
+      info: "MPLS Interface {{ interface-name }} State: {{ mpls-interface-state }}"
+
+# Interface Descriptions
+- command: "show interfaces descriptions"
+  rpc: "get-interface-information"
+  item: "interface-information/physical-interface"
+  tests:
+    - test: "name"
+      info: "Interface {{ name }} exists"
+    - test: "description"
+      info: "Interface {{ name }} Description: {{ description }}"
+    - test: "admin-status"
+      info: "Interface {{ name }} Admin Status: {{ admin-status }}"
+    - test: "oper-status"
+      info: "Interface {{ name }} Oper Status: {{ oper-status }}"
+
+# Interfaces with Admin Up State
+- command: "show interfaces terse"
+  rpc: "get-interface-information"
+  item: "interface-information/physical-interface[admin-status='up']"
+  tests:
+    - test: "name"
+      info: "Interface {{ name }} is admin up"
+    - test: "oper-status"
+      info: "Interface {{ name }} operational status: {{ oper-status }}"
+
+# System Alarms
+- command: "show system alarms"
+  rpc: "get-alarm-information"
+  item: "alarm-information"
+  tests:
+    - test: "alarm-summary/active-alarm-count"
+      info: "Active alarms: {{ alarm-summary/active-alarm-count }}"
+    - test: "alarm-detail"
+      info: "Alarm details captured"
+
+# Additional alarm details if alarms exist
+- command: "show system alarms"
+  rpc: "get-alarm-information"
+  item: "alarm-information/alarm-detail"
+  tests:
+    - test: "alarm-time"
+      info: "Alarm at {{ alarm-time }}"
+    - test: "alarm-class"
+      info: "Alarm class: {{ alarm-class }}"
+    - test: "alarm-description"
+      info: "Alarm: {{ alarm-description }}"
+
+# Route Summary
+- command: "show route summary"
+  rpc: "get-route-summary-information"
+  item: "route-summary-information/as-path-summary"
+  tests:
+    - test: "as-path-count"
+      info: "AS Path count: {{ as-path-count }}"
+
+# Route table summaries
+- command: "show route summary"
+  rpc: "get-route-summary-information"
+  item: "route-summary-information/route-table"
+  tests:
+    - test: "table-name"
+      info: "Route table {{ table-name }} exists"
+    - test: "destination-count"
+      info: "Route table {{ table-name }}: {{ destination-count }} destinations"
+    - test: "total-route-count"
+      info: "Route table {{ table-name }}: {{ total-route-count }} total routes"
+    - test: "active-route-count"
+      info: "Route table {{ table-name }}: {{ active-route-count }} active routes"
+    - test: "holddown-route-count"
+      info: "Route table {{ table-name }}: {{ holddown-route-count }} holddown routes"
+    - test: "hidden-route-count"
+      info: "Route table {{ table-name }}: {{ hidden-route-count }} hidden routes"

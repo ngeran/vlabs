@@ -1,15 +1,21 @@
 test_system_info:
-  - command: "show system information | display xml"
-  - iterate:
-      xpath: /*[local-name()='rpc-reply']/*[local-name()='system-information']
+  - command: show system information
+    format: xml
+    iterate:
+      xpath: //system-information
       tests:
         - exists: host-name
-          info: "Hostname: {{post['host-name']}}"
+          info: "Device hostname is {{post['host-name']}}"
+          err: "Failed to retrieve hostname from device"
         - exists: hardware-model
-          info: "Hardware Model: {{post['hardware-model']}}"
+          info: "Hardware model is {{post['hardware-model']}}"
+          err: "Failed to retrieve hardware model from device"
         - exists: os-name
-          info: "OS Name: {{post['os-name']}}"
+          info: "Operating system is {{post['os-name']}}"
+          err: "Failed to retrieve OS name from device"
         - exists: os-version
-          info: "OS Version: {{post['os-version']}}"
+          info: "OS version is {{post['os-version']}}"
+          err: "Failed to retrieve OS version from device"
         - exists: serial-number
-          info: "Serial Number: {{post['serial-number']}}"
+          info: "Serial number is {{post['serial-number']}}"
+          err: "Failed to retrieve serial number from device"

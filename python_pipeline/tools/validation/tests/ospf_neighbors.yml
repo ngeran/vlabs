@@ -1,9 +1,13 @@
-tests:
-  - test_ospf_neighbors:
-      command: "show ospf neighbor"
-      iterate:
-        xpath: ".//ospf-neighbor"
-        id: "neighbor-id"
-        tests:
-          - is-equal: ospf-neighbor-state, Full  # Adjacency must be "Full"
-          - is-not-zero: ospf-neighbor-up-time   # Uptime check
+test_ospf_neighbors:
+  - command: show ospf neighbor
+    format: xml
+    iterate:
+      xpath: //ospf-neighbor
+      id: neighbor-id
+      tests:
+        - is-equal: ospf-neighbor-state, Full
+          info: "OSPF neighbor {{post['neighbor-id']}} state is {{post['ospf-neighbor-state']}}"
+          err: "OSPF neighbor {{post['neighbor-id']}} state is {{post['ospf-neighbor-state']}}, expected Full"
+        - is-not-zero: activity-timer
+          info: "OSPF neighbor {{post['neighbor-id']}} activity timer is {{post['activity-timer']}} seconds"
+          err: "OSPF neighbor {{post['neighbor-id']}} activity timer is 0, expected non-zero"

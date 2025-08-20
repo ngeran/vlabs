@@ -1,0 +1,292 @@
+{
+  "data": {
+    "results_by_host": [
+      {
+        "hostname": "172.27.200.200",
+        "status": "success",
+        "test_results": [
+          {
+            "table": {
+              "test_name": "bgp_summary",
+              "title": "BGP Neighbor Summary",
+              "columns": [
+                "Check",
+                "Status",
+                "Details",
+                "Timestamp"
+              ],
+              "rows": [
+                {
+                  "Check": "bgp_summary - peer-state",
+                  "Status": "PASSED",
+                  "Details": "BGP Peer: 10.100.250.2 | AS: 64790 | Status: ESTABLISHED",
+                  "Timestamp": ""
+                }
+              ]
+            },
+            "raw": [
+              {
+                "device": "MLRENGBSMSRX01",
+                "test_name": "bgp_summary",
+                "test_results": {
+                  "show bgp summary": [
+                    {
+                      "xpath": "//bgp-peer",
+                      "testoperation": "is-equal",
+                      "passed": [
+                        {
+                          "id": {},
+                          "pre": {
+                            "peer-state": "Established"
+                          },
+                          "post": {
+                            "peer-address": "10.100.250.2",
+                            "peer-as": "64790",
+                            "peer-state": "Established"
+                          },
+                          "actual_node_value": "Established",
+                          "message": "BGP peer 10.100.250.2 AS64790 is established"
+                        }
+                      ],
+                      "failed": [],
+                      "test_name": "test_bgp_summary",
+                      "node_name": "peer-state",
+                      "expected_node_value": "Established",
+                      "result": true,
+                      "count": {
+                        "pass": 1,
+                        "fail": 0
+                      }
+                    }
+                  ]
+                },
+                "passed": 1,
+                "failed": 0,
+                "result": "Passed"
+              }
+            ]
+          },
+          {
+            "table": {
+              "test_name": "device_facts",
+              "title": "Device System Facts",
+              "columns": [
+                "Check",
+                "Status",
+                "Details",
+                "Timestamp"
+              ],
+              "rows": [
+                {
+                  "Check": "device_facts - host-name",
+                  "Status": "PASSED",
+                  "Details": "Device hostname is MLRENGBSMSRX01",
+                  "Timestamp": ""
+                },
+                {
+                  "Check": "device_facts - hardware-model",
+                  "Status": "PASSED",
+                  "Details": "Hardware model is srx320-poe",
+                  "Timestamp": ""
+                },
+                {
+                  "Check": "device_facts - os-name",
+                  "Status": "PASSED",
+                  "Details": "Operating system is junos-es",
+                  "Timestamp": ""
+                },
+                {
+                  "Check": "device_facts - os-version",
+                  "Status": "PASSED",
+                  "Details": "OS version is 24.2R2-S1.7",
+                  "Timestamp": ""
+                },
+                {
+                  "Check": "device_facts - serial-number",
+                  "Status": "PASSED",
+                  "Details": "Serial number is CX1923AN0400",
+                  "Timestamp": ""
+                }
+              ]
+            },
+            "raw": [
+              {
+                "device": "MLRENGBSMSRX01",
+                "test_name": "device_facts",
+                "test_results": {
+                  "show system information": [
+                    {
+                      "xpath": "//system-information",
+                      "testoperation": "exists",
+                      "passed": [
+                        {
+                          "id": {},
+                          "pre": {
+                            "host-name": "MLRENGBSMSRX01"
+                          },
+                          "post": {
+                            "host-name": "MLRENGBSMSRX01"
+                          },
+                          "actual_node_value": "MLRENGBSMSRX01",
+                          "message": "Device hostname is MLRENGBSMSRX01"
+                        }
+                      ],
+                      "failed": [],
+                      "test_name": "test_system_info",
+                      "node_name": "host-name",
+                      "info": "Device hostname is {{post['host-name']}}",
+                      "result": true,
+                      "count": {
+                        "pass": 1,
+                        "fail": 0
+                      }
+                    },
+                    {
+                      "xpath": "//system-information",
+                      "testoperation": "exists",
+                      "passed": [
+                        {
+                          "id": {},
+                          "pre": {
+                            "hardware-model": "srx320-poe"
+                          },
+                          "post": {
+                            "hardware-model": "srx320-poe"
+                          },
+                          "actual_node_value": "srx320-poe",
+                          "message": "Hardware model is srx320-poe"
+                        }
+                      ],
+                      "failed": [],
+                      "test_name": "test_system_info",
+                      "node_name": "hardware-model",
+                      "info": "Hardware model is {{post['hardware-model']}}",
+                      "result": true,
+                      "count": {
+                        "pass": 1,
+                        "fail": 0
+                      }
+                    },
+                    {
+                      "xpath": "//system-information",
+                      "testoperation": "exists",
+                      "passed": [
+                        {
+                          "id": {},
+                          "pre": {
+                            "os-name": "junos-es"
+                          },
+                          "post": {
+                            "os-name": "junos-es"
+                          },
+                          "actual_node_value": "junos-es",
+                          "message": "Operating system is junos-es"
+                        }
+                      ],
+                      "failed": [],
+                      "test_name": "test_system_info",
+                      "node_name": "os-name",
+                      "info": "Operating system is {{post['os-name']}}",
+                      "result": true,
+                      "count": {
+                        "pass": 1,
+                        "fail": 0
+                      }
+                    },
+                    {
+                      "xpath": "//system-information",
+                      "testoperation": "exists",
+                      "passed": [
+                        {
+                          "id": {},
+                          "pre": {
+                            "os-version": "24.2R2-S1.7"
+                          },
+                          "post": {
+                            "os-version": "24.2R2-S1.7"
+                          },
+                          "actual_node_value": "24.2R2-S1.7",
+                          "message": "OS version is 24.2R2-S1.7"
+                        }
+                      ],
+                      "failed": [],
+                      "test_name": "test_system_info",
+                      "node_name": "os-version",
+                      "info": "OS version is {{post['os-version']}}",
+                      "result": true,
+                      "count": {
+                        "pass": 1,
+                        "fail": 0
+                      }
+                    },
+                    {
+                      "xpath": "//system-information",
+                      "testoperation": "exists",
+                      "passed": [
+                        {
+                          "id": {},
+                          "pre": {
+                            "serial-number": "CX1923AN0400"
+                          },
+                          "post": {
+                            "serial-number": "CX1923AN0400"
+                          },
+                          "actual_node_value": "CX1923AN0400",
+                          "message": "Serial number is CX1923AN0400"
+                        }
+                      ],
+                      "failed": [],
+                      "test_name": "test_system_info",
+                      "node_name": "serial-number",
+                      "info": "Serial number is {{post['serial-number']}}",
+                      "result": true,
+                      "count": {
+                        "pass": 1,
+                        "fail": 0
+                      }
+                    }
+                  ]
+                },
+                "passed": 5,
+                "failed": 0,
+                "result": "Passed"
+              }
+            ]
+          },
+          {
+            "table": {
+              "test_name": "interface_status",
+              "title": "Interface Operational Status",
+              "columns": [
+                "Check",
+                "Status",
+                "Details",
+                "Timestamp"
+              ],
+              "rows": [
+                {
+                  "Check": "interface_status - Execution Error",
+                  "Status": "ERROR",
+                  "Details": "JSNAPy execution failed: list indices must be integers or slices, not dict",
+                  "Timestamp": ""
+                }
+              ]
+            },
+            "raw": [
+              {
+                "error": "list indices must be integers or slices, not dict",
+                "traceback": "Traceback (most recent call last):\n  File \"/app/python-scripts/tools/validation/run.py\", line 280, in run_jsnapy_test\n    check_result = jsnapy.snapcheck(test_config, \"current\", dev=device)\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/jsnapy.py\", line 907, in snapcheck\n    return self.action_api_based(\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/jsnapy.py\", line 961, in action_api_based\n    res = self.api_based_handling_with_dev(\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/jsnapy.py\", line 877, in api_based_handling_with_dev\n    self.get_test(\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/jsnapy.py\", line 523, in get_test\n    res = self.compare_tests(\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/jsnapy.py\", line 456, in compare_tests\n    test_obj = comp.generate_test_files(\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/check.py\", line 685, in generate_test_files\n    for index in enumerate(tests[val])\nTypeError: list indices must be integers or slices, not dict\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/app/python-scripts/tools/validation/run.py\", line 346, in run_jsnapy_test\n    check_result = jsnapy.check(test_config, \"current\", dev=device)\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/jsnapy.py\", line 921, in check\n    return self.action_api_based(dev, data, pre_file, \"check\", folder, post_file)\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/jsnapy.py\", line 961, in action_api_based\n    res = self.api_based_handling_with_dev(\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/jsnapy.py\", line 877, in api_based_handling_with_dev\n    self.get_test(\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/jsnapy.py\", line 523, in get_test\n    res = self.compare_tests(\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/jsnapy.py\", line 444, in compare_tests\n    test_obj = comp.generate_test_files(\n  File \"/usr/local/lib/python3.9/site-packages/jnpr/jsnapy/check.py\", line 685, in generate_test_files\n    for index in enumerate(tests[val])\nTypeError: list indices must be integers or slices, not dict\n"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "passed_hosts": 1,
+      "total_tests": 3,
+      "total_hosts": 1,
+      "tests_per_host": 3
+    }
+  }
+}

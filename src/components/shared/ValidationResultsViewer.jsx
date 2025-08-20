@@ -337,8 +337,8 @@ const EnhancedSummaryTable = memo(({ hostResults }) => {
 
 // =============================================================================
 // DETAILED TEST RESULTS TABLE
-// This section renders detailed tables for individual tests, with improved formatting for Details.
-// Modified to remove Check, Status, and Timestamp fields, and enhance Details column formatting.
+// This section renders detailed tables for individual tests, showing Check, Status, Details, and Timestamp.
+// Styled to match the format with bordered table appearance similar to command line output.
 // =============================================================================
 const DetailedTestTable = memo(({ test }) => {
   if (!test.table?.rows?.length) {
@@ -352,10 +352,24 @@ const DetailedTestTable = memo(({ test }) => {
     );
   }
 
-  // Filter out Check, Status, and Timestamp columns
-  const filteredColumns = test.table.columns.filter(
-    column => !['Check', 'Status', 'Timestamp'].includes(column)
-  );
+  // Ensure we have the key columns, prioritize Check, Status, Details
+  const priorityColumns = ['Check', 'Status', 'Details'];
+  const allColumns = test.table.columns || [];
+  const orderedColumns = [];
+
+  // Add priority columns first if they exist
+  priorityColumns.forEach(col => {
+    if (allColumns.includes(col)) {
+      orderedColumns.push(col);
+    }
+  });
+
+  // Add any remaining columns except Timestamp
+  allColumns.forEach(col => {
+    if (!priorityColumns.includes(col) && col !== 'Timestamp') {
+      orderedColumns.push(col);
+    }
+  });
 
   return (
     <div className="border rounded-lg bg-white shadow-sm overflow-hidden mt-4">
@@ -370,34 +384,42 @@ const DetailedTestTable = memo(({ test }) => {
         )}
       </div>
       <div className="overflow-x-auto max-h-80">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50 sticky top-0">
+        <table className="min-w-full border-collapse border border-gray-300">
+          <thead className="bg-gray-100 sticky top-0">
             <tr>
-              {filteredColumns.map((column, index) => (
+              {orderedColumns.map((column, index) => (
                 <th
                   key={index}
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="border border-gray-300 px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gray-200"
                 >
                   {column}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white">
             {test.table.rows.map((row, rowIndex) => (
-              <tr key={rowIndex} className={`${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
-                {filteredColumns.map((column, colIndex) => (
+              <tr key={rowIndex} className="hover:bg-gray-50 transition-colors">
+                {orderedColumns.map((column, colIndex) => (
                   <td
                     key={colIndex}
-                    className="px-6 py-4 text-sm text-gray-500"
+                    className="border border-gray-300 px-4 py-3 text-sm"
                   >
-                    {column === 'Details' ? (
-                      <div className="p-2 bg-gray-100 rounded-lg text-gray-700 max-w-md">
+                    {column === 'Status' ? (
+                      <SafeStatusIndicator status={row[column] || 'UNKNOWN'} />
+                    ) : column === 'Details' ? (
+                      <div className="text-gray-700 max-w-md font-mono text-xs">
+                        <BulletproofText>{row[column] || '-'}</BulletproofText>
+                      </div>
+                    ) : column === 'Check' ? (
+                      <div className="text-gray-900 font-medium">
                         <BulletproofText>{row[column] || '-'}</BulletproofText>
                       </div>
                     ) : (
-                      <BulletproofText>{row[column] || '-'}</BulletproofText>
+                      <div className="text-gray-600">
+                        <BulletproofText>{row[column] || ''}</BulletproofText>
+                      </div>
                     )}
                   </td>
                 ))}
@@ -409,7 +431,6 @@ const DetailedTestTable = memo(({ test }) => {
     </div>
   );
 });
-
 // =============================================================================
 // DEVICE STATUS CARD COMPONENT
 // This section defines expandable cards for device results, with status info and detailed tables.

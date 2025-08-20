@@ -1,13 +1,11 @@
-tests:
-  - name: interface_status
-    command: "show interfaces terse"
-    iterate:
-      xpath: "//physical-interface[normalize-space(name)]"
-      id: "name"
-      tests:
-        - is-equal: admin-status, up
-          err: "Interface {{id}} admin status is not up (current: {{admin-status}})"
-          info: "Interface {{id}} admin status is up"
-        - is-equal: oper-status, up
-          err: "Interface {{id}} operational status is not up (current: {{oper-status}})"
-          info: "Interface {{id}} operational status is up"
+---
+- command: "show interfaces detail"
+  rpc: "get-interface-information"
+  item: "interface-information/physical-interface[admin-status='up' or description or logical-interface/address-family/interface-address]"
+  tests:
+    - test: "admin-status"
+      info: "Interface {{ name }} - Admin Status: {{ admin-status }}"
+    - test: "description"
+      info: "Interface {{ name }} - Description: {{ description }}"
+    - test: "logical-interface/address-family/interface-address"
+      info: "Interface {{ name }} - Has IP address configured"

@@ -1,25 +1,31 @@
+#!/usr/bin/env python3
 # =============================================================================
-# FILENAME:           validation_run.py
+# FILENAME:           run.py
 #
-# ROLE:               An asynchronous JSNAPy-based Network Validation Engine with Snapshot Comparison.
+# ROLE:               Asynchronous JSNAPy-based Network Validation with a
+#                     Universal Table Formatter (adapts columns to the test).
 #
 # DESCRIPTION:
-#   This script is the backend for the Network Validation tool. It connects
-#   to network devices, executes a series of pre-defined JSNAPy tests, and
-#   returns structured results. It supports snapshot and comparison modes
-#   for pre/post change validation.
+#   Connects to network devices, executes pre-defined JSNAPy tests, and prints
+#   structured results. The Universal Table Formatter auto-detects the kind of
+#   test (e.g., BGP peers, Interface errors) and renders an appropriate single
+#   consolidated table. Falls back to a generic table for other tests.
 #
 # DEPENDENCIES:
-#   - jnpr.junos (PyEZ): Device connectivity.
-#   - jnpr.jsnapy: Snapshot testing.
-#   - PyYAML: Parsing tests.yml.
-#   - asyncio: Concurrent execution.
+#   - jnpr.junos (PyEZ)
+#   - jnpr.jsnapy
+#   - PyYAML
+#   - asyncio
+#   - tabulate
 #
 # USAGE:
 #   Discovery: python run.py --list_tests
-#   Snapshot: python run.py --hostname <ip> --username <user> --password <pass> --tests <test> --mode snapshot --snapshot-name <name>
-#   Compare: python run.py --hostname <ip> --username <user> --password <pass> --tests <test> --mode compare --snapshot-name <post> --compare-with <pre>
-#   Current: python run.py --hostname <ip> --username <user> --password <pass> --tests <test1,test2>
+#   Current:   python run.py --hostname <ip[,ip2,...]> --username <user> --password <pass> --tests <test_id>
+#   Snapshot:  python run.py --hostname <ip> --username <user> --password <pass> --tests <test_id> --mode snapshot --snapshot-name <name>
+#   Compare:   python run.py --hostname <ip> --username <user> --password <pass> --tests <test_id> --mode compare --snapshot-name <post> --compare-with <pre>
+#
+# NOTE:
+#   --tests expects the test ID defined in tests.yml (not a filename).
 # =============================================================================
 
 # =============================================================================
@@ -38,12 +44,18 @@ from jnpr.junos.exception import ConnectError, ConnectTimeoutError, ConnectAuthE
 import yaml
 from tabulate import tabulate
 
+DEBUG_ENABLED = False
+
+def dprint(msg):
+    """Debug print function that only prints when DEBUG_ENABLED is True."""
+    if DEBUG_ENABLED:
+        print(f"DEBUG: {msg}", file=sys.stderr)
 
 # =============================================================================
-# SECTION 2: PROGRESS REPORTING UTILITIES
+# SECTION 2: PROGRESS REPORTING
 # =============================================================================
 def send_progress(event_type, data, message=""):
-    """Emits structured JSON progress updates to stdout for UI consumption."""
+    """Send progress updates in JSON format."""
     progress = {
         "type": "progress",
         "event_type": event_type,
@@ -52,57 +64,36 @@ def send_progress(event_type, data, message=""):
     }
     print(json.dumps(progress), flush=True)
 
-
 # =============================================================================
-# SECTION 3: SAFE TEXT FORMATTING UTILITIES
+# SECTION 3: SAFETY/FORMAT HELPERS
 # =============================================================================
 def sanitize_text(text):
-    """
-    Safely sanitize text content to prevent HTML/XML interpretation issues.
-    Converts angle brackets and other problematic characters to safe alternatives.
-    """
+    """Clean text for safe display in tables and output."""
     if not isinstance(text, str):
         text = str(text)
-
-    # Replace angle brackets with safe alternatives
     text = text.replace('<', '[').replace('>', ']')
-
-    # Replace other potentially problematic characters
     text = text.replace('&', ' and ')
     text = text.replace('"', "'")
-
-    # Clean up excessive whitespace
     text = re.sub(r'\s+', ' ', text).strip()
-
     return text
 
-
 def format_bgp_details(details):
-    """
-    Specially format BGP-related details into a more structured format.
-    """
+    """Format BGP-specific details for better readability."""
     if not details or not isinstance(details, str):
         return details
 
-    # Extract BGP peer information using regex
     bgp_pattern = r'BGP peer\s+<?([\d\.]+)>?\s+AS<?(\d+)>?\s+is\s+(\w+)'
     match = re.search(bgp_pattern, details, re.IGNORECASE)
-
     if match:
         peer_ip = match.group(1)
         as_number = match.group(2)
         status = match.group(3)
         return f"BGP Peer: {peer_ip} | AS: {as_number} | Status: {status.upper()}"
 
-    # If no BGP pattern found, just sanitize the text
     return sanitize_text(details)
 
-
 def create_result_table(test_name, test_title, raw_results):
-    """
-    Convert JSNAPy results into a structured table format that's safe for React.
-    Returns a consistent table structure regardless of the test type.
-    """
+    """Create standardized result table structure."""
     table_data = {
         "test_name": sanitize_text(test_name),
         "title": sanitize_text(test_title),
@@ -119,146 +110,222 @@ def create_result_table(test_name, test_title, raw_results):
         })
         return table_data
 
-    # Process each result entry
     for result in raw_results:
         check_name = sanitize_text(result.get("Check", "Unknown Check"))
         status = str(result.get("Result", "UNKNOWN")).upper()
         details = result.get("Details", "")
 
-        # Apply special formatting for BGP tests
-        if "bgp" in test_name.lower() and details:
+        if "bgp" in (test_name or "").lower() and details:
             details = format_bgp_details(details)
         else:
             details = sanitize_text(details)
 
-        # Create standardized row
-        row = {
+        table_data["rows"].append({
             "Check": check_name,
             "Status": status,
             "Details": details,
-            "Timestamp": ""  # Could add actual timestamp if needed
-        }
-
-        table_data["rows"].append(row)
+            "Timestamp": ""
+        })
 
     return table_data
 
+def build_structured_fields_table(test_result):
+    """Convert JSNAPy raw test_results into structured rows."""
+    columns = ["Object", "Peer AS", "Node", "Expected", "Actual", "Status", "Message"]
+    rows = []
+
+    raw_list = test_result.get("raw", [])
+    if not raw_list:
+        return columns, rows
+
+    def pick_object(pre: dict, post: dict):
+        """Extract the most relevant object identifier."""
+        keys = [
+            "peer-address", "ldp-neighbor-address", "destination-address",
+            "interface-name", "table-name", "name", "id", "neighbor-id",
+            "filesystem-name", "command"
+        ]
+        for k in keys:
+            if post and k in post:
+                return post.get(k)
+            if pre and k in pre:
+                return pre.get(k)
+
+        # Fallback to first available value
+        if post:
+            try:
+                return next(iter(post.values()))
+            except StopIteration:
+                pass
+        if pre:
+            try:
+                return next(iter(pre.values()))
+            except StopIteration:
+                pass
+        return ""
+
+    for r in raw_list:
+        test_results = r.get("test_results", {})
+        if not isinstance(test_results, dict):
+            continue
+
+        for command, command_results in test_results.items():
+            if not isinstance(command_results, list):
+                continue
+
+            for trd in command_results:
+                if not isinstance(trd, dict):
+                    continue
+
+                node_name = trd.get("node_name") or ""
+                expected_default = trd.get("expected_node_value")
+
+                def process_item(item, status):
+                    pre = item.get("pre", {}) or {}
+                    post = item.get("post", {}) or {}
+
+                    obj = pick_object(pre, post)
+                    peer_as = post.get("peer-as", "")
+
+                    expected = expected_default
+                    if expected is None:
+                        expected = pre.get(node_name)
+                        if expected is None and pre:
+                            try:
+                                expected = next(iter(pre.values()))
+                            except StopIteration:
+                                expected = ""
+
+                    actual = item.get("actual_node_value")
+                    if actual is None:
+                        actual = post.get(node_name)
+                        if actual is None and post:
+                            try:
+                                actual = next(iter(post.values()))
+                            except StopIteration:
+                                actual = ""
+
+                    message = item.get("message") or item.get("err") or ""
+
+                    rows.append([
+                        str(obj or ""), str(peer_as or ""), str(node_name or ""),
+                        "" if expected is None else str(expected),
+                        "" if actual is None else str(actual),
+                        status, message
+                    ])
+
+                for it in trd.get("passed", []):
+                    process_item(it, "PASSED")
+                for it in trd.get("failed", []):
+                    process_item(it, "FAILED")
+
+    return columns, rows
 
 # =============================================================================
-# SECTION 4: JSNAPY SNAPSHOT OPERATIONS
+# SECTION 4: JSNAPY ENVIRONMENT SETUP
 # =============================================================================
+def prepare_jsnapy_env(source_test_file: Path, jsnapy_home: Path):
+    """Set up JSNAPy environment and configuration."""
+    import shutil
 
-def take_jsnapy_snapshot(device, test_name, test_def, snapshot_name):
-    """
-    Takes a JSNAPy snapshot for later comparison.
-    """
+    os.environ["JSNAPY_HOME"] = str(jsnapy_home)
+    os.chdir(str(jsnapy_home))
+
+    # Create required directories
+    (jsnapy_home / 'snapshots').mkdir(parents=True, exist_ok=True, mode=0o777)
+    tests_dir = jsnapy_home / 'tests'
+    tests_dir.mkdir(parents=True, exist_ok=True, mode=0o777)
+
+    # Copy test file
+    target_test_file = tests_dir / source_test_file.name
+    shutil.copy2(source_test_file, target_test_file)
+
+    # Create JSNAPy configuration
+    cfg = jsnapy_home / 'jsnapy.cfg'
+    if not cfg.exists():
+        with open(cfg, 'w') as f:
+            f.write(f"""[DEFAULT]
+snapshot_path = {jsnapy_home}/snapshots
+test_path = {jsnapy_home}/tests
+""")
+
+    # Create logging configuration
+    logy = jsnapy_home / 'logging.yml'
+    if not logy.exists():
+        with open(logy, 'w') as f:
+            f.write(f"""version: 1
+disable_existing_loggers: False
+formatters:
+  simple:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: WARNING
+    formatter: simple
+    stream: ext://sys.stdout
+  file:
+    class: logging.FileHandler
+    level: INFO
+    formatter: simple
+    filename: {jsnapy_home}/jsnapy.log
+root:
+  level: WARNING
+  handlers: [console, file]
+loggers:
+  jsnapy:
+    level: INFO
+    handlers: [console, file]
+    propagate: no
+""")
+
+    # Create log file
+    (jsnapy_home / 'jsnapy.log').touch(exist_ok=True, mode=0o666)
+
+    return tests_dir
+
+def resolve_test_file(test_name, test_def):
+    """Resolve the path to the JSNAPy test file."""
     jsnapy_file_name = test_def.get("jsnapy_test_file")
     if not jsnapy_file_name:
-        error_result = [{
-            "Check": f"{test_name} - Configuration Error",
-            "Result": "ERROR",
-            "Details": f"Missing 'jsnapy_test_file' in tests.yml for test '{test_name}'"
-        }]
+        return None, f"Missing 'jsnapy_test_file' in tests.yml for test '{test_name}'"
+
+    source_test_file = Path(__file__).parent / "tests" / jsnapy_file_name
+    if not source_test_file.exists():
+        return None, f"JSNAPy test file not found: {source_test_file}"
+
+    return source_test_file, None
+
+# =============================================================================
+# SECTION 5: JSNAPY OPERATIONS (snapshot/compare/current)
+# =============================================================================
+def take_jsnapy_snapshot(device, test_name, test_def, snapshot_name):
+    """Take a JSNAPy snapshot."""
+    source_test_file, err = resolve_test_file(test_name, test_def)
+    if err:
+        error_result = [{"Check": f"{test_name} - Configuration Error", "Result": "ERROR", "Details": err}]
         return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
 
-    test_file = Path(__file__).parent / "tests" / jsnapy_file_name
-
-    if not test_file.exists():
-        error_result = [{
-            "Check": f"{test_name} - File Error",
-            "Result": "ERROR",
-            "Details": f"JSNAPy test file not found: {test_file}"
-        }]
-        return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
-
-    # Store original working directory and environment
     original_cwd = os.getcwd()
     original_jsnapy_home = os.environ.get("JSNAPY_HOME")
 
     try:
-        # Create the JSNAPy home directory
         jsnapy_home = Path('/tmp/jsnapy')
         jsnapy_home.mkdir(parents=True, exist_ok=True, mode=0o777)
+        tests_dir = prepare_jsnapy_env(source_test_file, jsnapy_home)
 
-        # Set JSNAPY_HOME environment variable
-        os.environ["JSNAPY_HOME"] = str(jsnapy_home)
-
-        # Switch to JSNAPy home directory
-        os.chdir(str(jsnapy_home))
-
-        # Ensure snapshots and tests directories exist
-        snapshots_dir = jsnapy_home / 'snapshots'
-        snapshots_dir.mkdir(parents=True, exist_ok=True, mode=0o777)
-        tests_dir = jsnapy_home / 'tests'
-        tests_dir.mkdir(parents=True, exist_ok=True, mode=0o777)
-
-        # Copy test file to JSNAPy tests directory
-        import shutil
-        source_test_file = Path(__file__).parent / "tests" / jsnapy_file_name
-        target_test_file = tests_dir / jsnapy_file_name
-        shutil.copy2(source_test_file, target_test_file)
-
-        # Create jsnapy.cfg
-        jsnapy_cfg = jsnapy_home / 'jsnapy.cfg'
-        if not jsnapy_cfg.exists():
-            with open(jsnapy_cfg, 'w') as cfg_file:
-                cfg_file.write("""[DEFAULT]
-snapshot_path = /tmp/jsnapy/snapshots
-test_path = /tmp/jsnapy/tests
-""")
-
-        # Create logging.yml
-        logging_yml = jsnapy_home / 'logging.yml'
-        if not logging_yml.exists():
-            with open(logging_yml, 'w') as log_file:
-                log_file.write("""version: 1
-disable_existing_loggers: False
-formatters:
-    simple:
-        format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-handlers:
-    console:
-        class: logging.StreamHandler
-        level: DEBUG
-        formatter: simple
-        stream: ext://sys.stdout
-    file:
-        class: logging.FileHandler
-        level: DEBUG
-        formatter: simple
-        filename: /tmp/jsnapy/jsnapy.log
-root:
-    level: DEBUG
-    handlers: [console, file]
-loggers:
-    jsnapy:
-        level: DEBUG
-        handlers: [console, file]
-        propagate: no
-""")
-
-        # Ensure log file is writable
-        log_file_path = jsnapy_home / 'jsnapy.log'
-        log_file_path.touch(exist_ok=True, mode=0o666)
-
-        # Import JSNAPy after setting environment
         from jnpr.jsnapy import SnapAdmin
-
-        # Initialize SnapAdmin
         jsnapy = SnapAdmin()
 
-        # Get device hostname from facts
         device_hostname = device.hostname
         try:
             device.open()
             facts = device.facts
-            device_hostname = facts.get('hostname', 'device_under_test')
-            print(f"DEBUG: Device hostname retrieved from facts: {device_hostname}", file=sys.stderr)
-        except Exception as e:
-            device_hostname = "device_under_test"
-            print(f"DEBUG: Failed to retrieve hostname from device, using fallback: {device_hostname}, error: {e}", file=sys.stderr)
+            device_hostname = facts.get('hostname', device_hostname) or device_hostname
+        except Exception:
+            device_hostname = device_hostname or "device_under_test"
 
-        # Configure test
+        jsnapy_test_basename = source_test_file.name
         test_config = {
             "hosts": [{
                 "device": device_hostname,
@@ -266,148 +333,70 @@ loggers:
                 "passwd": device.password,
                 "hostname": device_hostname
             }],
-            "tests": [f"tests/{jsnapy_file_name}"]
+            "tests": [jsnapy_test_basename]
         }
 
-        # Save test config for debugging
-        config_file = jsnapy_home / f'snapshot_config_{test_name}_{snapshot_name}.yml'
-        with open(config_file, 'w') as f:
-            yaml.safe_dump(test_config, f)
+        # Save test configuration
+        (jsnapy_home / f'snapshot_config_{test_name}_{snapshot_name}.yml').write_text(yaml.safe_dump(test_config))
 
-        print(f"DEBUG: Snapshot config saved to {config_file}", file=sys.stderr)
+        dprint(f"Using JSNAPy test file '{jsnapy_test_basename}'. Available: {[p.name for p in tests_dir.glob('*')]}")
 
-        # Take snapshot
-        try:
-            snap_result = jsnapy.snap(test_config, snapshot_name, dev=device)
-            print(f"DEBUG: Snapshot '{snapshot_name}' result: {snap_result}", file=sys.stderr)
+        snap_result = jsnapy.snap(test_config, snapshot_name, dev=device)
+        snapshot_files = list((jsnapy_home / 'snapshots').glob(f"{device_hostname}_{snapshot_name}_*"))
 
-            # List snapshot files created
-            snapshot_files = list(snapshots_dir.glob(f"*{snapshot_name}*"))
-            print(f"DEBUG: Snapshot files created: {[f.name for f in snapshot_files]}", file=sys.stderr)
+        if snap_result and any(getattr(r, 'result', None) == 'Passed' for r in snap_result):
+            ok = [{"Check": f"{test_name} - Snapshot Taken", "Result": "SUCCESS",
+                   "Details": f"Snapshot '{snapshot_name}' created. Files: {len(snapshot_files)}"}]
+            return {"table": create_result_table(test_name, test_def.get("title", test_name), ok),
+                    "raw": [{"snapshot_name": snapshot_name, "files_created": len(snapshot_files), "device": device_hostname}]}
 
-            if snap_result and any(getattr(result, 'result', None) == 'Passed' for result in snap_result):
-                success_result = [{
-                    "Check": f"{test_name} - Snapshot Taken",
-                    "Result": "SUCCESS",
-                    "Details": f"Snapshot '{snapshot_name}' created successfully. Files: {len(snapshot_files)} created"
-                }]
-                return {
-                    "table": create_result_table(test_name, test_def.get("title", test_name), success_result),
-                    "raw": [{"snapshot_name": snapshot_name, "files_created": len(snapshot_files), "device": device_hostname}]
-                }
-            else:
-                error_result = [{
-                    "Check": f"{test_name} - Snapshot Error",
-                    "Result": "ERROR",
-                    "Details": f"Failed to create snapshot '{snapshot_name}'"
-                }]
-                return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
-
-        except Exception as snap_error:
-            error_result = [{
-                "Check": f"{test_name} - Snapshot Exception",
-                "Result": "ERROR",
-                "Details": f"Snapshot operation failed: {snap_error}"
-            }]
-            return {
-                "table": create_result_table(test_name, test_def.get("title", test_name), error_result),
-                "raw": [{"error": str(snap_error), "traceback": traceback.format_exc()}]
-            }
+        err = [{"Check": f"{test_name} - Snapshot Error", "Result": "ERROR",
+                "Details": f"Failed to create snapshot '{snapshot_name}'"}]
+        return {"table": create_result_table(test_name, test_def.get("title", test_name), err)}
 
     except Exception as e:
-        error_result = [{
-            "Check": f"{test_name} - Exception",
-            "Result": "ERROR",
-            "Details": f"Snapshot setup failed: {str(e)}"
-        }]
-        return {
-            "table": create_result_table(test_name, test_def.get("title", test_name), error_result),
-            "raw": [{"error": str(e), "traceback": traceback.format_exc()}]
-        }
-
+        err = [{"Check": f"{test_name} - Snapshot Exception", "Result": "ERROR",
+                "Details": f"Snapshot operation failed: {e}"}]
+        return {"table": create_result_table(test_name, test_def.get("title", test_name), err),
+                "raw": [{"error": str(e), "traceback": traceback.format_exc()}]}
     finally:
         try:
             device.close()
-        except Exception as e:
-            print(f"DEBUG: Failed to close device connection: {e}", file=sys.stderr)
+        except Exception:
+            pass
         os.chdir(original_cwd)
         if original_jsnapy_home is not None:
             os.environ["JSNAPY_HOME"] = original_jsnapy_home
         elif "JSNAPY_HOME" in os.environ:
             del os.environ["JSNAPY_HOME"]
-
 
 def compare_jsnapy_snapshots(device, test_name, test_def, pre_snapshot, post_snapshot):
-    """
-    Compares two JSNAPy snapshots and returns the differences.
-    """
-    jsnapy_file_name = test_def.get("jsnapy_test_file")
-    if not jsnapy_file_name:
-        error_result = [{
-            "Check": f"{test_name} - Configuration Error",
-            "Result": "ERROR",
-            "Details": f"Missing 'jsnapy_test_file' in tests.yml for test '{test_name}'"
-        }]
+    """Compare two JSNAPy snapshots."""
+    source_test_file, err = resolve_test_file(test_name, test_def)
+    if err:
+        error_result = [{"Check": f"{test_name} - Configuration Error", "Result": "ERROR", "Details": err}]
         return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
 
-    test_file = Path(__file__).parent / "tests" / jsnapy_file_name
-
-    if not test_file.exists():
-        error_result = [{
-            "Check": f"{test_name} - File Error",
-            "Result": "ERROR",
-            "Details": f"JSNAPy test file not found: {test_file}"
-        }]
-        return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
-
-    # Store original working directory and environment
     original_cwd = os.getcwd()
     original_jsnapy_home = os.environ.get("JSNAPY_HOME")
 
     try:
-        # Setup JSNAPy environment (same as snapshot function)
         jsnapy_home = Path('/tmp/jsnapy')
         jsnapy_home.mkdir(parents=True, exist_ok=True, mode=0o777)
-        os.environ["JSNAPY_HOME"] = str(jsnapy_home)
-        os.chdir(str(jsnapy_home))
-
-        snapshots_dir = jsnapy_home / 'snapshots'
-        tests_dir = jsnapy_home / 'tests'
-
-        # Ensure directories exist
-        snapshots_dir.mkdir(parents=True, exist_ok=True, mode=0o777)
-        tests_dir.mkdir(parents=True, exist_ok=True, mode=0o777)
-
-        # Copy test file
-        import shutil
-        source_test_file = Path(__file__).parent / "tests" / jsnapy_file_name
-        target_test_file = tests_dir / jsnapy_file_name
-        shutil.copy2(source_test_file, target_test_file)
-
-        # Create config files if they don't exist
-        jsnapy_cfg = jsnapy_home / 'jsnapy.cfg'
-        if not jsnapy_cfg.exists():
-            with open(jsnapy_cfg, 'w') as cfg_file:
-                cfg_file.write("""[DEFAULT]
-snapshot_path = /tmp/jsnapy/snapshots
-test_path = /tmp/jsnapy/tests
-""")
+        tests_dir = prepare_jsnapy_env(source_test_file, jsnapy_home)
 
         from jnpr.jsnapy import SnapAdmin
         jsnapy = SnapAdmin()
 
-        # Get device hostname
         device_hostname = device.hostname
         try:
             device.open()
             facts = device.facts
-            device_hostname = facts.get('hostname', 'device_under_test')
-            print(f"DEBUG: Device hostname for comparison: {device_hostname}", file=sys.stderr)
-        except Exception as e:
-            device_hostname = "device_under_test"
-            print(f"DEBUG: Failed to retrieve hostname, using fallback: {device_hostname}, error: {e}", file=sys.stderr)
+            device_hostname = facts.get('hostname', device_hostname) or device_hostname
+        except Exception:
+            device_hostname = device_hostname or "device_under_test"
 
-        # Configure test
+        jsnapy_test_basename = source_test_file.name
         test_config = {
             "hosts": [{
                 "device": device_hostname,
@@ -415,361 +404,152 @@ test_path = /tmp/jsnapy/tests
                 "passwd": device.password,
                 "hostname": device_hostname
             }],
-            "tests": [f"tests/{jsnapy_file_name}"]
+            "tests": [jsnapy_test_basename]
         }
 
-        # Check if snapshot files exist
-        pre_files = list(snapshots_dir.glob(f"*{pre_snapshot}*"))
-        post_files = list(snapshots_dir.glob(f"*{post_snapshot}*"))
-
-        print(f"DEBUG: Pre-snapshot files found: {[f.name for f in pre_files]}", file=sys.stderr)
-        print(f"DEBUG: Post-snapshot files found: {[f.name for f in post_files]}", file=sys.stderr)
+        # Verify snapshots exist
+        pre_files = list((jsnapy_home / 'snapshots').glob(f"{device_hostname}_{pre_snapshot}_*"))
+        post_files = list((jsnapy_home / 'snapshots').glob(f"{device_hostname}_{post_snapshot}_*"))
 
         if not pre_files:
-            error_result = [{
-                "Check": f"{test_name} - Pre-snapshot Missing",
-                "Result": "ERROR",
-                "Details": f"Pre-snapshot '{pre_snapshot}' not found. Available files: {[f.name for f in snapshots_dir.iterdir()]}"
-            }]
-            return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
+            err = [{"Check": f"{test_name} - Pre-snapshot Missing", "Result": "ERROR",
+                    "Details": f"Pre-snapshot '{pre_snapshot}' not found."}]
+            return {"table": create_result_table(test_name, test_def.get("title", test_name), err)}
 
         if not post_files:
-            error_result = [{
-                "Check": f"{test_name} - Post-snapshot Missing",
-                "Result": "ERROR",
-                "Details": f"Post-snapshot '{post_snapshot}' not found. Available files: {[f.name for f in snapshots_dir.iterdir()]}"
-            }]
-            return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
+            err = [{"Check": f"{test_name} - Post-snapshot Missing", "Result": "ERROR",
+                    "Details": f"Post-snapshot '{post_snapshot}' not found."}]
+            return {"table": create_result_table(test_name, test_def.get("title", test_name), err)}
 
-        # Perform comparison
-        try:
-            check_result = jsnapy.check(test_config, pre_snapshot, post_snapshot, dev=device)
-            print(f"DEBUG: Comparison result: {check_result}", file=sys.stderr)
+        check_result = jsnapy.check(test_config, pre_snapshot, post_snapshot, dev=device)
 
-            # Process comparison results
-            formatted_data = []
-            raw_data = []
-
-            if check_result:
-                for result in check_result:
-                    test_results = getattr(result, "test_results", {})
-                    raw_data.append({
-                        "device": device_hostname,
-                        "test_name": test_name,
-                        "pre_snapshot": pre_snapshot,
-                        "post_snapshot": post_snapshot,
-                        "test_results": test_results,
-                        "passed": getattr(result, "no_passed", 0),
-                        "failed": getattr(result, "no_failed", 0),
-                        "result": getattr(result, "result", "UNKNOWN")
-                    })
-
-                    if test_results:
-                        for command, command_results in test_results.items():
-                            print(f"DEBUG: Comparison - Command: {command}, Results: {command_results}", file=sys.stderr)
-                            if isinstance(command_results, list):
-                                for test_result in command_results:
-                                    if isinstance(test_result, dict):
-                                        # Process passed comparisons
-                                        for passed_item in test_result.get("passed", []):
-                                            message = passed_item.get("message", "Comparison passed - no change detected")
-                                            formatted_data.append({
-                                                "Check": f"{test_name} - {test_result.get('node_name', command)}",
-                                                "Result": "NO CHANGE",
-                                                "Details": message
-                                            })
-                                        # Process failed comparisons (changes detected)
-                                        for failed_item in test_result.get("failed", []):
-                                            message = failed_item.get("message", failed_item.get("err", "Change detected"))
-                                            formatted_data.append({
-                                                "Check": f"{test_name} - {test_result.get('node_name', command)}",
-                                                "Result": "CHANGED",
-                                                "Details": message
-                                            })
-                    else:
-                        overall_result = "NO CHANGE" if getattr(result, "result", "") == "Passed" else "CHANGED"
-                        passed_count = getattr(result, 'no_passed', 0)
-                        failed_count = getattr(result, 'no_failed', 0)
-                        details = f"No Changes: {passed_count}, Changes Detected: {failed_count}"
-                        formatted_data.append({
-                            "Check": f"{test_name} - {getattr(result, 'device', device_hostname)}",
-                            "Result": overall_result,
-                            "Details": details
-                        })
-
-            if not formatted_data:
-                formatted_data = [{
-                    "Check": f"{test_name} - Comparison Complete",
-                    "Result": "NO DATA",
-                    "Details": "Comparison completed but no interpretable results returned"
-                }]
-
-            table_result = create_result_table(test_name, test_def.get("title", test_name), formatted_data)
-            return {"table": table_result, "raw": raw_data}
-
-        except Exception as check_error:
-            error_result = [{
-                "Check": f"{test_name} - Comparison Error",
-                "Result": "ERROR",
-                "Details": f"Comparison failed: {check_error}"
-            }]
-            return {
-                "table": create_result_table(test_name, test_def.get("title", test_name), error_result),
-                "raw": [{"error": str(check_error), "traceback": traceback.format_exc()}]
-            }
-
-    except Exception as e:
-        error_result = [{
-            "Check": f"{test_name} - Exception",
-            "Result": "ERROR",
-            "Details": f"Comparison setup failed: {str(e)}"
-        }]
-        return {
-            "table": create_result_table(test_name, test_def.get("title", test_name), error_result),
-            "raw": [{"error": str(e), "traceback": traceback.format_exc()}]
-        }
-
-    finally:
-        try:
-            device.close()
-        except Exception as e:
-            print(f"DEBUG: Failed to close device connection: {e}", file=sys.stderr)
-        os.chdir(original_cwd)
-        if original_jsnapy_home is not None:
-            os.environ["JSNAPY_HOME"] = original_jsnapy_home
-        elif "JSNAPY_HOME" in os.environ:
-            del os.environ["JSNAPY_HOME"]
-
-
-# =============================================================================
-# SECTION 5: ORIGINAL JSNAPY TEST EXECUTION (Current Mode)
-# =============================================================================
-
-def run_jsnapy_test(device, test_name, test_def):
-    """
-    Executes a JSNAPy test against a device and returns safely formatted table results.
-    This is the original current-state testing functionality.
-    """
-    jsnapy_file_name = test_def.get("jsnapy_test_file")
-    if not jsnapy_file_name:
-        error_result = [{
-            "Check": f"{test_name} - Configuration Error",
-            "Result": "ERROR",
-            "Details": f"Missing 'jsnapy_test_file' in tests.yml for test '{test_name}'"
-        }]
-        return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
-
-    test_file = Path(__file__).parent / "tests" / jsnapy_file_name
-
-    if not test_file.exists():
-        error_result = [{
-            "Check": f"{test_name} - File Error",
-            "Result": "ERROR",
-            "Details": f"JSNAPy test file not found: {test_file}"
-        }]
-        return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
-
-    # Store original working directory and environment
-    original_cwd = os.getcwd()
-    original_jsnapy_home = os.environ.get("JSNAPY_HOME")
-
-    try:
-        # Create the JSNAPy home directory
-        jsnapy_home = Path('/tmp/jsnapy')
-        jsnapy_home.mkdir(parents=True, exist_ok=True, mode=0o777)
-
-        # Set JSNAPY_HOME environment variable
-        os.environ["JSNAPY_HOME"] = str(jsnapy_home)
-
-        # Switch to JSNAPy home directory
-        os.chdir(str(jsnapy_home))
-
-        # Ensure snapshots and tests directories exist
-        snapshots_dir = jsnapy_home / 'snapshots'
-        snapshots_dir.mkdir(parents=True, exist_ok=True, mode=0o777)
-        tests_dir = jsnapy_home / 'tests'
-        tests_dir.mkdir(parents=True, exist_ok=True, mode=0o777)
-
-        # Copy test file to JSNAPy tests directory
-        import shutil
-        source_test_file = Path(__file__).parent / "tests" / jsnapy_file_name
-        target_test_file = tests_dir / jsnapy_file_name
-        shutil.copy2(source_test_file, target_test_file)
-
-        # Create jsnapy.cfg
-        jsnapy_cfg = jsnapy_home / 'jsnapy.cfg'
-        if not jsnapy_cfg.exists():
-            with open(jsnapy_cfg, 'w') as cfg_file:
-                cfg_file.write("""[DEFAULT]
-snapshot_path = /tmp/jsnapy/snapshots
-test_path = /tmp/jsnapy/tests
-""")
-
-        # Create logging.yml
-        logging_yml = jsnapy_home / 'logging.yml'
-        if not logging_yml.exists():
-            with open(logging_yml, 'w') as log_file:
-                log_file.write("""version: 1
-disable_existing_loggers: False
-formatters:
-    simple:
-        format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-handlers:
-    console:
-        class: logging.StreamHandler
-        level: DEBUG
-        formatter: simple
-        stream: ext://sys.stdout
-    file:
-        class: logging.FileHandler
-        level: DEBUG
-        formatter: simple
-        filename: /tmp/jsnapy/jsnapy.log
-root:
-    level: DEBUG
-    handlers: [console, file]
-loggers:
-    jsnapy:
-        level: DEBUG
-        handlers: [console, file]
-        propagate: no
-""")
-
-        # Ensure log file is writable
-        log_file_path = jsnapy_home / 'jsnapy.log'
-        log_file_path.touch(exist_ok=True, mode=0o666)
-
-        # Import JSNAPy after setting environment
-        from jnpr.jsnapy import SnapAdmin
-
-        # Initialize SnapAdmin
-        jsnapy = SnapAdmin()
-
-        # Get device hostname from facts
-        device_hostname = device.hostname  # Default to provided hostname (172.27.200.200)
-        try:
-            device.open()  # Ensure device is connected
-            facts = device.facts
-            device_hostname = facts.get('hostname', 'device_under_test')
-            print(f"DEBUG: Device hostname retrieved from facts: {device_hostname}", file=sys.stderr)
-        except Exception as e:
-            device_hostname = "device_under_test"  # Fallback hostname
-            print(f"DEBUG: Failed to retrieve hostname from device, using fallback: {device_hostname}, error: {e}", file=sys.stderr)
-
-        # Configure test
-        test_config = {
-            "hosts": [{
-                "device": device_hostname,  # Use retrieved hostname
-                "username": device.user,
-                "passwd": device.password,
-                "hostname": device_hostname  # Use retrieved hostname
-            }],
-            "tests": [f"tests/{jsnapy_file_name}"]
-        }
-
-        # Save test config for debugging
-        config_file = jsnapy_home / f'test_config_{test_name}.yml'
-        with open(config_file, 'w') as f:
-            yaml.safe_dump(test_config, f)
-
-        print(f"DEBUG: Test config saved to {config_file}", file=sys.stderr)
-
-        # Take snapshot and check in one operation
-        check_result = None
-        try:
-            check_result = jsnapy.snapcheck(test_config, "current", dev=device)
-            print(f"DEBUG: snapcheck result: {check_result}", file=sys.stderr)
-
-            # Check for snapshot file with expected and fallback names
-            snapshot_file_expected = snapshots_dir / f"{device_hostname}_current_show_system_information.xml"
-            snapshot_file_fallback = snapshots_dir / f"{device.hostname}_current_show_system_information.xml"
-            snapshot_file = None
-            if snapshot_file_expected.exists():
-                snapshot_file = snapshot_file_expected
-                print(f"DEBUG: Found expected snapshot file: {snapshot_file}", file=sys.stderr)
-            elif snapshot_file_fallback.exists():
-                snapshot_file = snapshot_file_fallback
-                print(f"DEBUG: Found fallback snapshot file: {snapshot_file}", file=sys.stderr)
-                # Rename fallback to expected
-                try:
-                    shutil.move(snapshot_file_fallback, snapshot_file_expected)
-                    print(f"DEBUG: Renamed snapshot file from {snapshot_file_fallback} to {snapshot_file_expected}", file=sys.stderr)
-                    snapshot_file = snapshot_file_expected
-                except Exception as e:
-                    print(f"DEBUG: Failed to rename snapshot file: {e}", file=sys.stderr)
-            else:
-                print(f"DEBUG: Snapshot file not found: expected {snapshot_file_expected}, fallback {snapshot_file_fallback}", file=sys.stderr)
-                # List all files in snapshots directory for debugging
-                snapshot_files = [f.name for f in snapshots_dir.iterdir()]
-                print(f"DEBUG: Files in {snapshots_dir}: {snapshot_files}", file=sys.stderr)
-
-            if snapshot_file:
-                with open(snapshot_file, 'r') as f:
-                    raw_xml = f.read()
-                    print(f"DEBUG: Raw XML output from {snapshot_file}:\n{raw_xml}", file=sys.stderr)
-
-        except Exception as jsnapy_error:
-            print(f"DEBUG: snapcheck failed: {jsnapy_error}", file=sys.stderr)
-            # Try snap then check as fallback
-            try:
-                snap_result = jsnapy.snap(test_config, "current", dev=device)
-                print(f"DEBUG: Snap result: {snap_result}", file=sys.stderr)
-
-                # Check for snapshot file with expected and fallback names
-                snapshot_file_expected = snapshots_dir / f"{device_hostname}_current_show_system_information.xml"
-                snapshot_file_fallback = snapshots_dir / f"{device.hostname}_current_show_system_information.xml"
-                snapshot_file = None
-                if snapshot_file_expected.exists():
-                    snapshot_file = snapshot_file_expected
-                    print(f"DEBUG: Found expected snapshot file: {snapshot_file}", file=sys.stderr)
-                elif snapshot_file_fallback.exists():
-                    snapshot_file = snapshot_file_fallback
-                    print(f"DEBUG: Found fallback snapshot file: {snapshot_file}", file=sys.stderr)
-                    # Rename fallback to expected
-                    try:
-                        shutil.move(snapshot_file_fallback, snapshot_file_expected)
-                        print(f"DEBUG: Renamed snapshot file from {snapshot_file_fallback} to {snapshot_file_expected}", file=sys.stderr)
-                        snapshot_file = snapshot_file_expected
-                    except Exception as e:
-                        print(f"DEBUG: Failed to rename snapshot file: {e}", file=sys.stderr)
-                else:
-                    print(f"DEBUG: Snapshot file not found: expected {snapshot_file_expected}, fallback {snapshot_file_fallback}", file=sys.stderr)
-                    # List all files in snapshots directory for debugging
-                    snapshot_files = [f.name for f in snapshots_dir.iterdir()]
-                    print(f"DEBUG: Files in {snapshots_dir}: {snapshot_files}", file=sys.stderr)
-
-                if snapshot_file:
-                    with open(snapshot_file, 'r') as f:
-                        raw_xml = f.read()
-                        print(f"DEBUG: Raw XML output from {snapshot_file}:\n{raw_xml}", file=sys.stderr)
-
-                check_result = jsnapy.check(test_config, "current", dev=device)
-                print(f"DEBUG: Check result: {check_result}", file=sys.stderr)
-            except Exception as alt_error:
-                error_result = [{
-                    "Check": f"{test_name} - Execution Error",
-                    "Result": "ERROR",
-                    "Details": f"JSNAPy execution failed: {alt_error}"
-                }]
-                return {
-                    "table": create_result_table(test_name, test_def.get("title", test_name), error_result),
-                    "raw": [{"error": str(alt_error), "traceback": traceback.format_exc()}]
-                }
-        finally:
-            # Ensure device connection is closed
-            try:
-                device.close()
-            except Exception as e:
-                print(f"DEBUG: Failed to close device connection: {e}", file=sys.stderr)
-
-        # Process results
         formatted_data = []
         raw_data = []
+
         if check_result:
             for result in check_result:
                 test_results = getattr(result, "test_results", {})
                 raw_data.append({
-                    "device": device_hostname,  # Use retrieved hostname
+                    "device": device_hostname,
+                    "test_name": test_name,
+                    "pre_snapshot": pre_snapshot,
+                    "post_snapshot": post_snapshot,
+                    "test_results": test_results,
+                    "passed": getattr(result, "no_passed", 0),
+                    "failed": getattr(result, "no_failed", 0),
+                    "result": getattr(result, "result", "UNKNOWN")
+                })
+
+                if test_results:
+                    for command, command_results in test_results.items():
+                        if isinstance(command_results, list):
+                            for trd in command_results:
+                                if not isinstance(trd, dict):
+                                    continue
+
+                                for passed_item in trd.get("passed", []):
+                                    msg = passed_item.get("message", "Comparison passed - no change detected")
+                                    formatted_data.append({
+                                        "Check": f"{test_name} - {trd.get('node_name', command)}",
+                                        "Result": "NO CHANGE",
+                                        "Details": msg
+                                    })
+
+                                for failed_item in trd.get("failed", []):
+                                    msg = failed_item.get("message", failed_item.get("err", "Change detected"))
+                                    formatted_data.append({
+                                        "Check": f"{test_name} - {trd.get('node_name', command)}",
+                                        "Result": "CHANGED",
+                                        "Details": msg
+                                    })
+                else:
+                    overall = "NO CHANGE" if getattr(result, "result", "") == "Passed" else "CHANGED"
+                    formatted_data.append({
+                        "Check": f"{test_name} - {getattr(result, 'device', device_hostname)}",
+                        "Result": overall,
+                        "Details": f"No Changes: {getattr(result,'no_passed',0)}, Changes Detected: {getattr(result,'no_failed',0)}"
+                    })
+
+        if not formatted_data:
+            formatted_data = [{"Check": f"{test_name} - Comparison Complete", "Result": "NO DATA",
+                               "Details": "Comparison completed but no interpretable results returned"}]
+
+        return {"table": create_result_table(test_name, test_def.get("title", test_name), formatted_data),
+                "raw": raw_data}
+
+    except Exception as e:
+        err = [{"Check": f"{test_name} - Comparison Exception", "Result": "ERROR", "Details": str(e)}]
+        return {"table": create_result_table(test_name, test_def.get("title", test_name), err),
+                "raw": [{"error": str(e), "traceback": traceback.format_exc()}]}
+    finally:
+        try:
+            device.close()
+        except Exception:
+            pass
+        os.chdir(original_cwd)
+        if original_jsnapy_home is not None:
+            os.environ["JSNAPY_HOME"] = original_jsnapy_home
+        elif "JSNAPY_HOME" in os.environ:
+            del os.environ["JSNAPY_HOME"]
+
+def run_jsnapy_test(device, test_name, test_def):
+    """Run a JSNAPy test in current mode."""
+    source_test_file, err = resolve_test_file(test_name, test_def)
+    if err:
+        error_result = [{"Check": f"{test_name} - Configuration Error", "Result": "ERROR", "Details": err}]
+        return {"table": create_result_table(test_name, test_def.get("title", test_name), error_result)}
+
+    original_cwd = os.getcwd()
+    original_jsnapy_home = os.environ.get("JSNAPY_HOME")
+
+    try:
+        jsnapy_home = Path('/tmp/jsnapy')
+        jsnapy_home.mkdir(parents=True, exist_ok=True, mode=0o777)
+        prepare_jsnapy_env(source_test_file, jsnapy_home)
+
+        from jnpr.jsnapy import SnapAdmin
+        jsnapy = SnapAdmin()
+
+        device_hostname = device.hostname
+        try:
+            device.open()
+            facts = device.facts
+            device_hostname = facts.get('hostname', device_hostname) or device_hostname
+        except Exception:
+            device_hostname = device_hostname or "device_under_test"
+
+        jsnapy_test_basename = source_test_file.name
+        test_config = {
+            "hosts": [{
+                "device": device_hostname,
+                "username": device.user,
+                "passwd": device.password,
+                "hostname": device_hostname
+            }],
+            "tests": [jsnapy_test_basename]
+        }
+
+        # Save test configuration for debugging
+        (jsnapy_home / f'test_config_{test_name}.yml').write_text(yaml.safe_dump(test_config))
+
+        # Try snapcheck; fallback to snap+check
+        try:
+            check_result = jsnapy.snapcheck(test_config, "current", dev=device)
+        except Exception as snapcheck_error:
+            dprint(f"snapcheck failed, trying snap+check: {snapcheck_error}")
+            snap_result = jsnapy.snap(test_config, "current", dev=device)
+            dprint(f"snap() fallback result: {snap_result}")
+            check_result = jsnapy.check(test_config, "current", dev=device)
+
+        # Process results to normalized table/raw
+        formatted_data = []
+        raw_data = []
+
+        if check_result:
+            for result in check_result:
+                test_results = getattr(result, "test_results", {})
+                raw_data.append({
+                    "device": device_hostname,
                     "test_name": test_name,
                     "test_results": test_results,
                     "passed": getattr(result, "no_passed", 0),
@@ -779,57 +559,51 @@ loggers:
 
                 if test_results:
                     for command, command_results in test_results.items():
-                        print(f"DEBUG: Command: {command}, Results: {command_results}", file=sys.stderr)
                         if isinstance(command_results, list):
-                            for test_result in command_results:
-                                if isinstance(test_result, dict):
-                                    for passed_item in test_result.get("passed", []):
-                                        message = passed_item.get("message", "Test passed")  # Use 'message' for passed tests
-                                        formatted_data.append({
-                                            "Check": f"{test_name} - {test_result.get('node_name', command)}",
-                                            "Result": "PASSED",
-                                            "Details": message
-                                        })
-                                    for failed_item in test_result.get("failed", []):
-                                        message = failed_item.get("err", "Test failed")  # Use 'err' for failed tests
-                                        formatted_data.append({
-                                            "Check": f"{test_name} - {test_result.get('node_name', command)}",
-                                            "Result": "FAILED",
-                                            "Details": message
-                                        })
+                            for trd in command_results:
+                                if not isinstance(trd, dict):
+                                    continue
+
+                                for passed_item in trd.get("passed", []):
+                                    message = passed_item.get("message", "Test passed")
+                                    formatted_data.append({
+                                        "Check": f"{test_name} - {trd.get('node_name', command)}",
+                                        "Result": "PASSED",
+                                        "Details": message
+                                    })
+
+                                for failed_item in trd.get("failed", []):
+                                    message = failed_item.get("err", "Test failed")
+                                    formatted_data.append({
+                                        "Check": f"{test_name} - {trd.get('node_name', command)}",
+                                        "Result": "FAILED",
+                                        "Details": message
+                                    })
                 else:
-                    overall_result = "PASSED" if getattr(result, "result", "") == "Passed" else "FAILED"
-                    passed_count = getattr(result, 'no_passed', 0)
-                    failed_count = getattr(result, 'no_failed', 0)
-                    details = f"Passed: {passed_count}, Failed: {failed_count}"
+                    overall = "PASSED" if getattr(result, "result", "") == "Passed" else "FAILED"
                     formatted_data.append({
                         "Check": f"{test_name} - {getattr(result, 'device', device_hostname)}",
-                        "Result": overall_result,
-                        "Details": details
+                        "Result": overall,
+                        "Details": f"Passed: {getattr(result,'no_passed',0)}, Failed: {getattr(result,'no_failed',0)}"
                     })
 
         if not formatted_data:
-            formatted_data = [{
-                "Check": f"{test_name} - No Results",
-                "Result": "UNKNOWN",
-                "Details": "JSNAPy returned no interpretable test data"
-            }]
+            formatted_data = [{"Check": f"{test_name} - No Results", "Result": "UNKNOWN",
+                               "Details": "JSNAPy returned no interpretable test data"}]
 
-        table_result = create_result_table(test_name, test_def.get("title", test_name), formatted_data)
-        return {"table": table_result, "raw": raw_data}
+        return {"table": create_result_table(test_name, test_def.get("title", test_name), formatted_data),
+                "raw": raw_data}
 
     except Exception as e:
-        error_result = [{
-            "Check": f"{test_name} - Exception",
-            "Result": "ERROR",
-            "Details": f"JSNAPy test execution failed: {str(e)}"
-        }]
-        return {
-            "table": create_result_table(test_name, test_def.get("title", test_name), error_result),
-            "raw": [{"error": str(e), "traceback": traceback.format_exc()}]
-        }
-
+        err = [{"Check": f"{test_name} - Exception", "Result": "ERROR",
+                "Details": f"JSNAPy test execution failed: {str(e)}"}]
+        return {"table": create_result_table(test_name, test_def.get("title", test_name), err),
+                "raw": [{"error": str(e), "traceback": traceback.format_exc()}]}
     finally:
+        try:
+            device.close()
+        except Exception:
+            pass
         os.chdir(original_cwd)
         if original_jsnapy_home is not None:
             os.environ["JSNAPY_HOME"] = original_jsnapy_home
@@ -837,121 +611,368 @@ loggers:
             del os.environ["JSNAPY_HOME"]
 
 # =============================================================================
-# SECTION 6: RESULT FORMATTING AND DISPLAY
+# SECTION 6: SUMMARY TABLES
 # =============================================================================
 def format_summary_table(results):
-    """Create a summary table of all test results."""
+    """Generate summary statistics table."""
     summary_data = []
+    mode = results.get("summary", {}).get("mode", "current")
 
     for host_result in results.get("results_by_host", []):
         hostname = host_result["hostname"]
         status = host_result["status"]
 
         if status == "success":
-            for test_result in host_result["test_results"]:
-                passed = sum(1 for row in test_result["table"]["rows"] if row["Status"] == "PASSED")
-                failed = sum(1 for row in test_result["table"]["rows"] if row["Status"] == "FAILED")
-                error = sum(1 for row in test_result["table"]["rows"] if row["Status"] == "ERROR")
-                no_change = sum(1 for row in test_result["table"]["rows"] if row["Status"] == "NO CHANGE")
-                changed = sum(1 for row in test_result["table"]["rows"] if row["Status"] == "CHANGED")
+            for test_result in host_result.get("test_results", []):
+                rows = test_result["table"]["rows"]
+                success_status = {"PASSED", "NO CHANGE", "SUCCESS"}
+                issue_status = {"FAILED", "WARNING"}
+                error_status = {"ERROR"}
+
+                passed = sum(1 for r in rows if r["Status"] in success_status)
+                failed = sum(1 for r in rows if r["Status"] in issue_status)
+                errors = sum(1 for r in rows if r["Status"] in error_status)
+                changed = sum(1 for r in rows if r["Status"] == "CHANGED")
+
+                failed_col = failed + (changed if mode == "compare" else 0)
+                overall_status = "PASS" if failed_col == 0 and errors == 0 else "FAIL"
 
                 summary_data.append([
                     hostname,
-                    test_result["table"]["test_name"],
-                    passed + no_change,  # Combine PASSED and NO CHANGE as success
-                    failed + changed,    # Combine FAILED and CHANGED as issues
-                    error,
-                    "PASS" if failed == 0 and error == 0 and changed == 0 else "FAIL"
+                    test_result["table"]["title"] or test_result["table"]["test_name"],
+                    passed, failed_col, errors, overall_status
                 ])
         else:
-            summary_data.append([
-                hostname,
-                "CONNECTION",
-                0,
-                1,
-                1,
-                "FAIL"
-            ])
+            summary_data.append([hostname, "CONNECTION", 0, 1, 1, "FAIL"])
 
     headers = ["Host", "Test", "Passed", "Failed", "Errors", "Status"]
     return summary_data, headers
 
+# =============================================================================
+# SECTION 7: UNIVERSAL TABLE FORMATTER
+# =============================================================================
+def get_nested(dct, path):
+    """Get nested dictionary value using dot notation path."""
+    if not isinstance(dct, dict) or not path:
+        return None
 
-def display_results(results):
-    """Display formatted results in console."""
-    # Print summary information
-    print("\n" + "="*80)
+    cur = dct
+    for key in str(path).split("/"):
+        if key == "":
+            continue
+        if not isinstance(cur, dict) or key not in cur:
+            return None
+        cur = cur[key]
+    return cur
+
+def compute_host_counts(results):
+    """Compute passed/failed counts per host."""
+    per_host_counts = {}
+
+    for host_result in results.get("results_by_host", []):
+        hostname = host_result.get("hostname", "")
+        passed = failed = 0
+
+        for t in host_result.get("test_results", []) or []:
+            for raw_item in t.get("raw", []) or []:
+                tr = raw_item.get("test_results", {})
+                for command, command_results in tr.items():
+                    if not isinstance(command_results, list):
+                        continue
+                    for trd in command_results:
+                        passed += len(trd.get("passed", []) or [])
+                        failed += len(trd.get("failed", []) or [])
+
+        per_host_counts[hostname] = {
+            "passed": passed,
+            "failed": failed,
+            "overall": "PASS" if failed == 0 else "FAIL",
+        }
+
+    return per_host_counts
+
+def build_unified_bgp_table(results, include_passed=True):
+    """Build specialized table for BGP test results."""
+    headers = ["Host", "Device", "Peer Address", "Peer AS", "State", "Result", "Message", "Host Overall", "Passed", "Failed"]
+    rows = []
+    per_host_counts = compute_host_counts(results)
+
+    for host_result in results.get("results_by_host", []):
+        hostname = host_result.get("hostname", "")
+        counts = per_host_counts.get(hostname, {"passed": 0, "failed": 0, "overall": "PASS"})
+
+        for t in host_result.get("test_results", []) or []:
+            for raw_item in t.get("raw", []) or []:
+                device_name = raw_item.get("device", hostname)
+                tr = raw_item.get("test_results", {})
+
+                for cmd, command_results in tr.items():
+                    if "bgp" not in str(cmd).lower():
+                        continue
+
+                    if not isinstance(command_results, list):
+                        continue
+
+                    for trd in command_results:
+                        # Process failed items
+                        for item in trd.get("failed", []) or []:
+                            if item.get("xpath_error"):
+                                rows.append([hostname, device_name, "", "", "", "FAILED",
+                                             "XPath returned no bgp-peer nodes",
+                                             counts["overall"], counts["passed"], counts["failed"]])
+                                continue
+
+                            post = item.get("post") or {}
+                            pre = item.get("pre") or {}
+                            rows.append([hostname, device_name,
+                                         str(post.get("peer-address") or pre.get("peer-address") or ""),
+                                         str(post.get("peer-as") or pre.get("peer-as") or ""),
+                                         str(post.get("peer-state") or pre.get("peer-state") or ""),
+                                         "FAILED",
+                                         item.get("message") or item.get("err") or "",
+                                         counts["overall"], counts["passed"], counts["failed"]])
+
+                        # Process passed items if requested
+                        if include_passed:
+                            for item in trd.get("passed", []) or []:
+                                post = item.get("post") or {}
+                                pre = item.get("pre") or {}
+                                rows.append([hostname, device_name,
+                                             str(post.get("peer-address") or pre.get("peer-address") or ""),
+                                             str(post.get("peer-as") or pre.get("peer-as") or ""),
+                                             str(post.get("peer-state") or pre.get("peer-state") or ""),
+                                             "PASSED",
+                                             item.get("message") or "",
+                                             counts["overall"], counts["passed"], counts["failed"]])
+
+    # If no BGP data found, add placeholder
+    if not rows:
+        for host_result in results.get("results_by_host", []):
+            hostname = host_result.get("hostname", "")
+            counts = per_host_counts.get(hostname, {"passed": 0, "failed": 0, "overall": "PASS"})
+            rows.append([hostname, "", "", "", "", "PASS", "No BGP peer rows returned",
+                         counts["overall"], counts["passed"], counts["failed"]])
+
+    # Sort rows: hostname, then failures first, then by peer address
+    rows.sort(key=lambda r: (r[0], 0 if r[5] == "FAILED" else 1, r[2]))
+
+    return headers, rows
+
+def build_unified_interface_errors_table(results, per_host_counts=None):
+    """Build specialized table for interface error test results."""
+    if per_host_counts is None:
+        per_host_counts = compute_host_counts(results)
+
+    headers = [
+        "Host", "Interface", "Admin Status", "Oper Status",
+        "Input Errors", "Input Drops", "Input Discards",
+        "Output Errors", "Output Drops", "Carrier Transitions",
+        "Result", "Message", "Host Overall", "Passed", "Failed"
+    ]
+    rows = []
+    agg = {}
+
+    for host_result in results.get("results_by_host", []):
+        hostname = host_result.get("hostname", "")
+
+        for t in host_result.get("test_results", []) or []:
+            for raw_item in t.get("raw", []) or []:
+                tr = raw_item.get("test_results", {})
+
+                for cmd, command_results in tr.items():
+                    if "interfaces extensive" not in str(cmd).lower():
+                        continue
+
+                    if not isinstance(command_results, list):
+                        continue
+
+                    for trd in command_results:
+                        for bucket, status in (("failed", "FAILED"), ("passed", "PASSED")):
+                            for item in trd.get(bucket, []) or []:
+                                post = item.get("post") or {}
+                                pre = item.get("pre") or {}
+                                ifname = post.get("name") or pre.get("name") or ""
+
+                                if not ifname:
+                                    continue
+
+                                host_map = agg.setdefault(hostname, {})
+                                entry = host_map.setdefault(ifname, {"values": {}, "result": "PASSED", "messages": []})
+
+                                def pick(path):
+                                    """Pick value from post or pre snapshot."""
+                                    valp = get_nested(post, path)
+                                    if valp is not None:
+                                        return valp
+                                    return get_nested(pre, path)
+
+                                # Extract interface statistics
+                                entry["values"]["admin-status"] = post.get("admin-status") or pre.get("admin-status") or ""
+                                entry["values"]["oper-status"] = post.get("oper-status") or pre.get("oper-status") or ""
+                                entry["values"]["input-errors"] = pick("input-error-list/input-errors") or ""
+                                entry["values"]["input-drops"] = pick("input-error-list/input-drops") or ""
+                                entry["values"]["input-discards"] = pick("input-error-list/input-discards") or ""
+                                entry["values"]["output-errors"] = pick("output-error-list/output-errors") or ""
+                                entry["values"]["output-drops"] = pick("output-error-list/output-drops") or ""
+                                entry["values"]["carrier-transitions"] = pick("output-error-list/carrier-transitions") or ""
+
+                                msg = item.get("message") or item.get("err") or ""
+                                if msg:
+                                    entry["messages"].append(msg)
+
+                                if status == "FAILED":
+                                    entry["result"] = "FAILED"
+
+    # Convert aggregated data to table rows
+    for hostname, ifs in agg.items():
+        counts = per_host_counts.get(hostname, {"passed": 0, "failed": 0, "overall": "PASS"})
+
+        for ifname, entry in ifs.items():
+            v = entry["values"]
+            rows.append([
+                hostname, ifname, str(v.get("admin-status", "")), str(v.get("oper-status", "")),
+                str(v.get("input-errors", "")), str(v.get("input-drops", "")), str(v.get("input-discards", "")),
+                str(v.get("output-errors", "")), str(v.get("output-drops", "")), str(v.get("carrier-transitions", "")),
+                entry["result"], " | ".join(entry["messages"]) if entry["messages"] else "",
+                counts.get("overall", "PASS"), counts.get("passed", 0), counts.get("failed", 0)
+            ])
+
+    # If no interface data found, add placeholder
+    if not rows:
+        for host_result in results.get("results_by_host", []):
+            hostname = host_result.get("hostname", "")
+            counts = per_host_counts.get(hostname, {"passed": 0, "failed": 0, "overall": "PASS"})
+            rows.append([
+                hostname, "", "", "", "", "", "", "", "", "",
+                "PASS" if counts["failed"] == 0 else "ERROR",
+                "No interface error rows returned",
+                counts.get("overall", "PASS"), counts.get("passed", 0), counts.get("failed", 0)
+            ])
+
+    # Sort rows: hostname, then failures first, then by interface name
+    rows.sort(key=lambda r: (r[0], 0 if r[10] == "FAILED" else 1, r[1]))
+
+    return headers, rows
+
+def build_universal_table(results):
+    """Build universal table that adapts to the type of tests being run."""
+    per_host_counts = compute_host_counts(results)
+
+    # Determine what types of commands/tests are present
+    cmds = set()
+    tests_seen = set()
+
+    for host_result in results.get("results_by_host", []):
+        for t in host_result.get("test_results", []) or []:
+            table = t.get("table", {}) or {}
+            if table.get("test_name"):
+                tests_seen.add(str(table["test_name"]).lower())
+
+            for raw_item in t.get("raw", []) or []:
+                tr = raw_item.get("test_results", {})
+                for cmd in tr.keys():
+                    cmds.add(str(cmd).lower().strip())
+
+    # Choose specialized table format based on commands/tests
+    if "show interfaces extensive" in cmds or any("interface_error" in ts or "interface_errors" in ts for ts in tests_seen):
+        return build_unified_interface_errors_table(results, per_host_counts)
+
+    if any("show bgp" in cmd for cmd in cmds) or any("bgp" in ts for ts in tests_seen):
+        return build_unified_bgp_table(results, include_passed=True)
+
+    # Generic fallback: flatten structured fields across all tests
+    headers = ["Host", "Device", "Object", "Node", "Expected", "Actual", "Status", "Message", "Host Overall", "Passed", "Failed"]
+    rows = []
+
+    for host_result in results.get("results_by_host", []):
+        hostname = host_result.get("hostname", "")
+        counts = per_host_counts.get(hostname, {"passed": 0, "failed": 0, "overall": "PASS"})
+
+        for t in host_result.get("test_results", []) or []:
+            cols, frs = build_structured_fields_table(t)
+
+            device = ""
+            for raw_item in t.get("raw", []) or []:
+                device = raw_item.get("device", "")
+                break
+
+            for fr in frs:
+                obj = fr[0]; node = fr[2]; expected = fr[3]; actual = fr[4]; status = fr[5]; msg = fr[6]
+                rows.append([
+                    hostname, device, obj, node, expected, actual, status, msg,
+                    counts.get("overall", "PASS"), counts.get("passed", 0), counts.get("failed", 0)
+                ])
+
+    # If no data found, add placeholder
+    if not rows:
+        for host_result in results.get("results_by_host", []):
+            hostname = host_result.get("hostname", "")
+            counts = per_host_counts.get(hostname, {"passed": 0, "failed": 0, "overall": "PASS"})
+            rows.append([hostname, "", "", "", "", "", "PASS", "No data",
+                        counts["overall"], counts["passed"], counts["failed"]])
+
+    # Sort rows: hostname, then failures first, then by object
+    rows.sort(key=lambda r: (r[0], 0 if r[6] == "FAILED" else 1, r[2]))
+
+    return headers, rows
+
+# =============================================================================
+# SECTION 8: DISPLAY RESULTS (uses Universal Table)
+# =============================================================================
+def display_results(results, args=None):
+    """Display formatted results using the universal table formatter."""
+    tablefmt = getattr(args, "format", "grid") if args else "grid"
+    show_raw = getattr(args, "show_raw", False) if args else False
+    max_rows = getattr(args, "max_rows", 0) if args else 0
+    truncate_len = getattr(args, "truncate_details", 120) if args else 120
+
+    def trunc(s, n):
+        """Truncate string to specified length."""
+        if s is None:
+            return ""
+        s = str(s)
+        return s if n <= 0 or len(s) <= n else s[: max(0, n - 1)] + "…"
+
+    # Print header
+    print("\n" + "=" * 80)
     print("TEST EXECUTION SUMMARY".center(80))
-    print("="*80)
+    print("=" * 80)
     print(f"Total Hosts: {results['summary']['total_hosts']}")
     print(f"Passed Hosts: {results['summary']['passed_hosts']}")
     print(f"Total Tests Executed: {results['summary']['total_tests']}")
-    print("="*80 + "\n")
+    print(f"Mode: {results['summary'].get('mode', 'current')}")
+    print("=" * 80 + "\n")
 
-    # Print summary table
-    summary_data, headers = format_summary_table(results)
-    print(tabulate(summary_data, headers=headers, tablefmt="grid", showindex=True))
-    print("\n" + "="*80)
-    print("DETAILED RESULTS".center(80))
-    print("="*80)
+    # Build and display universal table
+    headers, rows = build_universal_table(results)
 
-    # Print detailed results for each host
-    for host_result in results["results_by_host"]:
-        print(f"\nHost: {host_result['hostname']}")
-        print(f"Status: {host_result['status'].upper()}")
+    # Truncate Message column if present
+    if "Message" in headers:
+        msg_idx = headers.index("Message")
+        rows = [r[:msg_idx] + [trunc(r[msg_idx], truncate_len)] + r[msg_idx + 1:] for r in rows]
 
-        if host_result["status"] == "success":
-            for test_result in host_result["test_results"]:
-                print(f"\nTest: {test_result['table']['test_name']}")
-                print(f"Title: {test_result['table']['title']}")
-                print("\nTest Results:")
+    # Apply row limit if specified
+    display_rows = rows if max_rows <= 0 else rows[:max_rows]
 
-                # Convert table rows to list of lists for tabulate
-                table_rows = []
-                for row in test_result["table"]["rows"]:
-                    table_rows.append([
-                        row["Check"],
-                        row["Status"],
-                        row["Details"],
-                        row["Timestamp"]
-                    ])
+    print(tabulate(display_rows, headers=headers, tablefmt=tablefmt, showindex=False))
 
-                print(tabulate(
-                    table_rows,
-                    headers=test_result["table"]["columns"],
-                    tablefmt="grid"
-                ))
+    # Show raw data if requested
+    if show_raw:
+        print("\nRaw Data:")
+        print(json.dumps(results["results_by_host"], indent=2))
 
-                # Print raw data if available
-                if test_result.get("raw"):
-                    print("\nRaw Data:")
-                    print(json.dumps(test_result["raw"], indent=2))
-        else:
-            print(f"\nError: {host_result.get('message', 'Unknown error')}")
-
-    print("\n" + "="*80)
+    # Print footer
+    print("\n" + "=" * 80)
     print("EXECUTION COMPLETE".center(80))
-    print("="*80)
+    print("=" * 80)
 
 # =============================================================================
-# SECTION 7: ASYNC DEVICE VALIDATION WITH MODE SUPPORT
+# SECTION 9: ASYNC VALIDATION PER HOST
 # =============================================================================
 async def validate_host(hostname, username, password, tests, test_defs, host_index, mode="current", snapshot_name=None, compare_with=None):
-    """
-    Validates a single device by running tests in different modes.
-
-    Args:
-        hostname: Device IP/hostname
-        username: Login username
-        password: Login password
-        tests: List of test names to run
-        test_defs: Test definitions from tests.yml
-        host_index: Index for progress reporting
-        mode: Operation mode ('current', 'snapshot', 'compare')
-        snapshot_name: Name for snapshot (required for snapshot and compare modes)
-        compare_with: Pre-snapshot name (required for compare mode)
-    """
+    """Validate a single host with the specified tests."""
     connection_step, execution_step = (host_index * 2) - 1, host_index * 2
+
     send_progress("STEP_START", {"step": connection_step, "name": f"Connect to {hostname}"}, f"Connecting to {hostname}...")
 
     try:
@@ -959,11 +980,14 @@ async def validate_host(hostname, username, password, tests, test_defs, host_ind
             send_progress("STEP_COMPLETE", {"step": connection_step}, f"Successfully connected to {hostname}.")
 
             if mode == "snapshot":
-                send_progress("STEP_START", {"step": execution_step, "name": f"Take Snapshots on {hostname}"}, f"Taking {len(tests)} snapshots on {hostname}...")
+                send_progress("STEP_START", {"step": execution_step, "name": f"Take Snapshots on {hostname}"},
+                             f"Taking {len(tests)} snapshots on {hostname}...")
             elif mode == "compare":
-                send_progress("STEP_START", {"step": execution_step, "name": f"Compare Snapshots on {hostname}"}, f"Comparing {len(tests)} snapshots on {hostname}...")
+                send_progress("STEP_START", {"step": execution_step, "name": f"Compare Snapshots on {hostname}"},
+                             f"Comparing {len(tests)} snapshots on {hostname}...")
             else:
-                send_progress("STEP_START", {"step": execution_step, "name": f"Run Validations on {hostname}"}, f"Executing {len(tests)} tests on {hostname}...")
+                send_progress("STEP_START", {"step": execution_step, "name": f"Run Validations on {hostname}"},
+                             f"Executing {len(tests)} tests on {hostname}...")
 
             host_results = []
             for test_name in tests:
@@ -972,36 +996,28 @@ async def validate_host(hostname, username, password, tests, test_defs, host_ind
                         test_result = take_jsnapy_snapshot(dev, test_name, test_defs[test_name], snapshot_name)
                         status = "SUCCESS" if not any(row["Status"] == "ERROR" for row in test_result["table"]["rows"]) else "ERROR"
                         send_progress("TEST_COMPLETE", {
-                            "host": hostname,
-                            "test": test_name,
-                            "status": status,
-                            "mode": "snapshot",
-                            "snapshot_name": snapshot_name
+                            "host": hostname, "test": test_name, "status": status, "mode": "snapshot", "snapshot_name": snapshot_name
                         }, f"Snapshot {test_name} completed on {hostname}")
+
                     elif mode == "compare":
                         test_result = compare_jsnapy_snapshots(dev, test_name, test_defs[test_name], compare_with, snapshot_name)
                         status = "SUCCESS" if not any(row["Status"] == "ERROR" for row in test_result["table"]["rows"]) else "ERROR"
                         send_progress("TEST_COMPLETE", {
-                            "host": hostname,
-                            "test": test_name,
-                            "status": status,
-                            "mode": "compare",
-                            "pre_snapshot": compare_with,
-                            "post_snapshot": snapshot_name
+                            "host": hostname, "test": test_name, "status": status, "mode": "compare",
+                            "pre_snapshot": compare_with, "post_snapshot": snapshot_name
                         }, f"Comparison {test_name} completed on {hostname}")
-                    else:  # current mode
+
+                    else:
                         test_result = run_jsnapy_test(dev, test_name, test_defs[test_name])
                         status = "SUCCESS" if not any(row["Status"] == "FAILED" for row in test_result["table"]["rows"]) else "WARNING"
                         send_progress("TEST_COMPLETE", {
-                            "host": hostname,
-                            "test": test_name,
-                            "status": status,
-                            "mode": "current"
+                            "host": hostname, "test": test_name, "status": status, "mode": "current"
                         }, f"Test {test_name} completed on {hostname}")
 
                     host_results.append(test_result)
 
             send_progress("STEP_COMPLETE", {"step": execution_step}, f"Finished all operations on {hostname}.")
+
             return {
                 "hostname": sanitize_text(hostname),
                 "status": "success",
@@ -1010,6 +1026,7 @@ async def validate_host(hostname, username, password, tests, test_defs, host_ind
                 "snapshot_name": snapshot_name,
                 "compare_with": compare_with
             }
+
     except (ConnectError, ConnectTimeoutError, ConnectAuthError, Exception) as e:
         error_message = f"An error occurred with host {hostname}: {sanitize_text(str(e))}"
         send_progress("STEP_COMPLETE", {"step": connection_step, "status": "FAILED"}, error_message)
@@ -1019,62 +1036,50 @@ async def validate_host(hostname, username, password, tests, test_defs, host_ind
             "message": error_message,
         }
 
-
 # =============================================================================
-# SECTION 8: MAIN ASYNC ORCHESTRATOR WITH MODE SUPPORT
+# SECTION 10: MAIN ASYNC ORCHESTRATOR
 # =============================================================================
 async def main_async(args):
-    """Core orchestrator for test discovery/execution with snapshot support."""
+    """Main async orchestrator for running tests across multiple hosts."""
     tests_yml = Path(__file__).parent / "tests.yml"
     with open(tests_yml) as f:
         test_defs = yaml.safe_load(f)
 
-    # --- Test Discovery Mode ---
     if args.list_tests:
-        categorized_tests = {}
+        categorized = {}
         for test_id, details in test_defs.items():
             category = sanitize_text(details.get("category", "Uncategorized"))
-            if category not in categorized_tests:
-                categorized_tests[category] = []
-            categorized_tests[category].append({
+            categorized.setdefault(category, []).append({
                 "id": sanitize_text(test_id),
                 "title": sanitize_text(details.get("title", test_id)),
                 "description": sanitize_text(details.get("description", "No description provided.")),
                 "category": category,
             })
-        return {"success": True, "discovered_tests": categorized_tests}
+        return {"success": True, "discovered_tests": categorized}
 
-    # --- Test Execution Mode ---
     hosts = [h.strip() for h in args.hostname.split(",")]
     tests_to_run = [t.strip() for t in args.tests.split(",")]
     mode = getattr(args, 'mode', 'current')
     snapshot_name = getattr(args, 'snapshot_name', None)
     compare_with = getattr(args, 'compare_with', None)
 
-    # Validate arguments based on mode
+    # Validate mode parameters
     if mode == "snapshot" and not snapshot_name:
         raise ValueError("Snapshot mode requires --snapshot-name parameter")
     if mode == "compare" and (not snapshot_name or not compare_with):
         raise ValueError("Compare mode requires both --snapshot-name and --compare-with parameters")
 
     total_steps = len(hosts) * 2
-    operation_desc = {
-        "current": "validation",
-        "snapshot": "snapshot collection",
-        "compare": "snapshot comparison"
-    }
-
     send_progress("OPERATION_START", {
-        "total_steps": total_steps,
-        "mode": mode,
-        "snapshot_name": snapshot_name,
-        "compare_with": compare_with
-    }, f"Starting {operation_desc.get(mode, 'operation')} for {len(hosts)} host(s).")
+        "total_steps": total_steps, "mode": mode, "snapshot_name": snapshot_name, "compare_with": compare_with
+    }, f"Starting {'validation' if mode=='current' else 'snapshot comparison' if mode=='compare' else 'snapshot collection'} for {len(hosts)} host(s).")
 
+    # Create and execute async tasks
     tasks = [
         validate_host(host, args.username, args.password, tests_to_run, test_defs, idx + 1, mode, snapshot_name, compare_with)
         for idx, host in enumerate(hosts)
     ]
+
     results = await asyncio.gather(*tasks)
 
     final_results = {
@@ -1090,56 +1095,70 @@ async def main_async(args):
         },
     }
 
-    # Display results in console
-    if not args.list_tests:
-        display_results(final_results)
-
     return {"type": "result", "data": final_results}
 
-
 # =============================================================================
-# SECTION 9: COMMAND-LINE ENTRY POINT WITH ENHANCED ARGUMENTS
+# SECTION 11: CLI ENTRYPOINT
 # =============================================================================
 def main():
-    """Parses arguments and orchestrates the validation run."""
-    parser = argparse.ArgumentParser(description="Asynchronous Network Validation Tool with Snapshot Comparison")
+    """Main CLI entry point."""
+    parser = argparse.ArgumentParser(description="Asynchronous Network Validation Tool with Universal Table Formatter")
+
+    # Core parameters
     parser.add_argument("--hostname", help="Comma-separated device IPs")
     parser.add_argument("--username", help="Device login username")
     parser.add_argument("--password", help="Device login password")
-    parser.add_argument("--tests", help="Comma-separated test names")
+    parser.add_argument("--tests", help="Comma-separated test IDs (from tests.yml)")
     parser.add_argument("--list_tests", action="store_true", help="List available tests")
+
+    # Operation modes
     parser.add_argument("--mode", choices=["current", "snapshot", "compare"], default="current",
-                       help="Operation mode: current (default), snapshot, or compare")
-    parser.add_argument("--snapshot-name", help="Name for snapshot (required for snapshot and compare modes)")
-    parser.add_argument("--compare-with", help="Pre-snapshot name to compare against (required for compare mode)")
+                        help="Operation mode")
+    parser.add_argument("--snapshot-name", help="Name for snapshot (for snapshot/compare modes)")
+    parser.add_argument("--compare-with", help="Pre-snapshot name (for compare mode)")
+
+    # Output formatting options
+    parser.add_argument("--format", choices=["grid", "github", "simple", "plain", "fancy_grid"], default="grid",
+                        help="Table format for output")
+    parser.add_argument("--show-raw", action="store_true", help="Include raw JSON payloads at the end")
+    parser.add_argument("--max-rows", type=int, default=0, help="Max rows to print (0 = no limit)")
+    parser.add_argument("--truncate-details", type=int, default=120, help="Truncate Message/Details columns (0 = no truncation)")
+
+    # Debug options
+    parser.add_argument("--debug", action="store_true", help="Enable debug prints")
 
     args = parser.parse_args()
 
     try:
+        global DEBUG_ENABLED
+        DEBUG_ENABLED = bool(args.debug)
+
+        # Validate required parameters
         if not args.list_tests and (not args.hostname or not args.username or not args.password or not args.tests):
             raise ValueError("Hostname, username, password, and tests are required for a validation run.")
 
-        # Validate mode-specific arguments
         if args.mode == "snapshot" and not args.snapshot_name:
             raise ValueError("Snapshot mode requires --snapshot-name parameter")
+
         if args.mode == "compare" and (not args.snapshot_name or not args.compare_with):
             raise ValueError("Compare mode requires both --snapshot-name and --compare-with parameters")
 
+        # Run the async main function
         final_output = asyncio.run(main_async(args))
 
+        # Display results if not just listing tests
         if not args.list_tests:
             send_progress("OPERATION_COMPLETE", {"status": "SUCCESS", "mode": args.mode}, "All operations completed.")
+            display_results(final_output["data"], args)
 
         print(json.dumps(final_output))
 
     except Exception as e:
         error_message = f"A critical script error occurred: {sanitize_text(str(e))}"
         send_progress("OPERATION_COMPLETE", {"status": "FAILED"}, error_message)
-        error_output = {"type": "error", "message": error_message}
-        print(json.dumps(error_output))
+        print(json.dumps({"type": "error", "message": error_message}))
         print(f"CRITICAL ERROR: {traceback.format_exc()}", file=sys.stderr, flush=True)
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

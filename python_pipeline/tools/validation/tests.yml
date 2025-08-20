@@ -1,95 +1,224 @@
-# =============================================================================
-# FILE:               python_pipeline/tools/validation/tests.yml
-#
-# DESCRIPTION:
-#   This file defines all runnable JSNAPy validation tests. Each entry represents
-#   a selectable item in the Validation Runner's UI.
-#
-# HOW TO USE:
-#   To add a new validation test, create a new top-level entry. The key (e.g.,
-#   'bgp_check') is the ID, and the 'title' and 'category' are used for display
-#   in the UI. The Python script reads this file for the discovery process.
-# =============================================================================
-# --- Comprehansive Test  ---
-comprehensive_check:
-  title: "Comprehansive Test"
-  category: "System"
-  jsnapy_test_file: "comprehensive_check.yml"  # JSNAPy test file (contains assertions)
-  description: "Comprehensive Check"
+# JSNAPy Test Configuration File
+# This file defines the available tests and their metadata for the network validation framework
 
-# --- BGP Validation ---
-bgp_summary:
-  title: "BGP Neighbor Summary"
-  category: "Routing"
-  jsnapy_test_file: "bgp_summary.yml"  # JSNAPy test file (contains assertions)
-  description: "BGP peers"
+test_bgp_summary:
+  title: "BGP Summary Validation"
+  description: "Validates BGP RIB statistics including active, received, accepted, and suppressed prefix counts"
+  category: "Routing Protocols"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 60
+  criticality: "high"
+  tags: ["bgp", "routing", "prefixes"]
 
-bgp_rib:
-  title: "BGP Route Inspection"
-  category: "Routing"
-  jsnapy_test_file: "bgp_rib.yml"
-  description: "BGP routes"
+test_bgp_neighbors:
+  title: "BGP Neighbor Status"
+  description: "Checks BGP neighbor states, flap counts, and session stability"
+  category: "Routing Protocols"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 45
+  criticality: "high"
+  tags: ["bgp", "neighbors", "adjacency"]
 
-# --- OSPF Validation ---
-ospf_neighbors:
-  title: "OSPF Neighbor Summary"
-  category: "Routing"
-  jsnapy_test_file: "ospf_neighbors.yml"
-  description: "OSPF Adjacency"
-
-ospf_routes:
-  title: "OSPF Route Validation"
-  category: "Routing"
-  jsnapy_test_file: "ospf_routes.yml"
-  description: "OSPF Routes"
-
-# --- MPLS Validation ---
-ldp_sessions:
-  title: "LDP Session Status"
+test_ldp_neighbors:
+  title: "LDP Neighbor Validation"
+  description: "Verifies LDP neighbor operational states and session status"
   category: "MPLS"
-  jsnapy_test_file: "ldp_sessions.yml"
-  description: "LDP Sessions"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 30
+  criticality: "medium"
+  tags: ["ldp", "mpls", "neighbors"]
 
-rsvp_sessions:
+test_rsvp_sessions:
   title: "RSVP Session Status"
+  description: "Monitors RSVP LSP sessions, states, and bandwidth allocation"
   category: "MPLS"
-  jsnapy_test_file: "rsvp_sessions.yml"
-  description: "RSVP-TE Tunnel"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 30
+  criticality: "medium"
+  tags: ["rsvp", "lsp", "mpls", "bandwidth"]
 
-mpls_interfaces:
+test_mpls_interfaces:
   title: "MPLS Interface Status"
+  description: "Validates MPLS-enabled interfaces and their operational states"
   category: "MPLS"
-  jsnapy_test_file: "mpls_interfaces.yml"
-  description: "MPLS Status"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 20
+  criticality: "medium"
+  tags: ["mpls", "interfaces"]
 
-# --- Interface Validation ---
-interface_status:
-  title: "Interface Operational Status"
+test_interface_descriptions:
+  title: "Interface Description Monitoring"
+  description: "Tracks interface descriptions, admin and operational status changes"
   category: "Interfaces"
-  jsnapy_test_file: "interface_status.yml"
-  description: "Interfaces Status"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 30
+  criticality: "low"
+  tags: ["interfaces", "descriptions", "status"]
 
-interface_errors:
-  title: "Interface Error Counters"
+test_interfaces_admin_up:
+  title: "Admin Up Interface Validation"
+  description: "Ensures all administratively up interfaces are also operationally up"
   category: "Interfaces"
-  jsnapy_test_file: "interface_errors.yml"
-  description: "Interface Errors"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 25
+  criticality: "high"
+  tags: ["interfaces", "status", "admin", "operational"]
 
-# --- System Validation ---
-device_facts:
-  title: "Device System Facts"
-  category: "System"
-  jsnapy_test_file: "device_facts.yml"
-  description: "Device Facts"
+test_interface_errors:
+  title: "Interface Error Statistics"
+  description: "Monitors interface input/output errors, drops, and discards"
+  category: "Interfaces"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 45
+  criticality: "high"
+  tags: ["interfaces", "errors", "drops", "statistics"]
 
-system_alarms:
-  title: "System Alarms Check"
-  category: "System"
-  jsnapy_test_file: "system_alarms.yml"
-  description: "System Alarms"
+test_system_alarms_summary:
+  title: "System Alarm Summary"
+  description: "Checks for presence of active system alarms"
+  category: "System Health"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 15
+  criticality: "high"
+  tags: ["alarms", "system", "health"]
 
-test_version:
-  title: "Device Version"
-  category: "System"
-  jsnapy_test_file: "test_version.yml"
-  description: "Device Version"
+test_system_alarms_details:
+  title: "System Alarm Details"
+  description: "Provides detailed information about active system alarms"
+  category: "System Health"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 20
+  criticality: "high"
+  tags: ["alarms", "system", "details"]
+
+test_route_as_path_summary:
+  title: "AS Path Summary"
+  description: "Validates AS path count in routing table summary"
+  category: "Routing Tables"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 20
+  criticality: "medium"
+  tags: ["routing", "as-path", "summary"]
+
+test_route_table_summaries:
+  title: "Route Table Statistics"
+  description: "Monitors route table destination counts, active routes, and hidden routes"
+  category: "Routing Tables"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 30
+  criticality: "medium"
+  tags: ["routing", "tables", "statistics"]
+
+test_chassis_environment:
+  title: "Chassis Environment Monitoring"
+  description: "Monitors chassis environmental components including temperature sensors"
+  category: "Hardware"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 25
+  criticality: "high"
+  tags: ["chassis", "environment", "temperature", "hardware"]
+
+test_ospf_neighbors:
+  title: "OSPF Neighbor Status"
+  description: "Validates OSPF neighbor adjacencies and states"
+  category: "Routing Protocols"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 30
+  criticality: "high"
+  tags: ["ospf", "neighbors", "adjacency"]
+
+test_system_storage:
+  title: "System Storage Monitoring"
+  description: "Monitors filesystem usage and storage capacity"
+  category: "System Health"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 20
+  criticality: "medium"
+  tags: ["storage", "filesystem", "capacity"]
+
+test_system_processes:
+  title: "Critical Process Monitoring"
+  description: "Monitors critical system processes and their resource utilization"
+  category: "System Health"
+  jsnapy_test_file: "comprehensive_tests.yml"
+  timeout: 25
+  criticality: "high"
+  tags: ["processes", "cpu", "system", "critical"]
+
+# Test Suites - Predefined collections of related tests
+test_suites:
+  comprehensive_health_check:
+    title: "Comprehensive Network Health Check"
+    description: "Complete validation of routing protocols, interfaces, and system health"
+    tests:
+      - test_bgp_summary
+      - test_bgp_neighbors
+      - test_interface_errors
+      - test_interfaces_admin_up
+      - test_system_alarms_summary
+      - test_ospf_neighbors
+      - test_system_storage
+      - test_system_processes
+
+  mpls_validation:
+    title: "MPLS Infrastructure Validation"
+    description: "Focused validation of MPLS-related protocols and services"
+    tests:
+      - test_ldp_neighbors
+      - test_rsvp_sessions
+      - test_mpls_interfaces
+      - test_interface_errors
+
+  bgp_full_check:
+    title: "Complete BGP Health Assessment"
+    description: "Comprehensive BGP validation including neighbors and routing tables"
+    tests:
+      - test_bgp_summary
+      - test_bgp_neighbors
+      - test_route_as_path_summary
+      - test_route_table_summaries
+
+  interface_monitoring:
+    title: "Interface Health Monitoring"
+    description: "Complete interface status and error monitoring"
+    tests:
+      - test_interfaces_admin_up
+      - test_interface_errors
+      - test_interface_descriptions
+
+  system_health:
+    title: "System Health Dashboard"
+    description: "System-level health checks and environmental monitoring"
+    tests:
+      - test_system_alarms_summary
+      - test_system_alarms_details
+      - test_chassis_environment
+      - test_system_storage
+      - test_system_processes
+
+  routing_protocols:
+    title: "Routing Protocol Validation"
+    description: "Validation of all routing protocol neighbors and states"
+    tests:
+      - test_bgp_neighbors
+      - test_ospf_neighbors
+      - test_ldp_neighbors
+
+# Global Configuration
+global_config:
+  default_timeout: 30
+  max_concurrent_hosts: 5
+  retry_attempts: 2
+  retry_delay: 10
+  log_level: "INFO"
+
+# Thresholds and Limits
+thresholds:
+  bgp_flap_count_warning: 5
+  bgp_flap_count_critical: 10
+  interface_error_warning: 100
+  interface_error_critical: 1000
+  filesystem_usage_warning: 85
+  filesystem_usage_critical: 95
+  cpu_usage_warning: 75
+  cpu_usage_critical: 90

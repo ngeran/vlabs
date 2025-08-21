@@ -1,290 +1,280 @@
-tests:
-  # Enhanced BGP Summary Tests
-  - test_bgp_summary:
-      command: "show bgp summary"
-      iterate:
-        xpath: "//bgp-information/bgp-rib"
-        id: "name"
-        tests:
-          - exists: "active-prefix-count"
-            info: "BGP RIB {{post['name']}}: {{post['active-prefix-count']}} active prefixes"
-            err: "BGP RIB {{post['name']}}: active-prefix-count missing"
-          - is-gt: ["received-prefix-count", 0]
-            info: "BGP RIB {{post['name']}}: received {{post['received-prefix-count']}} prefixes"
-            err: "BGP RIB {{post['name']}}: no prefixes received"
-          - is-gte: ["accepted-prefix-count", 0]
-            info: "BGP RIB {{post['name']}}: accepted {{post['accepted-prefix-count']}} prefixes"
-            err: "BGP RIB {{post['name']}}: accepted-prefix-count invalid"
-          - is-gte: ["suppressed-prefix-count", 0]
-            info: "BGP RIB {{post['name']}}: suppressed {{post['suppressed-prefix-count']}} prefixes"
-            err: "BGP RIB {{post['name']}}: suppressed-prefix-count invalid"
-          - is-gte: ["damped-prefix-count", 0]
-            info: "BGP RIB {{post['name']}}: {{post['damped-prefix-count']}} damped prefixes"
-            err: "BGP RIB {{post['name']}}: damped-prefix-count missing"
+# ==============================================================================
+# JSNAPy Comprehensive Network Validation Test File
+#
+# NOTE: The structure of this file is critical. Each test (e.g., test_bgp_summary)
+# must be a top-level key. There should be NO hyphens (-) before the test names.
+# ==============================================================================
 
-  # Enhanced BGP Neighbor Tests
-  - test_bgp_neighbors:
-      command: "show bgp neighbor"
-      iterate:
-        xpath: "//bgp-information/bgp-peer"
-        id: "peer-address"
-        tests:
-          - exists: "peer-as"
-            info: "BGP peer {{post['peer-address']}} AS {{post['peer-as']}} discovered"
-            err: "BGP peer {{post['peer-address']}} AS number not found"
-          - is-equal: ["peer-state", "Established"]
-            info: "BGP peer {{post['peer-address']}} AS {{post['peer-as']}} is {{post['peer-state']}}"
-            err: "BGP peer {{post['peer-address']}} is not Established (state={{post['peer-state']}})"
-          - is-lt: ["flap-count", 10]
-            info: "BGP peer {{post['peer-address']}} flap-count {{post['flap-count']}} within threshold"
-            err: "BGP peer {{post['peer-address']}} flap-count excessive: {{post['flap-count']}}"
-          - exists: "peer-restart-time"
-            info: "BGP peer {{post['peer-address']}} last restart: {{post['peer-restart-time']}}"
-            err: "BGP peer {{post['peer-address']}} restart time not available"
-          - is-gte: ["nlri-type-peer", 1]
-            info: "BGP peer {{post['peer-address']}} supports {{post['nlri-type-peer']}} NLRI types"
-            err: "BGP peer {{post['peer-address']}} NLRI support information missing"
-          - no-diff: "flap-count"
-            info: "BGP peer {{post['peer-address']}} flap-count unchanged"
-            err: "BGP peer {{post['peer-address']}} flap-count changed from {{pre['flap-count']}} to {{post['flap-count']}}"
+test_bgp_summary:
+  command: "show bgp summary"
+  iterate:
+    xpath: "//bgp-information/bgp-rib"
+    id: "name"
+    tests:
+      - exists: "active-prefix-count"
+        info: "BGP RIB {{post['name']}}: {{post['active-prefix-count']}} active prefixes"
+        err: "BGP RIB {{post['name']}}: active-prefix-count missing"
+      - is-gt: ["received-prefix-count", 0]
+        info: "BGP RIB {{post['name']}}: received {{post['received-prefix-count']}} prefixes"
+        err: "BGP RIB {{post['name']}}: no prefixes received"
+      - is-gte: ["accepted-prefix-count", 0]
+        info: "BGP RIB {{post['name']}}: accepted {{post['accepted-prefix-count']}} prefixes"
+        err: "BGP RIB {{post['name']}}: accepted-prefix-count invalid"
+      - is-gte: ["suppressed-prefix-count", 0]
+        info: "BGP RIB {{post['name']}}: suppressed {{post['suppressed-prefix-count']}} prefixes"
+        err: "BGP RIB {{post['name']}}: suppressed-prefix-count invalid"
+      - is-gte: ["damped-prefix-count", 0]
+        info: "BGP RIB {{post['name']}}: {{post['damped-prefix-count']}} damped prefixes"
+        err: "BGP RIB {{post['name']}}: damped-prefix-count missing"
 
-  # Enhanced LDP Neighbor Tests
-  - test_ldp_neighbors:
-      command: "show ldp neighbor"
-      iterate:
-        xpath: "//ldp-neighbor-information/ldp-neighbor"
-        id: "ldp-neighbor-address"
-        tests:
-          - is-in: ["ldp-neighbor-state", ["Operational", "Up"]]
-            info: "LDP neighbor {{post['ldp-neighbor-address']}} state {{post['ldp-neighbor-state']}}"
-            err: "LDP neighbor {{post['ldp-neighbor-address']}} bad state {{post['ldp-neighbor-state']}}"
-          - is-in: ["ldp-session-state", ["Operational", "Up", "Open"]]
-            info: "LDP neighbor {{post['ldp-neighbor-address']}} session {{post['ldp-session-state']}}"
-            err: "LDP neighbor {{post['ldp-neighbor-address']}} session bad: {{post['ldp-session-state']}}"
-          - exists: "ldp-neighbor-address"
-            info: "LDP neighbor address {{post['ldp-neighbor-address']}} is valid"
-            err: "LDP neighbor address missing or invalid"
-          - is-gte: ["ldp-label-space-id", 0]
-            info: "LDP neighbor {{post['ldp-neighbor-address']}} label space ID: {{post['ldp-label-space-id']}}"
-            err: "LDP neighbor {{post['ldp-neighbor-address']}} invalid label space ID"
+test_bgp_neighbors:
+  command: "show bgp neighbor"
+  iterate:
+    xpath: "//bgp-information/bgp-peer"
+    id: "peer-address"
+    tests:
+      - exists: "peer-as"
+        info: "BGP peer {{post['peer-address']}} AS {{post['peer-as']}} discovered"
+        err: "BGP peer {{post['peer-address']}} AS number not found"
+      - is-equal: ["peer-state", "Established"]
+        info: "BGP peer {{post['peer-address']}} AS {{post['peer-as']}} is {{post['peer-state']}}"
+        err: "BGP peer {{post['peer-address']}} is not Established (state={{post['peer-state']}})"
+      - is-lt: ["flap-count", 10]
+        info: "BGP peer {{post['peer-address']}} flap-count {{post['flap-count']}} within threshold"
+        err: "BGP peer {{post['peer-address']}} flap-count excessive: {{post['flap-count']}}"
+      - exists: "peer-restart-time"
+        info: "BGP peer {{post['peer-address']}} last restart: {{post['peer-restart-time']}}"
+        err: "BGP peer {{post['peer-address']}} restart time not available"
+      - is-gte: ["nlri-type-peer", 1]
+        info: "BGP peer {{post['peer-address']}} supports {{post['nlri-type-peer']}} NLRI types"
+        err: "BGP peer {{post['peer-address']}} NLRI support information missing"
+      - no-diff: "flap-count"
+        info: "BGP peer {{post['peer-address']}} flap-count unchanged"
+        err: "BGP peer {{post['peer-address']}} flap-count changed from {{pre['flap-count']}} to {{post['flap-count']}}"
 
-  # Enhanced RSVP Session Tests
-  - test_rsvp_sessions:
-      command: "show rsvp session"
-      iterate:
-        xpath: "//rsvp-session-information/rsvp-session-data"
-        id: "destination-address"
-        tests:
-          - is-in: ["session-state", ["Up", "Established"]]
-            info: "RSVP {{post['destination-address']}} state {{post['session-state']}}"
-            err: "RSVP {{post['destination-address']}} not Up (state={{post['session-state']}})"
-          - exists: "name"
-            info: "RSVP {{post['destination-address']}} LSP {{post['name']}}"
-            err: "RSVP {{post['destination-address']}} LSP name missing"
-          - is-gte: ["lsp-bandwidth", 0]
-            info: "RSVP LSP {{post['name']}} bandwidth: {{post['lsp-bandwidth']}} bps"
-            err: "RSVP LSP {{post['name']}} bandwidth information missing"
-          - exists: "tunnel-id"
-            info: "RSVP LSP {{post['name']}} tunnel ID: {{post['tunnel-id']}}"
-            err: "RSVP LSP {{post['name']}} tunnel ID missing"
+test_ldp_neighbors:
+  command: "show ldp neighbor"
+  iterate:
+    xpath: "//ldp-neighbor-information/ldp-neighbor"
+    id: "ldp-neighbor-address"
+    tests:
+      - is-in: ["ldp-neighbor-state", ["Operational", "Up"]]
+        info: "LDP neighbor {{post['ldp-neighbor-address']}} state {{post['ldp-neighbor-state']}}"
+        err: "LDP neighbor {{post['ldp-neighbor-address']}} bad state {{post['ldp-neighbor-state']}}"
+      - is-in: ["ldp-session-state", ["Operational", "Up", "Open"]]
+        info: "LDP neighbor {{post['ldp-neighbor-address']}} session {{post['ldp-session-state']}}"
+        err: "LDP neighbor {{post['ldp-neighbor-address']}} session bad: {{post['ldp-session-state']}}"
+      - exists: "ldp-neighbor-address"
+        info: "LDP neighbor address {{post['ldp-neighbor-address']}} is valid"
+        err: "LDP neighbor address missing or invalid"
+      - is-gte: ["ldp-label-space-id", 0]
+        info: "LDP neighbor {{post['ldp-neighbor-address']}} label space ID: {{post['ldp-label-space-id']}}"
+        err: "LDP neighbor {{post['ldp-neighbor-address']}} invalid label space ID"
 
-  # Enhanced MPLS Interface Tests
-  - test_mpls_interfaces:
-      command: "show mpls interface"
-      iterate:
-        xpath: "//mpls-interface-information/mpls-interface"
-        id: "interface-name"
-        tests:
-          - exists: "interface-name"
-            info: "MPLS interface {{post['interface-name']}} present"
-            err: "MPLS interface without name detected"
-          - is-in: ["mpls-interface-state", ["Up", "Enabled"]]
-            info: "MPLS interface {{post['interface-name']}} state {{post['mpls-interface-state']}}"
-            err: "MPLS interface {{post['interface-name']}} state bad: {{post['mpls-interface-state']}}"
-          - exists: "interface-index"
-            info: "MPLS interface {{post['interface-name']}} index: {{post['interface-index']}}"
-            err: "MPLS interface {{post['interface-name']}} index missing"
+test_rsvp_sessions:
+  command: "show rsvp session"
+  iterate:
+    xpath: "//rsvp-session-information/rsvp-session-data"
+    id: "destination-address"
+    tests:
+      - is-in: ["session-state", ["Up", "Established"]]
+        info: "RSVP {{post['destination-address']}} state {{post['session-state']}}"
+        err: "RSVP {{post['destination-address']}} not Up (state={{post['session-state']}})"
+      - exists: "name"
+        info: "RSVP {{post['destination-address']}} LSP {{post['name']}}"
+        err: "RSVP {{post['destination-address']}} LSP name missing"
+      - is-gte: ["lsp-bandwidth", 0]
+        info: "RSVP LSP {{post['name']}} bandwidth: {{post['lsp-bandwidth']}} bps"
+        err: "RSVP LSP {{post['name']}} bandwidth information missing"
+      - exists: "tunnel-id"
+        info: "RSVP LSP {{post['name']}} tunnel ID: {{post['tunnel-id']}}"
+        err: "RSVP LSP {{post['name']}} tunnel ID missing"
 
-  # Enhanced Interface Description Tests
-  - test_interface_descriptions:
-      command: "show interfaces descriptions"
-      iterate:
-        xpath: "//interface-information/physical-interface"
-        id: "name"
-        tests:
-          - exists: "name"
-            info: "Interface {{post['name']}} detected"
-            err: "Interface without name found"
-          - exists: "admin-status"
-            info: "Interface {{post['name']}} admin-status: {{post['admin-status']}}"
-            err: "Interface {{post['name']}} admin-status missing"
-          - exists: "oper-status"
-            info: "Interface {{post['name']}} oper-status: {{post['oper-status']}}"
-            err: "Interface {{post['name']}} oper-status missing"
-          - no-diff: "description"
-            info: "Interface {{post['name']}} description unchanged: {{post['description']}}"
-            err: "Interface {{post['name']}} description changed from '{{pre['description']}}' to '{{post['description']}}'"
+test_mpls_interfaces:
+  command: "show mpls interface"
+  iterate:
+    xpath: "//mpls-interface-information/mpls-interface"
+    id: "interface-name"
+    tests:
+      - exists: "interface-name"
+        info: "MPLS interface {{post['interface-name']}} present"
+        err: "MPLS interface without name detected"
+      - is-in: ["mpls-interface-state", ["Up", "Enabled"]]
+        info: "MPLS interface {{post['interface-name']}} state {{post['mpls-interface-state']}}"
+        err: "MPLS interface {{post['interface-name']}} state bad: {{post['mpls-interface-state']}}"
+      - exists: "interface-index"
+        info: "MPLS interface {{post['interface-name']}} index: {{post['interface-index']}}"
+        err: "MPLS interface {{post['interface-name']}} index missing"
 
-  # Enhanced Interface Admin Up Tests
-  - test_interfaces_admin_up:
-      command: "show interfaces terse"
-      iterate:
-        xpath: "//interface-information/physical-interface[admin-status='up']"
-        id: "name"
-        tests:
-          - is-equal: ["oper-status", "up"]
-            info: "Interface {{post['name']}} is admin up and oper up"
-            err: "Interface {{post['name']}} is admin up but oper {{post['oper-status']}}"
-          - not-exists: "link-level-type[text()='Unspecified']"
-            info: "Interface {{post['name']}} has valid link-level-type"
-            err: "Interface {{post['name']}} has unspecified link-level-type"
+test_interface_descriptions:
+  command: "show interfaces descriptions"
+  iterate:
+    xpath: "//interface-information/physical-interface"
+    id: "name"
+    tests:
+      - exists: "name"
+        info: "Interface {{post['name']}} detected"
+        err: "Interface without name found"
+      - exists: "admin-status"
+        info: "Interface {{post['name']}} admin-status: {{post['admin-status']}}"
+        err: "Interface {{post['name']}} admin-status missing"
+      - exists: "oper-status"
+        info: "Interface {{post['name']}} oper-status: {{post['oper-status']}}"
+        err: "Interface {{post['name']}} oper-status missing"
+      - no-diff: "description"
+        info: "Interface {{post['name']}} description unchanged: {{post['description']}}"
+        err: "Interface {{post['name']}} description changed from '{{pre['description']}}' to '{{post['description']}}'"
 
-  # Enhanced System Alarms Summary
-  - test_system_alarms_summary:
-      command: "show system alarms"
-      iterate:
-        xpath: "//alarm-information/alarm-summary"
-        id: "active-alarm-count"
-        tests:
-          - is-equal: ["active-alarm-count", 0]
-            info: "No active system alarms ({{post['active-alarm-count']}})"
-            err: "Active alarms present: {{post['active-alarm-count']}}"
+test_interfaces_admin_up:
+  command: "show interfaces terse"
+  iterate:
+    xpath: "//interface-information/physical-interface[admin-status='up']"
+    id: "name"
+    tests:
+      - is-equal: ["oper-status", "up"]
+        info: "Interface {{post['name']}} is admin up and oper up"
+        err: "Interface {{post['name']}} is admin up but oper {{post['oper-status']}}"
+      - not-exists: "link-level-type[text()='Unspecified']"
+        info: "Interface {{post['name']}} has valid link-level-type"
+        err: "Interface {{post['name']}} has unspecified link-level-type"
 
-  # Enhanced System Alarms Details
-  - test_system_alarms_details:
-      command: "show system alarms"
-      iterate:
-        xpath: "//alarm-information/alarm-detail"
-        id: "alarm-time"
-        tests:
-          - exists: "alarm-time"
-            info: "Alarm detected at {{post['alarm-time']}}"
-            err: "Alarm with missing timestamp"
-          - exists: "alarm-class"
-            info: "Alarm class: {{post['alarm-class']}}"
-            err: "Alarm class information missing"
-          - exists: "alarm-description"
-            info: "Alarm: {{post['alarm-description']}}"
-            err: "Alarm description missing"
-          - is-not-in: ["alarm-class", ["Critical", "Major"]]
-            info: "Alarm severity acceptable: {{post['alarm-class']}}"
-            err: "Critical/Major alarm detected: {{post['alarm-class']}} - {{post['alarm-description']}}"
+test_system_alarms_summary:
+  command: "show system alarms"
+  iterate:
+    xpath: "//alarm-information/alarm-summary"
+    id: "active-alarm-count"
+    tests:
+      - is-equal: ["active-alarm-count", 0]
+        info: "No active system alarms ({{post['active-alarm-count']}})"
+        err: "Active alarms present: {{post['active-alarm-count']}}"
 
-  # Enhanced Route AS Path Summary
-  - test_route_as_path_summary:
-      command: "show route summary"
-      iterate:
-        xpath: "//route-summary-information/as-path-summary"
-        id: "as-path-count"
-        tests:
-          - is-gt: ["as-path-count", 0]
-            info: "AS path count: {{post['as-path-count']}}"
-            err: "No AS paths found in routing table"
+test_system_alarms_details:
+  command: "show system alarms"
+  iterate:
+    xpath: "//alarm-information/alarm-detail"
+    id: "alarm-time"
+    tests:
+      - exists: "alarm-time"
+        info: "Alarm detected at {{post['alarm-time']}}"
+        err: "Alarm with missing timestamp"
+      - exists: "alarm-class"
+        info: "Alarm class: {{post['alarm-class']}}"
+        err: "Alarm class information missing"
+      - exists: "alarm-description"
+        info: "Alarm: {{post['alarm-description']}}"
+        err: "Alarm description missing"
+      - is-not-in: ["alarm-class", ["Critical", "Major"]]
+        info: "Alarm severity acceptable: {{post['alarm-class']}}"
+        err: "Critical/Major alarm detected: {{post['alarm-class']}} - {{post['alarm-description']}}"
 
-  # Enhanced Route Table Summaries
-  - test_route_table_summaries:
-      command: "show route summary"
-      iterate:
-        xpath: "//route-summary-information/route-table"
-        id: "table-name"
-        tests:
-          - exists: "table-name"
-            info: "Route table {{post['table-name']}} present"
-            err: "Route table without name detected"
-          - is-gte: ["destination-count", 0]
-            info: "Route table {{post['table-name']}} destinations: {{post['destination-count']}}"
-            err: "Route table {{post['table-name']}} destination-count invalid"
-          - is-gte: ["total-route-count", 0]
-            info: "Route table {{post['table-name']}} total routes: {{post['total-route-count']}}"
-            err: "Route table {{post['table-name']}} total-route-count invalid"
-          - is-gte: ["active-route-count", 0]
-            info: "Route table {{post['table-name']}} active routes: {{post['active-route-count']}}"
-            err: "Route table {{post['table-name']}} active-route-count invalid"
-          - is-gte: ["holddown-route-count", 0]
-            info: "Route table {{post['table-name']}} holddown routes: {{post['holddown-route-count']}}"
-            err: "Route table {{post['table-name']}} holddown-route-count invalid"
-          - is-gte: ["hidden-route-count", 0]
-            info: "Route table {{post['table-name']}} hidden routes: {{post['hidden-route-count']}}"
-            err: "Route table {{post['table-name']}} hidden-route-count invalid"
-          - no-diff: "active-route-count"
-            info: "Route table {{post['table-name']}} active routes unchanged ({{post['active-route-count']}})"
-            err: "Route table {{post['table-name']}} active routes changed: {{pre['active-route-count']}} -> {{post['active-route-count']}}"
+test_route_as_path_summary:
+  command: "show route summary"
+  iterate:
+    xpath: "//route-summary-information/as-path-summary"
+    id: "as-path-count"
+    tests:
+      - is-gt: ["as-path-count", 0]
+        info: "AS path count: {{post['as-path-count']}}"
+        err: "No AS paths found in routing table"
 
-  # New: Interface Error Monitoring
-  - test_interface_errors:
-      command: "show interfaces extensive"
-      iterate:
-        xpath: "//interface-information/physical-interface"
-        id: "name"
-        tests:
-          - is-equal: ["input-error-list/input-errors", 0]
-            info: "Interface {{post['name']}} has no input errors"
-            err: "Interface {{post['name']}} input errors: {{post['input-error-list/input-errors']}}"
-          - is-equal: ["output-error-list/output-errors", 0]
-            info: "Interface {{post['name']}} has no output errors"
-            err: "Interface {{post['name']}} output errors: {{post['output-error-list/output-errors']}}"
-          - is-equal: ["input-error-list/input-drops", 0]
-            info: "Interface {{post['name']}} has no input drops"
-            err: "Interface {{post['name']}} input drops: {{post['input-error-list/input-drops']}}"
-          - is-equal: ["output-error-list/output-drops", 0]
-            info: "Interface {{post['name']}} has no output drops"
-            err: "Interface {{post['name']}} output drops: {{post['output-error-list/output-drops']}}"
+test_route_table_summaries:
+  command: "show route summary"
+  iterate:
+    xpath: "//route-summary-information/route-table"
+    id: "table-name"
+    tests:
+      - exists: "table-name"
+        info: "Route table {{post['table-name']}} present"
+        err: "Route table without name detected"
+      - is-gte: ["destination-count", 0]
+        info: "Route table {{post['table-name']}} destinations: {{post['destination-count']}}"
+        err: "Route table {{post['table-name']}} destination-count invalid"
+      - is-gte: ["total-route-count", 0]
+        info: "Route table {{post['table-name']}} total routes: {{post['total-route-count']}}"
+        err: "Route table {{post['table-name']}} total-route-count invalid"
+      - is-gte: ["active-route-count", 0]
+        info: "Route table {{post['table-name']}} active routes: {{post['active-route-count']}}"
+        err: "Route table {{post['table-name']}} active-route-count invalid"
+      - is-gte: ["holddown-route-count", 0]
+        info: "Route table {{post['table-name']}} holddown routes: {{post['holddown-route-count']}}"
+        err: "Route table {{post['table-name']}} holddown-route-count invalid"
+      - is-gte: ["hidden-route-count", 0]
+        info: "Route table {{post['table-name']}} hidden routes: {{post['hidden-route-count']}}"
+        err: "Route table {{post['table-name']}} hidden-route-count invalid"
+      - no-diff: "active-route-count"
+        info: "Route table {{post['table-name']}} active routes unchanged ({{post['active-route-count']}})"
+        err: "Route table {{post['table-name']}} active routes changed from {{pre['active-route-count']}} to {{post['active-route-count']}}"
 
-  # New: Chassis Environment Monitoring
-  - test_chassis_environment:
-      command: "show chassis environment"
-      iterate:
-        xpath: "//environment-information/environment-item"
-        id: "name"
-        tests:
-          - is-in: ["status", ["OK", "Testing", "Online"]]
-            info: "Environment component {{post['name']}} status: {{post['status']}}"
-            err: "Environment component {{post['name']}} status bad: {{post['status']}}"
-          - exists: "temperature"
-            info: "Environment component {{post['name']}} temperature: {{post['temperature']}}C"
-            err: "Environment component {{post['name']}} temperature reading missing"
+test_interface_errors:
+  command: "show interfaces extensive"
+  iterate:
+    xpath: "//interface-information/physical-interface"
+    id: "name"
+    tests:
+      - is-equal: ["input-error-list/input-errors", 0]
+        info: "Interface {{post['name']}} has no input errors"
+        err: "Interface {{post['name']}} input errors: {{post['input-error-list/input-errors']}}"
+      - is-equal: ["output-error-list/output-errors", 0]
+        info: "Interface {{post['name']}} has no output errors"
+        err: "Interface {{post['name']}} output errors: {{post['output-error-list/output-errors']}}"
+      - is-equal: ["input-error-list/input-drops", 0]
+        info: "Interface {{post['name']}} has no input drops"
+        err: "Interface {{post['name']}} input drops: {{post['input-error-list/input-drops']}}"
+      - is-equal: ["output-error-list/output-drops", 0]
+        info: "Interface {{post['name']}} has no output drops"
+        err: "Interface {{post['name']}} output drops: {{post['output-error-list/output-drops']}}"
 
-  # New: OSPF Neighbor Tests
-  - test_ospf_neighbors:
-      command: "show ospf neighbor"
-      iterate:
-        xpath: "//ospf-neighbor-information/ospf-neighbor"
-        id: "neighbor-id"
-        tests:
-          - is-equal: ["ospf-neighbor-state", "Full"]
-            info: "OSPF neighbor {{post['neighbor-id']}} state: {{post['ospf-neighbor-state']}}"
-            err: "OSPF neighbor {{post['neighbor-id']}} not Full (state={{post['ospf-neighbor-state']}})"
-          - exists: "interface-name"
-            info: "OSPF neighbor {{post['neighbor-id']}} via interface {{post['interface-name']}}"
-            err: "OSPF neighbor {{post['neighbor-id']}} interface information missing"
-          - is-gte: ["neighbor-priority", 0]
-            info: "OSPF neighbor {{post['neighbor-id']}} priority: {{post['neighbor-priority']}}"
-            err: "OSPF neighbor {{post['neighbor-id']}} priority invalid"
+test_chassis_environment:
+  command: "show chassis environment"
+  iterate:
+    xpath: "//environment-information/environment-item"
+    id: "name"
+    tests:
+      - is-in: ["status", ["OK", "Testing", "Online"]]
+        info: "Environment component {{post['name']}} status: {{post['status']}}"
+        err: "Environment component {{post['name']}} status bad: {{post['status']}}"
+      - exists: "temperature"
+        info: "Environment component {{post['name']}} temperature: {{post['temperature']}}C"
+        err: "Environment component {{post['name']}} temperature reading missing"
 
-  # New: System Storage Tests
-  - test_system_storage:
-      command: "show system storage"
-      iterate:
-        xpath: "//system-storage-information/filesystem"
-        id: "filesystem-name"
-        tests:
-          - is-lt: ["used-percent", 85]
-            info: "Filesystem {{post['filesystem-name']}} usage: {{post['used-percent']}}%"
-            err: "Filesystem {{post['filesystem-name']}} usage high: {{post['used-percent']}}%"
-          - exists: "total-blocks"
-            info: "Filesystem {{post['filesystem-name']}} size: {{post['total-blocks']}} blocks"
-            err: "Filesystem {{post['filesystem-name']}} size information missing"
+test_ospf_neighbors:
+  command: "show ospf neighbor"
+  iterate:
+    xpath: "//ospf-neighbor-information/ospf-neighbor"
+    id: "neighbor-id"
+    tests:
+      - is-equal: ["ospf-neighbor-state", "Full"]
+        info: "OSPF neighbor {{post['neighbor-id']}} state: {{post['ospf-neighbor-state']}}"
+        err: "OSPF neighbor {{post['neighbor-id']}} not Full (state={{post['ospf-neighbor-state']}})"
+      - exists: "interface-name"
+        info: "OSPF neighbor {{post['neighbor-id']}} via interface {{post['interface-name']}}"
+        err: "OSPF neighbor {{post['neighbor-id']}} interface information missing"
+      - is-gte: ["neighbor-priority", 0]
+        info: "OSPF neighbor {{post['neighbor-id']}} priority: {{post['neighbor-priority']}}"
+        err: "OSPF neighbor {{post['neighbor-id']}} priority invalid"
 
-  # New: System Processes Tests
-  - test_system_processes:
-      command: "show system processes extensive"
-      iterate:
-        xpath: "//task-information/task-entry[command='rpd' or command='chassisd' or command='dcd']"
-        id: "command"
-        tests:
-          - exists: "command"
-            info: "Critical process {{post['command']}} is running"
-            err: "Critical process missing from process list"
-          - is-lt: ["cpu-percent", 90]
-            info: "Process {{post['command']}} CPU usage: {{post['cpu-percent']}}%"
-            err: "Process {{post['command']}} high CPU usage: {{post['cpu-percent']}}%"
+test_system_storage:
+  command: "show system storage"
+  iterate:
+    xpath: "//system-storage-information/filesystem"
+    id: "filesystem-name"
+    tests:
+      - is-lt: ["used-percent", 85]
+        info: "Filesystem {{post['filesystem-name']}} usage: {{post['used-percent']}}%"
+        err: "Filesystem {{post['filesystem-name']}} usage high: {{post['used-percent']}}%"
+      - exists: "total-blocks"
+        info: "Filesystem {{post['filesystem-name']}} size: {{post['total-blocks']}} blocks"
+        err: "Filesystem {{post['filesystem-name']}} size information missing"
+
+test_system_processes:
+  command: "show system processes extensive"
+  iterate:
+    xpath: "//task-information/task-entry[command='rpd' or command='chassisd' or command='dcd']"
+    id: "command"
+    tests:
+      - exists: "command"
+        info: "Critical process {{post['command']}} is running"
+        err: "Critical process missing from process list"
+      - is-lt: ["cpu-percent", 90]
+        info: "Process {{post['command']}} CPU usage: {{post['cpu-percent']}}%"
+        err: "Process {{post['command']}} high CPU usage: {{post['cpu-percent']}}%"

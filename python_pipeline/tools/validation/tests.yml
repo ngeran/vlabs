@@ -1,155 +1,185 @@
-# JSNAPy Test Configuration File
-# This file defines the available tests and their metadata for the network validation framework
+# ==============================================================================
+# JSNAPy Test Metadata and Configuration File
+#
+# DESCRIPTION:
+# This file serves as the main entry point for the validation script (run.py).
+# It defines three primary sections:
+#   1. Individual Test Definitions: Metadata for each available test.
+#   2. Test Suites: Logical groupings of tests that can be run together.
+#   3. Global Configuration & Thresholds: Framework-wide settings.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# SECTION 1: INDIVIDUAL TEST DEFINITIONS
+#
+# Each key is a unique test ID used with the --tests argument.
+#
+# PARAMETERS:
+#   - title:            A human-readable name for the test.
+#   - description:      A brief explanation of what the test validates.
+#   - category:         A logical grouping (e.g., "Routing Protocols", "Interfaces").
+#   - jsnapy_test_file: The .yml file inside the 'tests/' directory that
+#                       contains the actual JSNAPy test logic (command, xpath, etc.).
+#   - timeout:          (Optional) Maximum time in seconds for the test to run.
+#   - criticality:      (Optional) Severity rating (e.g., "high", "medium", "low").
+#   - tags:             (Optional) Keywords for filtering or searching.
+# ------------------------------------------------------------------------------
 
 test_bgp_summary:
   title: "BGP Summary Validation"
-  description: "Validates BGP RIB statistics including active, received, accepted, and suppressed prefix counts"
+  description: "Validates BGP RIB statistics including active, received, accepted, and suppressed prefix counts."
   category: "Routing Protocols"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 60
   criticality: "high"
   tags: ["bgp", "routing", "prefixes"]
 
 test_bgp_neighbors:
   title: "BGP Neighbor Status"
-  description: "Checks BGP neighbor states, flap counts, and session stability"
+  description: "Checks BGP neighbor states, flap counts, and session stability."
   category: "Routing Protocols"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 45
   criticality: "high"
   tags: ["bgp", "neighbors", "adjacency"]
 
 test_ldp_neighbors:
   title: "LDP Neighbor Validation"
-  description: "Verifies LDP neighbor operational states and session status"
+  description: "Verifies LDP neighbor operational states and session status."
   category: "MPLS"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 30
   criticality: "medium"
   tags: ["ldp", "mpls", "neighbors"]
 
 test_rsvp_sessions:
   title: "RSVP Session Status"
-  description: "Monitors RSVP LSP sessions, states, and bandwidth allocation"
+  description: "Monitors RSVP LSP sessions, states, and bandwidth allocation."
   category: "MPLS"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 30
   criticality: "medium"
   tags: ["rsvp", "lsp", "mpls", "bandwidth"]
 
 test_mpls_interfaces:
   title: "MPLS Interface Status"
-  description: "Validates MPLS-enabled interfaces and their operational states"
+  description: "Validates MPLS-enabled interfaces and their operational states."
   category: "MPLS"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 20
   criticality: "medium"
   tags: ["mpls", "interfaces"]
 
 test_interface_descriptions:
   title: "Interface Description Monitoring"
-  description: "Tracks interface descriptions, admin and operational status changes"
+  description: "Tracks interface descriptions, admin and operational status changes."
   category: "Interfaces"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 30
   criticality: "low"
   tags: ["interfaces", "descriptions", "status"]
 
 test_interfaces_admin_up:
   title: "Admin Up Interface Validation"
-  description: "Ensures all administratively up interfaces are also operationally up"
+  description: "Ensures all administratively 'up' interfaces are also operationally 'up'."
   category: "Interfaces"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 25
   criticality: "high"
   tags: ["interfaces", "status", "admin", "operational"]
 
 test_interface_errors:
   title: "Interface Error Statistics"
-  description: "Monitors interface input/output errors, drops, and discards"
+  description: "Monitors interface input/output errors, drops, and discards."
   category: "Interfaces"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 45
   criticality: "high"
   tags: ["interfaces", "errors", "drops", "statistics"]
 
 test_system_alarms_summary:
   title: "System Alarm Summary"
-  description: "Checks for presence of active system alarms"
+  description: "Checks for the presence of any active system alarms."
   category: "System Health"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 15
   criticality: "high"
   tags: ["alarms", "system", "health"]
 
 test_system_alarms_details:
   title: "System Alarm Details"
-  description: "Provides detailed information about active system alarms"
+  description: "Provides detailed information about active system alarms, checking for high severity."
   category: "System Health"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 20
   criticality: "high"
   tags: ["alarms", "system", "details"]
 
 test_route_as_path_summary:
   title: "AS Path Summary"
-  description: "Validates AS path count in routing table summary"
+  description: "Validates AS path count in the routing table summary."
   category: "Routing Tables"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 20
   criticality: "medium"
   tags: ["routing", "as-path", "summary"]
 
 test_route_table_summaries:
   title: "Route Table Statistics"
-  description: "Monitors route table destination counts, active routes, and hidden routes"
+  description: "Monitors route table destination counts, active routes, and hidden routes."
   category: "Routing Tables"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 30
   criticality: "medium"
   tags: ["routing", "tables", "statistics"]
 
 test_chassis_environment:
   title: "Chassis Environment Monitoring"
-  description: "Monitors chassis environmental components including temperature sensors"
+  description: "Monitors chassis environmental components including temperature and fan status."
   category: "Hardware"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 25
   criticality: "high"
   tags: ["chassis", "environment", "temperature", "hardware"]
 
 test_ospf_neighbors:
   title: "OSPF Neighbor Status"
-  description: "Validates OSPF neighbor adjacencies and states"
+  description: "Validates OSPF neighbor adjacencies and states."
   category: "Routing Protocols"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 30
   criticality: "high"
   tags: ["ospf", "neighbors", "adjacency"]
 
 test_system_storage:
   title: "System Storage Monitoring"
-  description: "Monitors filesystem usage and storage capacity"
+  description: "Monitors filesystem usage and storage capacity."
   category: "System Health"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 20
   criticality: "medium"
   tags: ["storage", "filesystem", "capacity"]
 
 test_system_processes:
   title: "Critical Process Monitoring"
-  description: "Monitors critical system processes and their resource utilization"
+  description: "Monitors critical system processes and their resource utilization."
   category: "System Health"
-  jsnapy_test_file: "comprehensive_tests.yml"
+  jsnapy_test_file: "comprehensive_check.yml"
   timeout: 25
   criticality: "high"
   tags: ["processes", "cpu", "system", "critical"]
 
-# Test Suites - Predefined collections of related tests
+# ------------------------------------------------------------------------------
+# SECTION 2: TEST SUITES
+#
+# Predefined collections of tests. A suite can be run by referencing its name.
+# (Note: The provided run.py script does not currently implement suite execution,
+# but this structure allows for that future enhancement).
+# ------------------------------------------------------------------------------
 test_suites:
   comprehensive_health_check:
     title: "Comprehensive Network Health Check"
-    description: "Complete validation of routing protocols, interfaces, and system health"
+    description: "Complete validation of routing protocols, interfaces, and system health."
     tests:
       - test_bgp_summary
       - test_bgp_neighbors
@@ -162,7 +192,7 @@ test_suites:
 
   mpls_validation:
     title: "MPLS Infrastructure Validation"
-    description: "Focused validation of MPLS-related protocols and services"
+    description: "Focused validation of MPLS-related protocols and services."
     tests:
       - test_ldp_neighbors
       - test_rsvp_sessions
@@ -171,7 +201,7 @@ test_suites:
 
   bgp_full_check:
     title: "Complete BGP Health Assessment"
-    description: "Comprehensive BGP validation including neighbors and routing tables"
+    description: "Comprehensive BGP validation including neighbors and routing tables."
     tests:
       - test_bgp_summary
       - test_bgp_neighbors
@@ -180,7 +210,7 @@ test_suites:
 
   interface_monitoring:
     title: "Interface Health Monitoring"
-    description: "Complete interface status and error monitoring"
+    description: "Complete interface status and error monitoring."
     tests:
       - test_interfaces_admin_up
       - test_interface_errors
@@ -188,23 +218,29 @@ test_suites:
 
   system_health:
     title: "System Health Dashboard"
-    description: "System-level health checks and environmental monitoring"
+    description: "System-level health checks and environmental monitoring."
     tests:
       - test_system_alarms_summary
       - test_system_alarms_details
       - test_chassis_environment
-      - test_system_storage
+      - test_system_storage  # Corrected from test_system_storageggVG
       - test_system_processes
 
   routing_protocols:
     title: "Routing Protocol Validation"
-    description: "Validation of all routing protocol neighbors and states"
+    description: "Validation of all major routing protocol neighbors and states."
     tests:
       - test_bgp_neighbors
       - test_ospf_neighbors
       - test_ldp_neighbors
 
-# Global Configuration
+# ------------------------------------------------------------------------------
+# SECTION 3: GLOBAL CONFIGURATION & THRESHOLDS
+#
+# These sections are for storing framework-wide variables.
+# (Note: The provided run.py script does not currently use these values,
+# but they can be implemented to make the framework more dynamic).
+# ------------------------------------------------------------------------------
 global_config:
   default_timeout: 30
   max_concurrent_hosts: 5
@@ -212,7 +248,6 @@ global_config:
   retry_delay: 10
   log_level: "INFO"
 
-# Thresholds and Limits
 thresholds:
   bgp_flap_count_warning: 5
   bgp_flap_count_critical: 10

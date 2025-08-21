@@ -1,13 +1,29 @@
-test_ospf_neighbors:
-  - command: show ospf neighbor
-    format: xml
+tests:
+  - command: "show ospf neighbor"
     iterate:
-      xpath: //ospf-neighbor
-      id: neighbor-id
+      xpath: "//ospf-neighbor-information/ospf-neighbor"
+      id: "neighbor-address"
       tests:
-        - is-equal: ospf-neighbor-state, Full
-          info: "OSPF neighbor {{post['neighbor-id']}} state is {{post['ospf-neighbor-state']}}"
-          err: "OSPF neighbor {{post['neighbor-id']}} state is {{post['ospf-neighbor-state']}}, expected Full"
-        - is-not-zero: activity-timer
-          info: "OSPF neighbor {{post['neighbor-id']}} activity timer is {{post['activity-timer']}} seconds"
-          err: "OSPF neighbor {{post['neighbor-id']}} activity timer is 0, expected non-zero"
+        - exists: "interface-name"
+          info: "IF <interface-name> has OSPF neighbor <neighbor-address>"
+          err: "Missing interface name for neighbor <neighbor-address>"
+
+        - exists: "ospf-neighbor-state"
+          info: "Neighbor <neighbor-address> state <ospf-neighbor-state>"
+          err: "Neighbor <neighbor-address> missing state"
+
+        - is-equal: "ospf-neighbor-state, Full"
+          info: "Neighbor <neighbor-address> on <interface-name> is Full"
+          err: "Neighbor <neighbor-address> on <interface-name> not Full (state=<ospf-neighbor-state>)"
+
+        - exists: "neighbor-id"
+          info: "Neighbor ID <neighbor-id>"
+          err: "Neighbor ID missing"
+
+        - exists: "neighbor-priority"
+          info: "Priority <neighbor-priority>"
+          err: "Priority missing"
+
+        - exists: "activity-timer"
+          info: "DeadTimer <activity-timer>s"
+          err: "Dead timer missing"

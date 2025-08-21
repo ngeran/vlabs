@@ -13,10 +13,9 @@ tests:
         - is-lt: "flap-count, 10"
           info: "BGP peer <peer-address> flap-count <flap-count> within threshold"
           err: "BGP peer <peer-address> flap-count excessive: <flap-count>"
-        # JSNAPy in your environment lacks is-ge; use is-gt with -1 to simulate >= 0
-        - is-gt: "bgp-rib/received-prefix-count, -1"
+        - is-ge: "bgp-rib/received-prefix-count, 0"
           info: "BGP peer <peer-address> received <bgp-rib/received-prefix-count> prefixes"
           err: "BGP peer <peer-address> received-prefix-count missing"
-        - is-gt: "bgp-rib/accepted-prefix-count, -1"
+        - is-ge: "bgp-rib/accepted-prefix-count, 0"
           info: "BGP peer <peer-address> accepted <bgp-rib/accepted-prefix-count> prefixes"
           err: "BGP peer <peer-address> accepted-prefix-count missing"

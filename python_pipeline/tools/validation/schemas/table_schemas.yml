@@ -1,0 +1,354 @@
+schemas:
+  # LDP Neighbors: one row per neighbor, merge interface/label-space/hold-time
+  - match:
+      test_ids: ["test_ldp_neighbors"]
+      commands: ["ldp neighbor"]
+    entity_key: ["ldp-neighbor-address"]
+    columns:
+      - name: "Interface"
+        sources: ["interface-name"]
+        aggregate: "set_join"
+      - name: "Neighbor Address"
+        sources: ["ldp-neighbor-address"]
+        aggregate: "first"
+      - name: "Label Space ID"
+        sources: ["ldp-label-space-id"]
+        aggregate: "first"
+      - name: "Hold Time"
+        sources: ["ldp-remaining-time"]
+        aggregate: "first"
+      - name: "Result"
+        sources: []  # computed below
+    result_rules:
+      fail_on_bucket_failed: true
+      fail_if_any_lte:
+        - { column: "Hold Time", threshold: 0 }
+    sort:
+      failed_first: true
+      keys: ["Neighbor Address"]
+
+  # RSVP Sessions summary
+  - match:
+      test_ids: ["test_rsvp_sessions"]
+      commands: ["rsvp session"]
+    entity_key: ["session-type"]
+    columns:
+      - name: "Type"
+        sources: ["session-type"]
+        aggregate: "first"
+      - name: "Total"
+        sources: ["count"]
+        aggregate: "last"
+      - name: "Up"
+        sources: ["up-count"]
+        aggregate: "last"
+      - name: "Down"
+        sources: ["down-count"]
+        aggregate: "last"
+      - name: "Result"
+        sources: []
+    result_rules:
+      fail_on_bucket_failed: true
+      fail_if_any_gt:
+        - { column: "Down", threshold: 0 }
+    sort:
+      failed_first: true
+      keys: ["Type"]
+
+  # MPLS Interfaces
+  - match:
+      test_ids: ["test_mpls_interfaces"]
+      commands: ["mpls interface"]
+    entity_key: ["interface-name"]
+    columns:
+      - name: "Interface"
+        sources: ["interface-name"]
+        aggregate: "first"
+      - name: "State"
+        sources: ["mpls-interface-state"]
+        aggregate: "last"
+      - name: "Result"
+        sources: []
+    result_rules:
+      fail_on_bucket_failed: true
+      fail_if_ne:
+        - { column: "State", value: "Up" }
+    sort:
+      failed_first: true
+      keys: ["Interface"]
+
+  # MPLS LSPs summary
+  - match:
+      test_ids: ["test_mpls_lsps"]
+      commands: ["mpls lsp"]
+    entity_key: ["session-type"]
+    columns:
+      - name: "Type"
+        sources: ["session-type"]
+        aggregate: "first"
+      - name: "Total"
+        sources: ["count"]
+        aggregate: "last"
+      - name: "Up"
+        sources: ["up-count"]
+        aggregate: "last"
+      - name: "Down"
+        sources: ["down-count"]
+        aggregate: "last"
+      - name: "Result"
+        sources: []
+    result_rules:
+      fail_on_bucket_failed: true
+      fail_if_any_gt:
+        - { column: "Down", threshold: 0 }
+    sort:
+      failed_first: true
+      keys: ["Type"]
+
+  # OSPF Neighbors
+  - match:
+      test_ids: ["test_ospf_neighbors"]
+      commands: ["ospf neighbor"]
+    entity_key: ["interface-name", "neighbor-address"]
+    columns:
+      - name: "Interface"
+        sources: ["interface-name"]
+        aggregate: "first"
+      - name: "Neighbor Address"
+        sources: ["neighbor-address"]
+        aggregate: "first"
+      - name: "Neighbor ID"
+        sources: ["neighbor-id"]
+        aggregate: "first"
+      - name: "State"
+        sources: ["ospf-neighbor-state"]
+        aggregate: "last"
+      - name: "Priority"
+        sources: ["neighbor-priority"]
+        aggregate: "last"
+      - name: "DeadTimer"
+        sources: ["activity-timer"]
+        aggregate: "last"
+      - name: "Result"
+        sources: []
+    result_rules:
+      fail_on_bucket_failed: true
+      fail_if_ne:
+        - { column: "State", value: "Full" }
+    sort:
+      failed_first: true
+      keys: ["Interface", "Neighbor Address"]
+
+  # OSPF Interfaces
+  - match:
+      test_ids: ["test_ospf_interfaces"]
+      commands: ["ospf interface"]
+    entity_key: ["interface-name"]
+    columns:
+      - name: "Interface"
+        sources: ["interface-name"]
+        aggregate: "first"
+      - name: "State"
+        sources: ["ospf-interface-state"]
+        aggregate: "last"
+      - name: "Area"
+        sources: ["ospf-area"]
+        aggregate: "last"
+      - name: "DR"
+        sources: ["dr-id"]
+        aggregate: "last"
+      - name: "BDR"
+        sources: ["bdr-id"]
+        aggregate: "last"
+      - name: "Neighbors"
+        sources: ["neighbor-count"]
+        aggregate: "last"
+      - name: "Result"
+        sources: []
+    result_rules:
+      fail_on_bucket_failed: true
+    sort:
+      failed_first: true
+      keys: ["Interface"]
+
+  # BFD Sessions
+  - match:
+      test_ids: ["test_bfd_sessions"]
+      commands: ["bfd session"]
+    entity_key: ["session-interface", "session-neighbor"]
+    columns:
+      - name: "Interface"
+        sources: ["session-interface"]
+        aggregate: "first"
+      - name: "Neighbor"
+        sources: ["session-neighbor"]
+        aggregate: "first"
+      - name: "State"
+        sources: ["session-state"]
+        aggregate: "last"
+      - name: "Detect"
+        sources: ["session-detection-time", "detection-time"]
+        aggregate: "last"
+      - name: "TX"
+        sources: ["session-transmission-interval", "transmission-interval"]
+        aggregate: "last"
+      - name: "Multiplier"
+        sources: ["session-adaptive-multiplier", "detect-multiplier"]
+        aggregate: "last"
+      - name: "Result"
+        sources: []
+    result_rules:
+      fail_on_bucket_failed: true
+      fail_if_ne:
+        - { column: "State", value: "Up" }
+    sort:
+      failed_first: true
+      keys: ["Interface", "Neighbor"]
+
+  # Route Summary
+  - match:
+      test_ids: ["test_route_summary"]
+      commands: ["route summary"]
+    entity_key: ["route-table-name"]
+    columns:
+      - name: "Table"
+        sources: ["route-table-name"]
+        aggregate: "first"
+      - name: "Destinations"
+        sources: ["destination-count"]
+        aggregate: "last"
+      - name: "Active"
+        sources: ["active-route-count"]
+        aggregate: "last"
+      - name: "Total"
+        sources: ["total-route-count"]
+        aggregate: "last"
+      - name: "Hidden"
+        sources: ["hidden-route-count"]
+        aggregate: "last"
+      - name: "Holddown"
+        sources: ["holddown-route-count"]
+        aggregate: "last"
+      - name: "Result"
+        sources: []
+    result_rules:
+      fail_on_bucket_failed: true
+      fail_if_any_gt:
+        - { column: "Hidden", threshold: 0 }
+        - { column: "Holddown", threshold: 0 }
+    sort:
+      failed_first: true
+      keys: ["Table"]
+
+  # Interface Descriptions
+  - match:
+      test_ids: ["test_interface_descriptions"]
+      commands: ["interfaces descriptions"]
+    entity_key: ["name"]
+    columns:
+      - name: "Interface"
+        sources: ["name"]
+        aggregate: "first"
+      - name: "Admin"
+        sources: ["admin-status"]
+        aggregate: "last"
+      - name: "Oper"
+        sources: ["oper-status"]
+        aggregate: "last"
+      - name: "Description"
+        sources: ["description"]
+        aggregate: "last"
+      - name: "Result"
+        sources: []
+    result_rules:
+      fail_on_bucket_failed: true
+    sort:
+      failed_first: true
+      keys: ["Interface"]
+
+  # Interface Errors (filtered to L3/VLAN)
+  - match:
+      test_ids: ["test_interface_errors"]
+      commands: ["interfaces extensive"]
+    entity_key: ["name"]
+    columns:
+      - name: "Interface"
+        sources: ["name"]
+        aggregate: "first"
+      - name: "Admin"
+        sources: ["admin-status"]
+        aggregate: "last"
+      - name: "Oper"
+        sources: ["oper-status"]
+        aggregate: "last"
+      - name: "Input Errors"
+        sources: ["input-error-list/input-errors"]
+        aggregate: "last"
+      - name: "Input Drops"
+        sources: ["input-error-list/input-drops"]
+        aggregate: "last"
+      - name: "Input Discards"
+        sources: ["input-error-list/input-discards"]
+        aggregate: "last"
+      - name: "Output Errors"
+        sources: ["output-error-list/output-errors"]
+        aggregate: "last"
+      - name: "Output Drops"
+        sources: ["output-error-list/output-drops"]
+        aggregate: "last"
+      - name: "Carrier Transitions"
+        sources: ["output-error-list/carrier-transitions"]
+        aggregate: "last"
+      - name: "HasIP"
+        exists_any: ["logical-interface/address-family/interface-address/ifa-local"]
+      - name: "HasVlan"
+        startswith: { path: "logical-interface/name", prefix: "vlan" }
+      - name: "Result"
+        sources: []
+    result_rules:
+      fail_on_bucket_failed: true
+      fail_if_any_gt:
+        - { column: "Input Errors", threshold: 0 }
+        - { column: "Input Drops", threshold: 0 }
+        - { column: "Input Discards", threshold: 0 }
+        - { column: "Output Errors", threshold: 0 }
+        - { column: "Output Drops", threshold: 0 }
+    filters:
+      include_if_any_true: ["HasIP", "HasVlan"]
+    sort:
+      failed_first: true
+      keys: ["Interface"]
+
+  # Alarms (System/Chassis). Scope is inferred from command substring.
+  - match:
+      test_ids: ["test_system_alarms", "test_chassis_alarms", "test_chassis_errors"]
+      commands: ["system alarms", "chassis alarms"]
+    entity_key: ["alarm-time", "alarm-description"]
+    columns:
+      - name: "Scope"
+        from_command_contains: { contains: "system alarms", value: "System", else_value: "Chassis" }
+      - name: "Time"
+        sources: ["alarm-time"]
+        aggregate: "first"
+      - name: "Class"
+        sources: ["alarm-class"]
+        aggregate: "first"
+      - name: "Type"
+        sources: ["alarm-type"]
+        aggregate: "first"
+      - name: "Short"
+        sources: ["alarm-short-description"]
+        aggregate: "first"
+      - name: "Description"
+        sources: ["alarm-description"]
+        aggregate: "first"
+      - name: "Result"
+        sources: []
+    result_rules:
+      fail_on_bucket_failed: false
+      fail_if_equals:
+        - { column: "Class", value: "Critical" }
+        - { column: "Class", value: "Major" }
+    sort:
+      failed_first: true
+      keys: ["Scope", "Time"]

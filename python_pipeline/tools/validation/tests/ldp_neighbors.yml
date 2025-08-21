@@ -1,0 +1,18 @@
+tests:
+  - command: "show ldp neighbor"
+    iterate:
+      xpath: "//ldp-neighbor-information/ldp-neighbor"
+      id: "ldp-neighbor-address"
+      tests:
+        - exists: "interface-name"
+          info: "LDP neighbor <ldp-neighbor-address> on <interface-name>"
+          err: "Missing interface for LDP neighbor <ldp-neighbor-address>"
+        - exists: "ldp-label-space-id"
+          info: "Label Space ID <ldp-label-space-id>"
+          err: "Label Space ID missing for <ldp-neighbor-address>"
+        - exists: "ldp-remaining-time"
+          info: "Hold time <ldp-remaining-time>s"
+          err: "Hold time missing for <ldp-neighbor-address>"
+        - is-gt: "ldp-remaining-time, 0"
+          info: "Hold time valid"
+          err: "Hold time expired or invalid"

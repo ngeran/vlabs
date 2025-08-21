@@ -1,0 +1,28 @@
+tests:
+  - command: "show bfd session"
+    iterate:
+      xpath: "//bfd-session-information/bfd-session"
+      id: "session-neighbor"
+      tests:
+        - exists: "session-neighbor"
+          info: "BFD neighbor <session-neighbor>"
+          err: "Missing BFD neighbor address"
+        - exists: "session-interface"
+          info: "BFD neighbor <session-neighbor> on <session-interface>"
+          err: "Missing interface for BFD neighbor <session-neighbor>"
+        - exists: "session-state"
+          info: "State <session-state>"
+          err: "Missing BFD state for <session-neighbor>"
+        - is-equal: "session-state, Up"
+          info: "BFD to <session-neighbor> is Up"
+          err: "BFD to <session-neighbor> is not Up (state=<session-state>)"
+        # Optional telemetry fields; presence-only checks
+        - exists: "session-detection-time"
+          info: "Detection <session-detection-time>"
+          err: "Detection time missing"
+        - exists: "session-transmission-interval"
+          info: "TX <session-transmission-interval>"
+          err: "TX interval missing"
+        - exists: "session-adaptive-multiplier"
+          info: "Multiplier <session-adaptive-multiplier>"
+          err: "Multiplier missing"

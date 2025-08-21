@@ -1,0 +1,18 @@
+tests:
+  - command: "show interfaces descriptions"
+    iterate:
+      xpath: "//interface-information/physical-interface"
+      id: "name"
+      tests:
+        - exists: "name"
+          info: "IF <name> present"
+          err: "Interface element missing name"
+        - exists: "description"
+          info: "IF <name> description '<description>'"
+          err: "IF <name> has no description"
+        - exists: "admin-status"
+          info: "IF <name> admin '<admin-status>'"
+          err: "IF <name> missing admin-status"
+        - exists: "oper-status"
+          info: "IF <name> oper '<oper-status>'"
+          err: "IF <name> missing oper-status"

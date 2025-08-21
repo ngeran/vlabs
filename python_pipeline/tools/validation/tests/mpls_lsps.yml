@@ -1,0 +1,18 @@
+tests:
+  - command: "show mpls lsp"
+    iterate:
+      xpath: "//mpls-lsp-information/rsvp-session-data"
+      id: "session-type"
+      tests:
+        - exists: "count"
+          info: "LSP <session-type> total <count>"
+          err: "LSP <session-type> total missing"
+        - exists: "up-count"
+          info: "LSP <session-type> up <up-count>"
+          err: "LSP <session-type> up missing"
+        - exists: "down-count"
+          info: "LSP <session-type> down <down-count>"
+          err: "LSP <session-type> down missing"
+        - is-equal: "down-count, 0"
+          info: "LSP <session-type> has no down sessions"
+          err: "LSP <session-type> has down sessions (<down-count>)"

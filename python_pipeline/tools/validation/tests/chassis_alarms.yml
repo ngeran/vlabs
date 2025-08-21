@@ -1,5 +1,5 @@
 tests:
-  - command: "show system alarms"
+  - command: "show chassis alarms"
     iterate:
       xpath: "//alarm-information/alarm-detail"
       id: "alarm-description"

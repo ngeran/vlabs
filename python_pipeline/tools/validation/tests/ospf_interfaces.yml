@@ -1,0 +1,29 @@
+tests:
+  - command: "show ospf interface"
+    iterate:
+      xpath: "//ospf-interface-information/ospf-interface"
+      id: "interface-name"
+      tests:
+        - exists: "ospf-interface-state"
+          info: "IF <interface-name> state <ospf-interface-state>"
+          err: "Interface <interface-name> missing state"
+
+        - exists: "ospf-area"
+          info: "IF <interface-name> area <ospf-area>"
+          err: "Interface <interface-name> missing area"
+
+        - exists: "dr-id"
+          info: "IF <interface-name> DR <dr-id>"
+          err: "Interface <interface-name> missing DR ID"
+
+        - exists: "bdr-id"
+          info: "IF <interface-name> BDR <bdr-id>"
+          err: "Interface <interface-name> missing BDR ID"
+
+        - exists: "neighbor-count"
+          info: "IF <interface-name> neighbors <neighbor-count>"
+          err: "Interface <interface-name> missing neighbor-count"
+
+        - is-gt: "neighbor-count, -1"
+          info: "IF <interface-name> neighbor-count <neighbor-count>"
+          err: "Interface <interface-name> invalid neighbor-count"

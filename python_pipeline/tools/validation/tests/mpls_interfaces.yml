@@ -1,9 +1,12 @@
 tests:
-  - test_mpls_interfaces:
-      command: "show mpls interface"
-      iterate:
-        xpath: ".//mpls-interface"
-        id: "interface-name"
-        tests:
-          - is-equal: mpls-admin-status, Enabled  # MPLS must be enabled
-          - is-equal: mpls-oper-status, Up        # Operational status check
+  - command: "show mpls interface"
+    iterate:
+      xpath: "//mpls-interface-information/mpls-interface"
+      id: "interface-name"
+      tests:
+        - exists: "mpls-interface-state"
+          info: "MPLS <interface-name> state <mpls-interface-state>"
+          err: "MPLS <interface-name> missing state"
+        - is-equal: "mpls-interface-state, Up"
+          info: "MPLS <interface-name> is Up"
+          err: "MPLS <interface-name> is not Up (state=<mpls-interface-state>)"

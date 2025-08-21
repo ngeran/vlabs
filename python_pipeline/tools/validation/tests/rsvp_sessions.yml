@@ -1,9 +1,18 @@
 tests:
-  - test_rsvp_sessions:
-      command: "show rsvp session"
-      iterate:
-        xpath: ".//rsvp-session"
-        id: "rsvp-destination-address"
-        tests:
-          - is-equal: rsvp-session-state, Up  # Session must be up
-          - exists: rsvp-lsp-name             # LSP name should exist
+  - command: "show rsvp session"
+    iterate:
+      xpath: "//rsvp-session-information/rsvp-session-data"
+      id: "session-type"
+      tests:
+        - exists: "count"
+          info: "RSVP <session-type> total <count>"
+          err: "RSVP <session-type> total count missing"
+        - exists: "up-count"
+          info: "RSVP <session-type> up <up-count>"
+          err: "RSVP <session-type> up count missing"
+        - exists: "down-count"
+          info: "RSVP <session-type> down <down-count>"
+          err: "RSVP <session-type> down count missing"
+        - is-equal: "down-count, 0"
+          info: "RSVP <session-type> has no down sessions"
+          err: "RSVP <session-type> has down sessions (<down-count>)"

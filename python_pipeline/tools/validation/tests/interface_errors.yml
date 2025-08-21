@@ -1,10 +1,43 @@
 tests:
-  - test_interface_errors:
-      command: "show interfaces extensive"
-      iterate:
-        xpath: ".//physical-interface"
-        id: "name"
-        tests:
-          - is-zero: input-errors    # No input errors
-          - is-zero: output-errors   # No output errors
-          - is-zero: input-drops     # No packet drops
+  - command: "show interfaces extensive"
+    iterate:
+      xpath: "//interface-information/physical-interface"
+      id: "name"
+      tests:
+        - exists: "name"
+          info: "IF <name> present"
+          err: "Interface element missing name"
+
+        # presence checks (values will be read and evaluated in run.py)
+        - exists: "admin-status"
+          info: "IF <name> admin '<admin-status>'"
+          err: "IF <name> missing admin-status"
+
+        - exists: "oper-status"
+          info: "IF <name> oper '<oper-status>'"
+          err: "IF <name> missing oper-status"
+
+        # Error counters (run.py will mark FAILED if any > 0)
+        - exists: "input-error-list/input-errors"
+          info: "IF <name> input-errors <input-error-list/input-errors>"
+          err: "IF <name> missing input-errors"
+
+        - exists: "input-error-list/input-drops"
+          info: "IF <name> input-drops <input-error-list/input-drops>"
+          err: "IF <name> missing input-drops"
+
+        - exists: "input-error-list/input-discards"
+          info: "IF <name> input-discards <input-error-list/input-discards>"
+          err: "IF <name> missing input-discards"
+
+        - exists: "output-error-list/output-errors"
+          info: "IF <name> output-errors <output-error-list/output-errors>"
+          err: "IF <name> missing output-errors"
+
+        - exists: "output-error-list/output-drops"
+          info: "IF <name> output-drops <output-error-list/output-drops>"
+          err: "IF <name> missing output-drops"
+
+        - exists: "output-error-list/carrier-transitions"
+          info: "IF <name> carrier-transitions <output-error-list/carrier-transitions>"
+          err: "IF <name> missing carrier-transitions"

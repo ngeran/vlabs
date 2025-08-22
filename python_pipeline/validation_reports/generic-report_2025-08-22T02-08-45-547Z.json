@@ -1,0 +1,221 @@
+{
+  "data": {
+    "results_by_host": [
+      {
+        "hostname": "172.27.200.200",
+        "status": "success",
+        "test_results": [
+          {
+            "table": {
+              "test_name": "test_bgp_neighbors",
+              "title": "BGP Neighbor Status",
+              "columns": [
+                "Check",
+                "Status",
+                "Details",
+                "Timestamp"
+              ],
+              "rows": [
+                {
+                  "Check": "test_bgp_neighbors - peer-as",
+                  "Status": "PASSED",
+                  "Details": "BGP peer 10.100.250.2 AS 64790 discovered",
+                  "Timestamp": ""
+                },
+                {
+                  "Check": "test_bgp_neighbors - peer-state",
+                  "Status": "PASSED",
+                  "Details": "BGP peer 10.100.250.2 is Established",
+                  "Timestamp": ""
+                },
+                {
+                  "Check": "test_bgp_neighbors - flap-count",
+                  "Status": "PASSED",
+                  "Details": "BGP peer 10.100.250.2 flap-count 0 within threshold",
+                  "Timestamp": ""
+                },
+                {
+                  "Check": "test_bgp_neighbors - bgp-rib/received-prefix-count",
+                  "Status": "PASSED",
+                  "Details": "BGP peer 10.100.250.2 received 0 prefixes",
+                  "Timestamp": ""
+                },
+                {
+                  "Check": "test_bgp_neighbors - bgp-rib/accepted-prefix-count",
+                  "Status": "PASSED",
+                  "Details": "BGP peer 10.100.250.2 accepted 0 prefixes",
+                  "Timestamp": ""
+                }
+              ]
+            },
+            "raw": [
+              {
+                "device": "MLRENGBSMSRX01",
+                "test_name": "test_bgp_neighbors",
+                "test_results": {
+                  "show bgp summary": [
+                    {
+                      "xpath": "//bgp-information/bgp-peer",
+                      "testoperation": "exists",
+                      "passed": [
+                        {
+                          "id": {
+                            "peer-address": "10.100.250.2"
+                          },
+                          "pre": {
+                            "peer-as": "64790"
+                          },
+                          "post": {
+                            "peer-as": "64790"
+                          },
+                          "actual_node_value": "64790",
+                          "message": "BGP peer <peer-address> AS <peer-as> discovered"
+                        }
+                      ],
+                      "failed": [],
+                      "test_name": "tests",
+                      "node_name": "peer-as",
+                      "info": "BGP peer <peer-address> AS <peer-as> discovered",
+                      "result": true,
+                      "count": {
+                        "pass": 1,
+                        "fail": 0
+                      }
+                    },
+                    {
+                      "xpath": "//bgp-information/bgp-peer",
+                      "testoperation": "is-equal",
+                      "passed": [
+                        {
+                          "id": {
+                            "peer-address": "10.100.250.2"
+                          },
+                          "pre": {
+                            "peer-state": "Established"
+                          },
+                          "post": {
+                            "peer-state": "Established"
+                          },
+                          "actual_node_value": "Established",
+                          "message": "BGP peer <peer-address> is <peer-state>"
+                        }
+                      ],
+                      "failed": [],
+                      "test_name": "tests",
+                      "node_name": "peer-state",
+                      "expected_node_value": "Established",
+                      "result": true,
+                      "count": {
+                        "pass": 1,
+                        "fail": 0
+                      }
+                    },
+                    {
+                      "xpath": "//bgp-information/bgp-peer",
+                      "testoperation": "is-lt",
+                      "passed": [
+                        {
+                          "id": {
+                            "peer-address": "10.100.250.2"
+                          },
+                          "pre": {
+                            "flap-count": "0"
+                          },
+                          "post": {
+                            "flap-count": "0"
+                          },
+                          "actual_node_value": "0",
+                          "message": "BGP peer <peer-address> flap-count <flap-count> within threshold"
+                        }
+                      ],
+                      "failed": [],
+                      "test_name": "tests",
+                      "node_name": "flap-count",
+                      "expected_node_value": 10,
+                      "result": true,
+                      "count": {
+                        "pass": 1,
+                        "fail": 0
+                      }
+                    },
+                    {
+                      "xpath": "//bgp-information/bgp-peer",
+                      "testoperation": "is-gt",
+                      "passed": [
+                        {
+                          "id": {
+                            "peer-address": "10.100.250.2"
+                          },
+                          "pre": {
+                            "bgp-rib/received-prefix-count": "0"
+                          },
+                          "post": {
+                            "bgp-rib/received-prefix-count": "0"
+                          },
+                          "actual_node_value": "0",
+                          "message": "BGP peer <peer-address> received <bgp-rib/received-prefix-count> prefixes"
+                        }
+                      ],
+                      "failed": [],
+                      "test_name": "tests",
+                      "node_name": "bgp-rib/received-prefix-count",
+                      "expected_node_value": -1,
+                      "result": true,
+                      "count": {
+                        "pass": 1,
+                        "fail": 0
+                      }
+                    },
+                    {
+                      "xpath": "//bgp-information/bgp-peer",
+                      "testoperation": "is-gt",
+                      "passed": [
+                        {
+                          "id": {
+                            "peer-address": "10.100.250.2"
+                          },
+                          "pre": {
+                            "bgp-rib/accepted-prefix-count": "0"
+                          },
+                          "post": {
+                            "bgp-rib/accepted-prefix-count": "0"
+                          },
+                          "actual_node_value": "0",
+                          "message": "BGP peer <peer-address> accepted <bgp-rib/accepted-prefix-count> prefixes"
+                        }
+                      ],
+                      "failed": [],
+                      "test_name": "tests",
+                      "node_name": "bgp-rib/accepted-prefix-count",
+                      "expected_node_value": -1,
+                      "result": true,
+                      "count": {
+                        "pass": 1,
+                        "fail": 0
+                      }
+                    }
+                  ]
+                },
+                "passed": 5,
+                "failed": 0,
+                "result": "Passed"
+              }
+            ]
+          }
+        ],
+        "mode": "current",
+        "snapshot_name": null,
+        "compare_with": null
+      }
+    ],
+    "summary": {
+      "passed_hosts": 1,
+      "total_tests": 1,
+      "total_hosts": 1,
+      "tests_per_host": 1,
+      "mode": "current",
+      "snapshot_name": null,
+      "compare_with": null
+    }
+  }
+}
